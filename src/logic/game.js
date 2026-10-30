@@ -57,7 +57,7 @@ export class Round {
     const flat = this._cardsFromHand(pid, all);
     if (!flat) return { error: 'Cartas inválidas o repetidas' };
     let i = 0;
-    const parsed = groups.map((g) => ({ cards: flat.slice(i, (i += g.cardIds.length)), start: g.start }));
+    const parsed = groups.map((g) => ({ cards: flat.slice(i, (i += g.cardIds.length)), start: g.start, ordered: g.ordered === true }));
     return { groups: parsed, count: flat.length };
   }
   _markRecent(cards) {
@@ -136,7 +136,7 @@ export class Round {
     if (!this.planted[pid]) return fail('Primero debes plantarte');
     const p = this._parseGroups(pid, groups);
     if (p.error) return fail(p.error);
-    const melds = p.groups.map((x) => buildSet(x.cards) ?? buildRun(x.cards, { start: x.start }));
+    const melds = p.groups.map((x) => buildSet(x.cards) ?? buildRun(x.cards, { start: x.start, ordered: x.ordered }));
     if (melds.some((m) => !m)) return fail('Alguna combinación no es válida');
     if (this._mustKeepOne(pid, p.count)) return fail('Debes conservar al menos una carta para descartar');
     this._removeFromHand(pid, p.groups.flatMap((x) => x.cards));

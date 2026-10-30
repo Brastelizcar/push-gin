@@ -16,7 +16,7 @@ function interpretations(group) {
   const out = [];
   const s = buildSet(group.cards);
   if (s) out.push({ req: { kind: 'set', size: group.cards.length }, meld: s });
-  const r = buildRun(group.cards, { start: group.start });
+  const r = buildRun(group.cards, { start: group.start, ordered: group.ordered });
   if (r) out.push({ req: { kind: 'run', size: group.cards.length }, meld: r });
   return out;
 }

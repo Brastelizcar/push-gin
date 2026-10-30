@@ -3,6 +3,15 @@
 // sigue siendo quien valida de verdad (esto solo evita tener que armar los grupos a mano).
 import { buildSet, buildRun, extendMeld } from './melds.js';
 
+// ¿Forman un consecutivo? Primero respetando el ORDEN en que el jugador las tiene (así un 2 vale por la
+// posición donde lo puso); si no, acomodándolas solas. Devuelve { meld, ordered } o null.
+function asRun(group) {
+  const ordered = buildRun(group, { ordered: true });
+  if (ordered) return { meld: ordered, ordered: true };
+  const auto = buildRun(group);
+  return auto ? { meld: auto, ordered: false } : null;
+}
+
 function* combinations(arr, k, start = 0) {
   if (k === 0) { yield []; return; }
   for (let i = start; i <= arr.length - k; i++)
@@ -26,9 +35,10 @@ export function findPlantGroups(cards, requirement) {
       tried.add(key);
       for (const combo of combinations(rest, req.size - 1)) {
         const group = [first, ...combo];
-        if (!(req.kind === 'set' ? buildSet(group) : buildRun(group))) continue;
+        const hit = req.kind === 'set' ? (buildSet(group) && { ordered: false }) : asRun(group);
+        if (!hit) continue;
         const sub = solve(without(rest, combo), reqs.filter((_, i) => i !== ri));
-        if (sub) return [{ cards: group }, ...sub];
+        if (sub) return [{ cards: group, ordered: hit.ordered }, ...sub];
       }
     }
     return null;
@@ -45,9 +55,10 @@ export function findFreeMelds(cards) {
     for (let size = 3; size <= Math.min(rem.length, 13); size++)
       for (const combo of combinations(rest, size - 1)) {
         const group = [first, ...combo];
-        if (!((size <= 4 && buildSet(group)) || buildRun(group))) continue;
+        const hit = (size <= 4 && buildSet(group) && { ordered: false }) || asRun(group);
+        if (!hit) continue;
         const sub = solve(without(rest, combo));
-        if (sub) return [{ cards: group }, ...sub];
+        if (sub) return [{ cards: group, ordered: hit.ordered }, ...sub];
       }
     return null;
   };

@@ -21,6 +21,10 @@ const ui = {
   gameAct: false,       // acabas de enviar plantarse / bajar / enganchar / robar y esperas respuesta
   prevIds: new Set(),   // cartas que había en tu mano en el render anterior (para detectar las recién llegadas)
   pushWait: null,       // un push acaba de ocurrir: { by, to, anim } (las cartas nuevas esperan a la animación)
+  dealRound: null,      // ronda para la que ya se animó el reparto
+  dealPending: null,    // cartas que están por repartirse a tu mano
+  remotePlay: null,     // otro jugador acaba de plantarse / bajar / enganchar: { by, at }
+  prevMesa: new Set(),  // cartas que había en la mesa en el render anterior
 };
 const MAX_GAPS = 10;
 let cur = null; // contexto del último render { view, room, rerender, canTake, mustDiscard }
@@ -221,7 +225,7 @@ const isWild = (c) => c.rank === "2";
 const meldCardsOf = (m) => (m.kind === "set" ? m.cards : m.slots.map((s) => s.card));
 const amPlanted = () => !!cur.view.players.find((p) => p.id === cur.view.you)?.planted;
 const selectedCards = () => layoutItems(cur.view).filter((i) => i.card && ui.selected.has(i.card.id)).map((i) => i.card);
-const toGroups = (groups) => groups.map((g) => ({ cardIds: g.cards.map((c) => c.id) }));
+const toGroups = (groups) => groups.map((g) => ({ cardIds: g.cards.map((c) => c.id), ordered: g.ordered }));
 const send = (fn) => { ui.gameAct = true; fn(); };
 
 function toggleSelect(id) {
@@ -494,6 +498,12 @@ export function renderTable(app, { view, room, rerender }) {
   if (!mustDiscard || !view.hand.some((c) => c.id === ui.pending)) ui.pending = null;
   const pendingCard = view.hand.find((c) => c.id === ui.pending) ?? null;
   ui.gameAct = false;
+  // Reparto: solo cuando la ronda está recién empezada (nadie ha tomado carta ni hecho push).
+  if (view.phase === "playing" && ui.dealRound !== view.round && view.deckCount === 156 - 10 * view.players.length - 1) {
+    ui.dealRound = view.round;
+    ui.dealPending = layoutItems(view).filter((i) => i.card).map((i) => i.card);
+    ui.dealPending.forEach((c) => ui.arriving.add(c.id));
+  }
   if (ui.pushWait) {                    // un push acaba de pasar: las cartas que te llegan esperan a la animación
     const w = ui.pushWait;
     const fresh = view.hand.filter((c) => !ui.prevIds.has(c.id));
@@ -516,6 +526,7 @@ export function renderTable(app, { view, room, rerender }) {
     : canTake ? "Tu turno: toma el descarte o haz push" : pendingCard ? "Confirma con ✓" : "Arrastra una carta al descarte";
   const topbar = h("div", { class: "topbar" },
     h("div", { class: "r-title" }, `Ronda ${view.round} de ${view.totalRounds}`),
+    goalInline(view, byId[me]),
     h("div", { class: "scoreboard" },
       view.players.map((p) =>
         h("div", { class: "sc-item" + (p.id === me ? " you" : "") },
@@ -616,11 +627,17 @@ export function renderTable(app, { view, room, rerender }) {
       }, "✓"),
       h("div", { class: "confirm-label" }, "Fin de turno")));
 
-  const main = h("div", { class: "main-col" }, topbar, goalBar(view, byId[me]), strip, mesa, handPanel);
+  const main = h("div", { class: "main-col" }, topbar, strip, mesa, handPanel);
   const felt = h("div", { class: "table-felt" }, main, rail);
   app.replaceChildren(h("div", { class: "table-frame wide-frame" }, felt));
   fitMesa();
+  detectRemotePlay(view);
   applyFlights();
+  if (ui.dealPending) {                           // reparto: las cartas salen del mazo hacia tu mano, una por una
+    const list = ui.dealPending;
+    ui.dealPending = null;
+    list.forEach((c, i) => flyFromDeck(c, i * 90, 650));
+  }
   if (view.phase === "roundOver" || view.phase === "finished") app.append(overlay(view, room));
 }
 
@@ -653,7 +670,7 @@ function overlay(view, room) {
 
 // ---------- objetivo de la ronda ----------
 // Agrupa el requisito [{kind,size}] en tarjetas: "3× trío", "consecutivo de 5", etc.
-function goalBar(view, mePlayer) {
+function goalInline(view, mePlayer) {
   const groups = [];
   for (const r of view.requirement) {
     const g = groups.find((x) => x.kind === r.kind && x.size === r.size);
@@ -676,12 +693,8 @@ function goalBar(view, mePlayer) {
       h("span", { class: "req-label" }, label));
   });
   const withPlus = pills.flatMap((p, i) => (i ? [h("span", { class: "req-plus" }, "+"), p] : [p]));
-  return h("div", { class: "goal-bar" },
-    h("div", { class: "goal-main" },
-      h("span", { class: "goal-title" }, mePlayer?.planted ? "Ya te plantaste ✓" : "Para plantarte necesitas:"),
-      withPlus,
-      infoButton()),
-    null);
+  if (mePlayer?.planted) return h("div", { class: "goal-inline" }, h("span", { class: "goal-title done" }, "Plantado ✓"), infoButton());
+  return h("div", { class: "goal-inline" }, h("span", { class: "goal-title" }, "Plantarte:"), withPlus, infoButton());
 }
 
 // Botón ⓘ: la explicación aparece al pasar el cursor (o al tocarlo en el celular), sin hacer clic.
@@ -753,7 +766,7 @@ export function playPushAnimation(args) {
 export function notePush(info) { ui.pushWait = info; }
 
 // Tu carta del mazo tras un push: sale del contador del mazo, vuela a tu mano y se da vuelta.
-function flyFromDeck(card) {
+function flyFromDeck(card, delay = 0, T = 1000) {
   const finish = () => { if (ui.arriving.delete(card.id)) cur.rerender(); };
   const deck = document.querySelector(".deck-back");
   const dest = document.querySelector(`#handLine [data-id="${card.id}"]`)?.getBoundingClientRect();
@@ -766,14 +779,14 @@ function flyFromDeck(card) {
   document.body.append(layer);
   const dx = from.left + from.width / 2 - (dest.left + dest.width / 2);
   const dy = from.top + from.height / 2 - (dest.top + dest.height / 2);
-  const k = from.width / dest.width, T = 1000;
+  const k = from.width / dest.width;
   wrap.animate([
     { transform: `translate(${dx}px,${dy}px) scale(${k})`, offset: 0 },
     { transform: `translate(${dx * 0.45}px,${dy * 0.45 - 60}px) scale(${((k + 1) / 2) * 1.1})`, offset: 0.55 },
     { transform: "none", offset: 1 },
-  ], { duration: T, easing: "ease-in-out", fill: "forwards" });
-  back.animate([{ opacity: 1 }, { opacity: 1, offset: 0.62 }, { opacity: 0 }], { duration: T, fill: "forwards" });
-  face.animate([{ opacity: 0 }, { opacity: 0, offset: 0.62 }, { opacity: 1 }], { duration: T, fill: "forwards" })
+  ], { duration: T, delay, easing: "ease-in-out", fill: "both" });
+  back.animate([{ opacity: 1 }, { opacity: 1, offset: 0.62 }, { opacity: 0 }], { duration: T, delay, fill: "both" });
+  face.animate([{ opacity: 0 }, { opacity: 0, offset: 0.62 }, { opacity: 1 }], { duration: T, delay, fill: "both" })
     .finished.catch(() => {}).finally(() => { layer.remove(); finish(); });
 }
 
@@ -782,10 +795,33 @@ function fitMesa() {
   const panel = document.querySelector(".mesa-panel");
   if (!panel) return;
   let s = 1.1;                                       // si hay pocos plantes, pueden verse un poco más grandes
+  panel.classList.add("scroll");                     // mientras se mide, el panel recorta (así scrollHeight es fiable)
   panel.style.setProperty("--mscale", s);
-  while (panel.scrollHeight > panel.clientHeight + 1 && s > 0.4) {
+  const overflows = () => panel.scrollHeight > panel.clientHeight + 1 || panel.scrollWidth > panel.clientWidth + 1;
+  while (overflows() && s > 0.4) {
     s -= 0.06;
     panel.style.setProperty("--mscale", s.toFixed(2));
   }
+  if (!overflows()) panel.classList.remove("scroll"); // cabe todo: sin recorte, así el zoom de las cartas se ve completo
 }
 window.addEventListener("resize", () => { if (cur) fitMesa(); });
+
+// Otro jugador acaba de plantarse / bajar / enganchar: sus cartas viajan desde su ficha hasta la mesa.
+export function notePlay(by) { ui.remotePlay = { by, at: performance.now() }; }
+function detectRemotePlay(view) {
+  const ids = [...document.querySelectorAll(".mesa-panel .card[data-id]")].map((e) => e.dataset.id);
+  if (ui.remotePlay && performance.now() - ui.remotePlay.at > 6000) ui.remotePlay = null;
+  if (ui.remotePlay) {
+    const fresh = ids.filter((id) => !ui.prevMesa.has(id) && !ui.flights.has(id));
+    const chip = document.querySelector(`.p-chip[data-pid="${ui.remotePlay.by}"]`)?.getBoundingClientRect();
+    if (fresh.length) {
+      if (chip) for (const id of fresh) {
+        const to = document.querySelector(`.mesa-panel .card[data-id="${id}"]`).getBoundingClientRect();
+        const from = new DOMRect(chip.left + chip.width / 2 - to.width / 2, chip.top + chip.height / 2 - to.height / 2, to.width, to.height);
+        ui.flights.set(id, { from, at: performance.now() });
+      }
+      ui.remotePlay = null;
+    }
+  }
+  ui.prevMesa = new Set(ids);
+}

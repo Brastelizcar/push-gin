@@ -1,10 +1,22 @@
-# Notas de la lógica (decisiones tomadas donde las reglas no decían nada)
+# Notas de la lógica (decisiones tomadas)
 
 1. **Push**: la carta ciega + el descarte viejo pasan a la MANO del siguiente jugador (no al pozo).
-   Es lo que cuadra con "solo hay 1 carta en el pozo en todo momento". Ver `Round.push`.
-2. **As**: vale 1 (A-2-3) o 14 (Q-K-A). No se puede "dar la vuelta" (K-A-2-3 inválido).
-3. **2 siempre es comodín** (no se usa como 2 natural). Se exige ≥1 carta natural por plante (`MIN_NATURALS`).
-4. **Tras plantarse/bajar/enganchar debes conservar ≥1 carta** para el descarte obligatorio.
-5. **Robo de 2s** solo en la fase previa a tomar carta; si robas, `stoleThisTurn` bloquea plantarse.
-6. **Comodín ambiguo en consecutivos** (5♥ 6♥ 2 → ¿4-5-6 o 5-6-7?): sin `start` usa la posición más baja.
-7. **Quién empieza la ronda**: jugador `roundIndex % nJugadores` (provisional).
+2. **Orden de las cartas: A,2,3…K.** El As solo vale 1: no existe Q-K-A, ni K-A-2, ni se engancha un As tras la K.
+3. **El 2 es número y comodín.**
+   - Como número: forma tríos/cuartetos de 2s (palos distintos) y va en su sitio en un consecutivo (A-2-3).
+   - Como comodín: en un trío de otro número vale ese número; en un consecutivo vale el número de la
+     POSICIÓN donde se ubica (5♥ 6♥ 2 → el 2 es un 7; 2 5♥ 6♥ → el 2 es un 4). Para eso las cartas se
+     envían en orden (`ordered:true`) y el orden de tu mano decide la posición.
+   - Un 2 que está haciendo de sí mismo (en su lugar, o en un trío de 2s) NO se puede robar.
+4. Cada plante necesita ≥1 carta que no sea 2 (salvo los tríos/cuartetos de 2s).
+5. **Tras plantarte/bajar/enganchar debes conservar ≥1 carta** para el descarte obligatorio.
+6. **Robo de 2s** solo antes de tomar carta; si robas, no puedes plantarte ese turno.
+7. **Enganchar/bajar** solo después de tomar carta (descarte o push).
+8. Quién empieza la ronda: jugador `roundIndex % nJugadores` (provisional).
+
+## Pendientes decididos con el usuario (lotes siguientes)
+- Lote 2: agrupación automática con espacio, arrastrar grupos completos a la mesa y validar la jugada
+  entera al terminar el turno (sin dejar pasar si es inválida).
+- Lote 3: cuentas (sin correo, con código de sincronización), nivel/XP (1.º 100, 2.º 50, 3.º 30, 4.º 10),
+  fichas de póker (+300 cada 24 h), menú principal, ajustes, juego privado y sala de espera. Requiere BASE DE DATOS.
+- Lote 4: práctica contra la máquina y temporizador de turno.

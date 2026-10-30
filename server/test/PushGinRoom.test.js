@@ -207,6 +207,7 @@ describe("PushGinRoom", () => {
     cs[0].send("hook", { meldId: 1, cardId: "x1", end: "high" }); await tick();
     assert.equal(cs[1].view.melds[0].meld.slots.length, 4);
     assert.equal(cs[0].view.hand.length, 2);
+    for (const c of cs) assert.deepEqual(c.events.at(-1), { type: "hook", by: A }); // todos ven quién enganchó
   });
 
   it("anfitrión se traspasa si sale en el lobby", async () => {

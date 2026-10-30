@@ -1,7 +1,7 @@
 import "./style.css";
 import { connect, actions, wakeServer, IS_REMOTE, SERVER_CONFIGURED } from "./net.js";
 import { h, toast, fsButton } from "./dom.js";
-import { renderTable, handleRejected, playPushAnimation, notePush } from "./table.js";
+import { renderTable, handleRejected, playPushAnimation, notePush, notePlay } from "./table.js";
 
 const app = document.getElementById("app");
 
@@ -70,7 +70,7 @@ function renderLobby() {
         h("div", { class: "code" }, room.roomId)),
       h("div", { class: "hint" }, "Comparte este código con los otros jugadores"),
       h("div", { class: "players" }, list),
-      h("button", { class: "primary", disabled: !canStart, onclick: () => actions.start(room) }, "Empezar partida"),
+      isHost ? h("button", { class: "primary", disabled: !canStart, onclick: () => actions.start(room) }, "Empezar partida") : null,
       h("div", { class: "hint" },
         isHost
           ? (view.players.length < 2 ? "Esperando al menos un jugador más…" : `Jugadores: ${view.players.length} de 4`)
@@ -100,6 +100,7 @@ async function join(opts) {
       onEvent: (ev) => {
         if (!view) return;
         const name = (id) => (id === view.you ? "Tú" : view.players.find((p) => p.id === id)?.name ?? "alguien");
+        if (["plant", "lay", "hook"].includes(ev.type) && ev.by !== view.you) notePlay(ev.by); // anima sus cartas hacia la mesa
         if (ev.type === "push") {
           toast(`${name(ev.by)} hizo push: ${ev.to === view.you ? "recibes" : name(ev.to) + " recibe"} 2 cartas`);
           notePush({ by: ev.by, to: ev.to, anim: playPushAnimation({ card: view.discardTop, toPid: ev.to, me: view.you }) });

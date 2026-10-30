@@ -11,7 +11,7 @@ function cleanGroups(groups) {
   const ok = groups.every(
     (g) => g && isIdList(g.cardIds) && (g.start === undefined || Number.isInteger(g.start))
   );
-  return ok ? groups.map((g) => ({ cardIds: g.cardIds, start: g.start })) : null;
+  return ok ? groups.map((g) => ({ cardIds: g.cardIds, start: g.start, ordered: g.ordered === true })) : null;
 }
 
 // Código de sala de 4 dígitos (1000–9999), fácil de dictar. Se reintenta si ya existe.
@@ -82,7 +82,7 @@ export class PushGinRoom extends Room {
       if (typeof m?.meldId !== "number" || typeof m?.cardId !== "string" ||
           (m.end !== undefined && m.end !== "low" && m.end !== "high"))
         return this.#reject(client, "Mensaje inválido");
-      this.#act(client, (g) => g.hook(client.sessionId, m.meldId, m.cardId, m.end));
+      this.#act(client, (g) => g.hook(client.sessionId, m.meldId, m.cardId, m.end), () => ({ type: "hook", by: client.sessionId }));
     },
     discard: (client, m) => {
       if (typeof m?.cardId !== "string") return this.#reject(client, "Mensaje inválido");

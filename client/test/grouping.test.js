@@ -20,9 +20,9 @@ test("777: tres copias de la misma carta quedan separadas", () => {
   assert.equal(g.length, 1);           // todas sueltas, juntas en el bloque final
   assert.equal(g[0].length, 3);
 });
-test("777: comodines (2) y sueltas al final", () => {
-  const g = show(groupSets(cs("K♠", "K♥", "K♦", "2♣", "4♠")));
-  assert.deepEqual(g, ["K♠ K♥ K♦", "4♠ 2♣"]);
+test("777: el 2 es un número más (se agrupa con otros 2) y las sueltas van al final", () => {
+  assert.deepEqual(show(groupSets(cs("K♠", "K♥", "K♦", "2♣", "4♠"))), ["K♠ K♥ K♦", "2♣ 4♠"]);
+  assert.deepEqual(show(groupSets(cs("2♠", "2♥", "2♦", "9♣"))), ["2♠ 2♥ 2♦", "9♣"]);
 });
 test("789: escalera simple y sueltas", () => {
   assert.deepEqual(show(groupRuns(cs("7♥", "5♥", "6♥", "9♠", "K♦"))), ["5♥ 6♥ 7♥", "9♠ K♦"]);
@@ -31,8 +31,9 @@ test("789: un 6♥ repetido no rompe ni duplica la escalera", () => {
   const g = show(groupRuns(cs("5♥", "6♥", "6♥", "7♥")));
   assert.deepEqual(g, ["5♥ 6♥ 7♥", "6♥"]);
 });
-test("789: As alto (Q-K-A) y As bajo (A-2... el 2 es comodín y va al final)", () => {
-  assert.deepEqual(show(groupRuns(cs("Q♠", "K♠", "A♠"))), ["Q♠ K♠ A♠"]);
+test("789: el orden es A→K; el As no va después de la K, y el 2 entra en su lugar", () => {
+  assert.deepEqual(show(groupRuns(cs("Q♠", "K♠", "A♠"))), ["Q♠ K♠", "A♠"]);        // no existe Q-K-A
+  assert.deepEqual(show(groupRuns(cs("A♠", "2♠", "3♠", "4♠"))), ["A♠ 2♠ 3♠ 4♠"]);  // A-2-3-4
   assert.deepEqual(show(groupRuns(cs("3♣", "4♣", "A♣", "2♦"))), ["3♣ 4♣", "A♣ 2♦"]);
 });
 test("no se pierde ni se duplica ninguna carta", () => {

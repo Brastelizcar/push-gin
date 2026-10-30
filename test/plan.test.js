@@ -23,7 +23,7 @@ test('ronda 2: trío + consecutivo de 5 mezclados', () => {
   assert.deepEqual(sizes(g), [3, 5]);
 });
 test('ronda 3: dos consecutivos de 6', () => {
-  const hand = cs('3♥', '4♥', '5♥', '6♥', '7♥', '8♥', '9♠', '10♠', 'J♠', 'Q♠', 'K♠', 'A♠');
+  const hand = cs('3♥', '4♥', '5♥', '6♥', '7♥', '8♥', '8♠', '9♠', '10♠', 'J♠', 'Q♠', 'K♠');
   assert.deepEqual(sizes(findPlantGroups(hand, ROUND_REQUIREMENTS[2])), [6, 6]);
 });
 test('ronda 4: cuatro tríos (12 cartas)', () => {
@@ -33,6 +33,16 @@ test('ronda 4: cuatro tríos (12 cartas)', () => {
 test('ronda 5: cuarteto + consecutivo de 8', () => {
   const hand = cs('4♥', '4♠', '4♦', '4♣', 'Q♠', '5♠', '6♠', '7♠', '8♠', '9♠', '10♠', 'J♠');
   assert.deepEqual(sizes(findPlantGroups(hand, ROUND_REQUIREMENTS[4])), [4, 8]);
+});
+test('plantarse: el 2 vale por la posición en que lo tienes en la mano', () => {
+  const hand = cs('9♣', '9♥', '9♦', '5♠', '6♠', '7♠', '8♠', '2♦');   // el 2 va al final → hace de 9♠
+  const g = findPlantGroups(hand, ROUND_REQUIREMENTS[1]);
+  const run = g.find((x) => x.cards.length === 5);
+  assert.equal(run.ordered, true);
+  assert.deepEqual(buildRun(run.cards, { ordered: true }).slots.map((s) => s.value), [5, 6, 7, 8, 9]);
+  const hand2 = cs('9♣', '9♥', '9♦', '2♦', '5♠', '6♠', '7♠', '8♠');   // el 2 va antes → hace de 4♠
+  const g2 = findPlantGroups(hand2, ROUND_REQUIREMENTS[1]);
+  assert.deepEqual(buildRun(g2.find((x) => x.cards.length === 5).cards, { ordered: true }).slots.map((s) => s.value), [4, 5, 6, 7, 8]);
 });
 test('plantarse: devuelve null si no cumple o la cantidad no es exacta', () => {
   assert.equal(findPlantGroups(cs('5♥', '5♠', '5♦', '7♥', '7♠', '7♦', '9♥', '9♠', '9♥'), ROUND_REQUIREMENTS[0]), null); // 9♥ repetido

@@ -4,9 +4,9 @@ export const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 
 export const isWild = (card) => card.rank === '2';
 
-// Valores posibles de un rango en una escalera. El As vale 1 (bajo) o 14 (alto).
+// Valor de un rango en una escalera. El orden es A,2,3…K: el As solo vale 1 (no hay Q-K-A).
 export function rankValues(rank) {
-  if (rank === 'A') return [1, 14];
+  if (rank === 'A') return [1];
   if (rank === 'J') return [11];
   if (rank === 'Q') return [12];
   if (rank === 'K') return [13];
