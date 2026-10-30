@@ -1,0 +1,18 @@
+# Receta para Render (https://render.com): crea el SERVIDOR del juego en el plan gratuito.
+# Se usa con "New + → Blueprint" y eligiendo este repositorio. Ver DEPLOY.md.
+services:
+  - type: web
+    name: push-gin-server
+    runtime: node
+    plan: free
+    region: virginia            # la más cercana a Colombia
+    # Se instala SOLO el servidor (el código del juego en src/logic ya viene en el repositorio).
+    buildCommand: cd server && npm install --omit=dev
+    # "node src/index.js" (no "npm start": ese usa modo --watch, solo para desarrollo).
+    startCommand: cd server && node src/index.js
+    healthCheckPath: /hi
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV           # en producción se apagan el panel de pruebas y el monitor
+        value: production

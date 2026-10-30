@@ -1,0 +1,227 @@
+/* ============ Mesa: ocupa toda la pantalla; las cartas escalan con el tamaño de la ventana ============ */
+:root{
+  /* Carta de la mano: crece con el ancho Y el alto disponibles (la que limite primero) */
+  --ui-scale:1;
+  --hw:calc(clamp(38px, min(5vw, 8.2vh), 84px) * var(--ui-scale));
+  --mw:calc(var(--hw) * .7);   /* la mesa lo reduce sola (fitMesa) hasta que todo quepa */
+  --recent:#e2735e;
+}
+body:has(#app.wide){ padding:6px; align-items:stretch; }
+#app.wide{ max-width:none; height:calc(100vh - 12px); height:calc(100dvh - 12px); }
+.table-frame.wide-frame{ height:100%; padding:clamp(8px,1.1vw,16px); display:flex; }
+.table-felt{
+  flex:1; min-height:0; display:flex; gap:clamp(8px,1vw,14px); padding:clamp(8px,1vw,14px);
+  background:radial-gradient(ellipse at 50% 20%, var(--felt-mid), var(--felt-dark) 78%);
+  border-radius:14px; border:2px solid rgba(0,0,0,.35);
+}
+.main-col{ flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; gap:clamp(6px,1vh,12px); }
+
+.topbar{ display:flex; justify-content:space-between; align-items:center; gap:10px; background:rgba(0,0,0,.25); border-radius:10px; padding:8px 14px; border:1px solid rgba(201,162,39,.3); }
+.r-title{ font-family:'Fraunces',serif; font-weight:700; font-size:clamp(14px,1.35vw,20px); color:var(--gold-light); white-space:nowrap; }
+.scoreboard{ display:flex; gap:clamp(12px,1.6vw,26px); }
+.sc-item{ text-align:center; min-width:48px; }
+.sc-item .name{ font-size:clamp(10px,.85vw,13px); color:var(--ivory-shade); opacity:.75; }
+.sc-item .total{ font-family:'Fraunces',serif; font-weight:700; font-size:clamp(14px,1.3vw,19px); color:var(--ivory); }
+.sc-item.you .total{ color:var(--gold-light); }
+.turn-flag{ font-size:clamp(10px,.9vw,13px); font-weight:800; padding:4px 12px; border-radius:20px; background:var(--gold); color:var(--wood-dark); text-align:center; max-width:230px; }
+.turn-flag.wait{ background:rgba(255,255,255,.12); color:var(--ivory-shade); }
+
+.players-strip{ display:flex; gap:8px; }
+.p-chip{ flex:1; display:flex; align-items:center; gap:7px; background:rgba(0,0,0,.14); border:1px solid rgba(255,255,255,.07); border-radius:10px; padding:6px 10px; min-width:0; }
+.p-chip.turn{ box-shadow:0 0 0 2px rgba(230,198,90,.45); }
+.p-chip.you{ border:1.5px solid var(--gold); background:rgba(0,0,0,.2); }
+.p-chip .avatar{ width:clamp(24px,2vw,32px); height:clamp(24px,2vw,32px); font-size:clamp(10.5px,.9vw,14px); }
+.p-chip-meta{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.p-chip .p-name{ color:var(--ivory-shade); font-size:clamp(11.5px,1vw,15px); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.p-chip.you .p-name{ color:var(--gold-light); }
+.status-chip{ font-size:clamp(8.5px,.7vw,11px); font-weight:800; padding:1px 6px; border-radius:20px; width:fit-content; background:var(--gold); color:var(--wood-dark); }
+.status-chip.off{ background:rgba(255,255,255,.12); color:var(--ivory-shade); }
+.card-count{ margin-left:auto; display:flex; align-items:center; gap:4px; color:var(--ivory-shade); font-size:clamp(11.5px,1vw,15px); font-weight:700; flex-shrink:0; }
+.card-count .icon{ width:12px; height:16px; border-radius:2px; background:linear-gradient(160deg,var(--ivory),var(--ivory-shade)); border:1.1px solid var(--card-border); }
+
+/* La mesa se estira para ocupar todo el espacio libre */
+.mesa-panel{ --mw:calc(var(--hw) * .7 * var(--mscale, 1)); flex:1; min-height:0; overflow:auto; background:rgba(0,0,0,.14); border:1px solid rgba(255,255,255,.07); border-radius:14px; padding:clamp(10px,1.2vw,18px); }
+.mesa-title{ font-size:clamp(10px,.8vw,12px); letter-spacing:.08em; text-transform:uppercase; color:var(--ivory-shade); opacity:.55; margin-bottom:6px; }
+.empty-mesa{ font-size:clamp(12.5px,1.1vw,16px); color:var(--ivory-shade); opacity:.5; text-align:center; padding:clamp(10px,4vh,50px) 0; }
+.owner-row{ display:flex; align-items:center; gap:clamp(8px,1vw,16px); margin-bottom:clamp(4px,1vh,10px); } .owner-row:last-child{ margin-bottom:0; }
+.owner-label{ display:flex; align-items:center; gap:6px; width:clamp(64px,8vw,120px); flex-shrink:0; }
+.owner-label .dot{ width:6px; height:6px; border-radius:50%; background:var(--gold); }
+.owner-label .name{ font-size:clamp(11px,1vw,15px); color:var(--gold-light); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.melds-line{ flex:1; display:flex; gap:clamp(12px,1.6vw,26px); row-gap:6px; flex-wrap:wrap; }
+.meld{ display:flex; }
+.meld .card{ margin-left:calc(var(--mw) * -.53); } .meld .card:first-child{ margin-left:0; }
+
+/* ---------- carta ---------- */
+.card{
+  --cw:var(--mw);
+  width:var(--cw); height:calc(var(--cw) * 1.43); flex-shrink:0; position:relative;
+  background:linear-gradient(160deg,var(--ivory) 0%, var(--ivory-shade) 100%);
+  border:1.2px solid var(--card-border); border-radius:calc(var(--cw) * .14);
+  box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 3px 6px rgba(0,0,0,.35);
+  padding:calc(var(--cw) * .08) calc(var(--cw) * .1); font-family:'Fraunces',serif; user-select:none; -webkit-user-select:none;
+}
+.card.red{ color:var(--red); } .card.black{ color:var(--black); }
+.card .corner{ font-size:calc(var(--cw) * .29); font-weight:700; line-height:1; }
+.card .corner small{ display:block; font-size:calc(var(--cw) * .23); margin-top:1px; }
+.card .pip{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(var(--cw) * .42); opacity:.9; }
+.card.recent{ box-shadow:0 0 0 2px var(--recent), 0 3px 6px rgba(0,0,0,.35); }  /* sin z-index: no debe tapar la esquina de la carta vecina */
+
+/* ---------- mano ---------- */
+.hand-panel{ position:relative; background:rgba(0,0,0,.2); border:1.5px solid var(--gold); box-shadow:0 0 0 1px rgba(201,162,39,.25); border-radius:14px; padding:clamp(10px,1.4vh,18px) clamp(12px,1.4vw,22px); }
+.hand-line{ display:flex; align-items:flex-end; flex-wrap:wrap; row-gap:8px; padding-top:calc(var(--hw) * .38); min-height:calc(var(--hw) * 1.43 + var(--hw) * .38); }
+.hand-line .card, .card.ghost, .card.fly-take{ --cw:var(--hw); }
+.hand-line .card{ margin-left:calc(var(--hw) * -.39); touch-action:none; cursor:grab; transition:transform .15s ease-out; }
+.hand-line .card:first-child, .hand-line .hand-gap + .card{ margin-left:0; }
+.hand-line .card:hover{ transform:translateY(calc(var(--hw) * -.2)) scale(1.15); z-index:5; }
+.hand-line .card.dragging{ opacity:.3; transform:none !important; }
+.hand-line .card.arriving{ visibility:hidden; }
+.card.placeholder{ background:rgba(230,198,90,.14); border:2px dashed var(--gold-light); box-shadow:none; }
+.card.ghost{ position:fixed; z-index:100; pointer-events:none; transform:translate(-50%,-60%) scale(1.12); box-shadow:0 10px 24px rgba(0,0,0,.5); margin:0; }
+.card.fly-take{ position:fixed; margin:0; z-index:150; pointer-events:none; box-shadow:0 8px 20px rgba(0,0,0,.5); }
+
+/* ---------- riel de acciones ---------- */
+.action-rail{ width:clamp(84px,8.6vw,132px); flex-shrink:0; min-height:0; display:flex; flex-direction:column; align-items:center; gap:clamp(6px,1vh,12px); }
+.rail-pill{ width:100%; background:rgba(0,0,0,.28); border:1px solid rgba(201,162,39,.3); border-radius:14px; padding:8px 4px; text-align:center; }
+.rail-pill .val{ display:flex; align-items:center; justify-content:center; gap:4px; font-family:'Fraunces',serif; font-weight:700; color:var(--ivory); font-size:clamp(14px,1.35vw,20px); }
+.rail-pill .coin{ width:12px; height:12px; border-radius:50%; background:radial-gradient(circle at 35% 30%, var(--gold-light), var(--gold)); }
+.rail-pill .sub{ font-size:clamp(7.5px,.65vw,10px); color:var(--ivory-shade); opacity:.6; text-transform:uppercase; letter-spacing:.03em; margin-top:2px; }
+.rail-center-group{ flex:1; min-height:0; width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:clamp(6px,1.3vh,14px); }
+.sort-btn{ width:100%; background:linear-gradient(180deg, rgba(201,162,39,.18), rgba(201,162,39,.08)); border:1px solid rgba(201,162,39,.4); border-radius:12px; padding:clamp(6px,1vh,11px) 4px; text-align:center; cursor:pointer; user-select:none; transition:transform .08s ease; }
+.sort-btn:hover{ background:linear-gradient(180deg, rgba(201,162,39,.3), rgba(201,162,39,.15)); }
+.sort-btn:active{ transform:scale(.94); background:linear-gradient(180deg, rgba(201,162,39,.5), rgba(201,162,39,.3)); }
+.sort-btn .val{ font-family:'Fraunces',serif; font-weight:700; color:var(--gold-light); font-size:clamp(13px,1.25vw,19px); }
+.sort-btn .sub{ font-size:clamp(7px,.62vw,10px); color:var(--ivory-shade); opacity:.65; text-transform:uppercase; margin-top:1px; }
+
+.unified-slot{ --sw:calc(var(--hw) * 1.15); width:var(--sw); height:calc(var(--sw) * 1.43); border-radius:calc(var(--sw) * .14); position:relative; display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; transition:all .2s ease; touch-action:none; }
+.unified-slot.has-card{ background:linear-gradient(160deg,var(--ivory) 0%, var(--ivory-shade) 100%); border:1.5px solid var(--card-border); box-shadow:0 4px 10px rgba(0,0,0,.4); }
+.unified-slot.tappable{ cursor:grab; animation:tap-pulse 2s ease-in-out infinite; }
+.unified-slot.has-card.dragging{ opacity:.35; }
+@keyframes tap-pulse{ 0%,100%{ box-shadow:0 0 0 3px rgba(230,198,90,.14), 0 4px 10px rgba(0,0,0,.4); } 50%{ box-shadow:0 0 0 5px rgba(230,198,90,.32), 0 4px 10px rgba(0,0,0,.4); } }
+.unified-slot .face, .fly-face .face{ text-align:center; }
+.unified-slot .corner, .fly-face .corner{ font-size:calc(var(--sw) * .36); font-weight:700; }
+.unified-slot .suit, .fly-face .suit{ font-size:calc(var(--sw) * .25); opacity:.85; }
+.unified-slot .red, .fly-face .red{ color:var(--red); } .unified-slot .black, .fly-face .black{ color:var(--black); }
+.unified-slot.empty-wait{ background:repeating-linear-gradient(135deg, var(--felt-mid) 0 6px, var(--wood) 6px 12px); border:2.5px dashed var(--gold-light); }
+.unified-slot.empty-wait.idle{ opacity:.45; border-color:rgba(230,198,90,.4); }
+.unified-slot.empty-wait.drag-over{ border-color:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.25); }
+.unified-slot .drop-icon{ color:var(--gold-light); font-size:calc(var(--sw) * .32); opacity:.8; }
+.slot-label{ font-size:clamp(8.5px,.7vw,11px); letter-spacing:.05em; text-transform:uppercase; color:var(--gold-light); font-weight:800; text-align:center; }
+
+.push-btn{ width:100%; display:flex; align-items:center; justify-content:center; gap:5px; background:rgba(0,0,0,.28); border:1px solid rgba(201,162,39,.4); border-radius:20px; padding:clamp(6px,1vh,10px) 4px; cursor:pointer; }
+.push-btn .p-badge{ width:clamp(18px,1.5vw,24px); height:clamp(18px,1.5vw,24px); border-radius:50%; background:var(--gold); color:var(--wood-dark); font-family:'Fraunces',serif; font-weight:800; font-size:clamp(11px,.95vw,14px); display:flex; align-items:center; justify-content:center; }
+.push-btn .p-text{ font-size:clamp(9.5px,.85vw,13px); color:var(--gold-light); font-weight:700; }
+.push-btn.disabled{ opacity:.35; pointer-events:none; }
+
+.confirm-btn{ width:clamp(46px,4.2vw,64px); height:clamp(46px,4.2vw,64px); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:clamp(22px,2vw,30px); font-weight:800; box-shadow:0 5px 12px rgba(0,0,0,.4); transition:all .2s ease; }
+.confirm-btn.disabled{ background:rgba(255,255,255,.06); color:rgba(232,223,198,.25); box-shadow:none; cursor:not-allowed; }
+.confirm-btn.active{ background:radial-gradient(circle at 35% 30%, var(--confirm-light), var(--confirm) 80%); color:#0e2f1f; cursor:pointer; }
+.confirm-label{ font-size:clamp(8.5px,.7vw,11px); color:var(--ivory-shade); opacity:.7; text-align:center; }
+
+/* ---------- fin de ronda ---------- */
+.overlay{ position:fixed; inset:0; background:rgba(0,0,0,.65); display:flex; align-items:center; justify-content:center; padding:20px; z-index:50; }
+.overlay-card{ width:100%; max-width:420px; background:linear-gradient(180deg,var(--wood),var(--wood-dark)); border:1.5px solid var(--gold); border-radius:18px; padding:22px; display:flex; flex-direction:column; gap:10px; }
+.overlay-card h2{ margin:0 0 6px; text-align:center; font-family:'Fraunces',serif; color:var(--gold-light); font-size:22px; }
+.score-head, .score-row{ display:grid; grid-template-columns:1fr 60px 60px; align-items:center; gap:8px; padding:6px 10px; }
+.score-head{ font-size:10px; text-transform:uppercase; letter-spacing:.08em; opacity:.6; }
+.score-head span:not(:first-child), .pts, .tot{ text-align:right; }
+.score-row{ background:rgba(0,0,0,.2); border-radius:10px; font-weight:700; }
+.score-row.win{ border:1px solid var(--gold); }
+.tot{ font-family:'Fraunces',serif; color:var(--gold-light); }
+
+/* ---------- objetivo de la ronda ---------- */
+.goal-bar{ background:rgba(0,0,0,.22); border:1px solid rgba(201,162,39,.35); border-radius:10px; padding:7px 14px; display:flex; flex-direction:column; gap:4px; }
+.goal-main{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.goal-title{ font-size:clamp(11px,.95vw,14px); font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:var(--gold-light); }
+.req-pill{ display:flex; align-items:center; gap:7px; background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.1); border-radius:20px; padding:4px 11px 4px 8px; }
+.req-count{ font-family:'Fraunces',serif; font-weight:900; font-size:clamp(15px,1.3vw,20px); color:var(--gold-light); }
+.req-label{ font-size:clamp(12.5px,1.05vw,16px); font-weight:700; color:var(--ivory); }
+.req-plus{ font-weight:800; color:var(--gold-light); }
+.mini-row{ display:flex; }
+.mini-card{ width:17px; height:24px; background:linear-gradient(160deg,var(--ivory),var(--ivory-shade)); border:1px solid var(--card-border); border-radius:3px; margin-left:-5px; font:700 10px/1 'Fraunces',serif; padding:2px 0 0 2px; box-shadow:0 1px 2px rgba(0,0,0,.35); }
+.mini-card:first-child{ margin-left:0; }
+.mini-card small{ display:block; font-size:8px; margin-top:1px; }
+.mini-card.red{ color:var(--red); } .mini-card.black{ color:var(--black); }
+.mini-dots{ color:var(--ivory-shade); opacity:.7; font-weight:800; margin-left:4px; align-self:center; }
+@media (max-height:560px){ .goal-bar{ padding:4px 10px; } }
+
+/* ---------- animación del push ---------- */
+.fly-layer{ position:fixed; inset:0; z-index:150; pointer-events:none; }
+.fly-group{ position:fixed; }
+.fly{ position:absolute; inset:0; border-radius:9px; }
+.fly-face{ background:linear-gradient(160deg,var(--ivory),var(--ivory-shade)); border:1.5px solid var(--card-border); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; box-shadow:0 4px 10px rgba(0,0,0,.4); }
+.fly-back{ background:repeating-linear-gradient(45deg,#7a1f1b 0 6px,#5e1714 6px 12px); border:2.5px solid var(--ivory); box-shadow:0 8px 18px rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; }
+.fly-back span{ font-family:'Fraunces',serif; font-weight:900; font-size:clamp(22px,2.2vw,34px); color:var(--gold-light); opacity:.85; }
+
+/* ---------- pantalla completa ---------- */
+.fs-btn{ width:30px; height:30px; padding:0; border-radius:8px; font-size:16px; line-height:1; flex-shrink:0; }
+.felt{ position:relative; }
+.fs-corner{ position:absolute; top:10px; right:10px; opacity:.7; }
+
+/* ---------- móvil horizontal / vertical ---------- */
+@media (max-width:900px) and (orientation:landscape){
+  .mesa-panel{ padding:8px 10px; } .hand-panel{ padding:8px 10px; }
+  .action-rail{ width:78px; }
+}
+.rotate-warning{ display:none; }
+@media (orientation:portrait) and (max-width:700px){
+  body:has(#app.wide) .rotate-warning{ display:flex; position:fixed; inset:0; z-index:200; background:var(--felt-dark); align-items:center; justify-content:center; text-align:center; padding:30px; font-size:18px; color:var(--gold-light); font-family:'Fraunces',serif; }
+  #app.wide{ display:none; }
+}
+
+/* ---------- espacios de la mano ---------- */
+.hand-gap{ width:calc(var(--hw) * .55); height:calc(var(--hw) * 1.43); flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:grab; touch-action:none; border-radius:8px; }
+.hand-gap .gap-line, .ghost-gap .gap-line{ width:0; height:78%; border-left:2px dashed rgba(230,198,90,.35); transition:border-color .15s; }
+.hand-gap:hover{ background:rgba(230,198,90,.08); } .hand-gap:hover .gap-line{ border-left-color:var(--gold-light); }
+.hand-gap.dragging{ opacity:.3; }
+.ghost-gap{ position:fixed; z-index:100; pointer-events:none; width:calc(var(--hw) * .55); height:calc(var(--hw) * 1.43); transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center; background:rgba(230,198,90,.18); border-radius:8px; }
+.gap-tool{ position:absolute; top:6px; right:12px; display:flex; align-items:center; gap:5px; padding:3px 10px 3px 7px; border-radius:20px; font-size:clamp(10px,.85vw,13px); font-weight:800; color:var(--gold-light); background:rgba(0,0,0,.3); border:1px dashed rgba(201,162,39,.55); cursor:grab; touch-action:none; user-select:none; }
+.gap-tool:hover{ background:rgba(201,162,39,.2); }
+.gap-tool-icon{ font-size:1.15em; }
+
+/* ---------- botón de información (aparece al pasar el cursor) ---------- */
+.info{ position:relative; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font:italic 800 14px 'Fraunces',serif; color:var(--gold-light); border:1.5px solid rgba(201,162,39,.6); cursor:help; outline:none; flex-shrink:0; }
+.info:hover, .info:focus{ background:rgba(201,162,39,.25); }
+.info-pop{ display:none; position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-30%); z-index:60; width:min(360px, 86vw); padding:12px 14px; border-radius:12px; background:var(--wood-dark); border:1.5px solid var(--gold); box-shadow:0 12px 28px rgba(0,0,0,.55); font:500 13px/1.45 'Manrope',sans-serif; font-style:normal; color:var(--ivory); text-align:left; }
+.info:hover .info-pop, .info:focus .info-pop{ display:block; }
+.info-row + .info-row{ margin-top:6px; }
+.info-row b{ color:var(--gold-light); }
+
+/* ---------- carta recién tomada por arrastre (ya está en tu mano) ---------- */
+.unified-slot.taken > *{ visibility:hidden; }
+
+/* ---------- contador del mazo ---------- */
+.deck-count{ display:flex; align-items:center; gap:6px; margin-top:-4px; padding:3px 10px 3px 7px; border-radius:20px; background:rgba(0,0,0,.28); border:1px solid rgba(255,255,255,.08); }
+.deck-back{ width:clamp(12px,1vw,16px); height:clamp(17px,1.4vw,23px); border-radius:3px; border:1.5px solid var(--ivory); background:repeating-linear-gradient(45deg,#7a1f1b 0 3px,#5e1714 3px 6px); box-shadow:0 1px 3px rgba(0,0,0,.5); }
+.deck-num{ font-family:'Fraunces',serif; font-weight:700; font-size:clamp(12px,1.05vw,16px); color:var(--ivory); }
+
+/* ---------- selección de cartas ---------- */
+.hand-line .card.selected{ transform:translateY(calc(var(--hw) * -.26)); outline:2.5px solid var(--gold-light); outline-offset:-1px; box-shadow:0 0 0 3px rgba(230,198,90,.3), 0 8px 14px rgba(0,0,0,.45); z-index:4; }
+.hand-line .card.selected:hover{ transform:translateY(calc(var(--hw) * -.3)) scale(1.08); }
+.card.arriving{ visibility:hidden; }
+
+/* ---------- barra de acciones sobre la mano ---------- */
+.hand-panel{ display:flex; flex-direction:column; gap:2px; }
+.hand-top{ display:flex; align-items:center; gap:12px; min-height:clamp(28px,2.6vw,36px); }
+.hand-top .gap-tool{ position:static; margin-left:auto; flex-shrink:0; }
+.hand-actions{ display:flex; align-items:center; gap:10px; min-width:0; flex-wrap:wrap; }
+.act-btn{ padding:clamp(5px,.6vw,8px) clamp(14px,1.5vw,22px); font-size:clamp(12px,1.05vw,15px); border-radius:20px; color:#0e2f1f; border:0; background:radial-gradient(circle at 35% 30%, var(--confirm-light), var(--confirm) 80%); box-shadow:0 3px 8px rgba(0,0,0,.4); }
+.act-btn:disabled{ background:rgba(255,255,255,.08); color:rgba(232,223,198,.45); box-shadow:none; cursor:not-allowed; }
+.act-btn:hover:not(:disabled){ filter:brightness(1.08); background:radial-gradient(circle at 35% 30%, var(--confirm-light), var(--confirm) 80%); }
+.act-text{ font-size:clamp(11px,.95vw,14px); color:var(--ivory-shade); opacity:.85; }
+.act-text.good{ color:var(--confirm-light); opacity:1; font-weight:700; }
+.act-clear{ padding:3px 10px; font-size:clamp(11px,.9vw,13px); border-radius:20px; }
+
+/* ---------- plantes de la mesa: tocar / soltar cartas encima ---------- */
+.meld{ border-radius:8px; }
+.meld.tappable{ cursor:pointer; }
+.meld.drop-over{ outline:2.5px dashed var(--gold-light); outline-offset:5px; }
+.card.fly-flight{ position:fixed; margin:0; z-index:150; pointer-events:none; box-shadow:0 8px 20px rgba(0,0,0,.5); }
+
+/* ---------- botones de la barra superior ---------- */
+.top-btns{ display:flex; gap:6px; flex-shrink:0; }
+.size-btn{ font-family:'Fraunces',serif; font-weight:800; font-size:13px; }
+
+/* ---------- carta que llega del mazo tras un push ---------- */
+.fly-draw{ position:fixed; }
+.fly-draw .card{ --cw:var(--hw); position:absolute; left:0; top:0; width:100%; height:100%; margin:0; box-shadow:0 8px 20px rgba(0,0,0,.5); }
+.fly-draw .fly-draw-back{ background:repeating-linear-gradient(45deg,#7a1f1b 0 6px,#5e1714 6px 12px); border:2.5px solid var(--ivory); }

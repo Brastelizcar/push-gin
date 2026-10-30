@@ -1,0 +1,16 @@
+# Dependencias y resultados de compilar (se regeneran con npm install / npm run build)
+node_modules/
+dist/
+build/
+
+# Archivos locales / secretos (nunca se suben)
+.env
+.env.local
+.env.*.local
+
+# Del sistema y del editor
+.DS_Store
+Thumbs.db
+*.log
+.colyseus-cloud.json
+.devmode.json

@@ -1,0 +1,72 @@
+:root{
+  --felt-dark:#0b3d2e; --felt-mid:#124f3b;
+  --wood:#5c3a21; --wood-dark:#3d2515;
+  --ivory:#f6f1e2; --ivory-shade:#e8dfc6; --card-border:#d3c39a;
+  --red:#a9302b; --black:#242220;
+  --gold:#c9a227; --gold-light:#e6c65a;
+  --confirm:#4a9d6e; --confirm-light:#7fd0a0;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; font-family:'Manrope',sans-serif; background:#1a1a1a; color:var(--ivory);
+  display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px;
+}
+#app{ width:100%; max-width:560px; }
+.table-frame{
+  background:linear-gradient(180deg,var(--wood),var(--wood-dark));
+  border-radius:24px; padding:14px; box-shadow:0 30px 60px rgba(0,0,0,.5);
+}
+.felt{
+  background:radial-gradient(ellipse at 50% 20%, var(--felt-mid), var(--felt-dark) 78%);
+  border-radius:14px; border:2px solid rgba(0,0,0,.35); padding:28px 24px;
+  display:flex; flex-direction:column; gap:18px;
+}
+h1{ font-family:'Fraunces',serif; font-weight:900; font-size:38px; margin:0; text-align:center; color:var(--gold-light); letter-spacing:.01em; }
+.tagline{ text-align:center; font-size:13px; color:var(--ivory-shade); opacity:.7; margin-top:-10px; }
+label{ font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ivory-shade); opacity:.7; display:block; margin-bottom:6px; }
+input{
+  width:100%; padding:12px 14px; border-radius:10px; font:inherit; font-size:16px; font-weight:600;
+  background:rgba(0,0,0,.25); border:1px solid rgba(201,162,39,.35); color:var(--ivory); outline:none;
+}
+input:focus{ border-color:var(--gold-light); }
+input::placeholder{ color:rgba(232,223,198,.35); }
+.row{ display:flex; gap:10px; }
+.row > *{ flex:1; }
+button{
+  font:inherit; font-weight:800; font-size:14px; cursor:pointer; border-radius:12px; padding:13px 16px;
+  border:1px solid rgba(201,162,39,.5); color:var(--gold-light);
+  background:linear-gradient(180deg, rgba(201,162,39,.2), rgba(201,162,39,.08));
+}
+button:hover:not(:disabled){ background:linear-gradient(180deg, rgba(201,162,39,.34), rgba(201,162,39,.16)); }
+button.primary{ background:radial-gradient(circle at 35% 30%, var(--confirm-light), var(--confirm) 80%); color:#0e2f1f; border-color:transparent; }
+button:disabled{ opacity:.4; cursor:not-allowed; }
+.divider{ text-align:center; font-size:11px; color:var(--ivory-shade); opacity:.5; text-transform:uppercase; letter-spacing:.1em; }
+.code-box{
+  text-align:center; background:rgba(0,0,0,.25); border:1.5px solid var(--gold); border-radius:14px; padding:14px;
+}
+.code-box .lbl{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ivory-shade); opacity:.6; }
+.code-box .code{ font-family:'Fraunces',serif; font-weight:900; font-size:52px; letter-spacing:.12em; color:var(--gold-light); line-height:1.1; }
+.players{ display:flex; flex-direction:column; gap:8px; }
+.p-row{
+  display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:10px;
+  background:rgba(0,0,0,.14); border:1px solid rgba(255,255,255,.07);
+}
+.p-row.me{ border:1.5px solid var(--gold); background:rgba(0,0,0,.2); }
+.avatar{
+  width:28px; height:28px; border-radius:50%; background:var(--gold); color:var(--wood-dark);
+  display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:700; font-size:13px; flex-shrink:0;
+}
+.p-name{ font-weight:700; font-size:14px; }
+.badge{ margin-left:auto; font-size:9.5px; font-weight:800; padding:2px 8px; border-radius:20px; background:var(--gold); color:var(--wood-dark); }
+.badge.off{ background:rgba(255,255,255,.12); color:var(--ivory-shade); }
+.hint{ font-size:12.5px; text-align:center; color:var(--ivory-shade); opacity:.75; }
+.toast{
+  position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+  background:var(--wood-dark); border:1px solid var(--gold); color:var(--gold-light);
+  padding:9px 18px; border-radius:20px; font-size:13px; font-weight:700;
+  opacity:0; pointer-events:none; transition:opacity .25s ease; max-width:90vw; text-align:center;
+}
+.toast.show{ opacity:1; }
+.dev-box{ font-size:12px; background:rgba(0,0,0,.25); border-radius:10px; padding:12px; color:var(--ivory-shade); }
+
+.hint.wake{ color:var(--gold-light); opacity:.95; font-weight:600; }

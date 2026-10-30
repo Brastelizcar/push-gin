@@ -35,7 +35,8 @@ export class Round {
   _guard(pid, phase) {
     if (this.phase === 'ended') return fail('La ronda terminó');
     if (pid !== this.currentPlayer) return fail('No es tu turno');
-    if (this.phase !== phase) return fail(`Acción no permitida en esta fase (${this.phase})`);
+    if (this.phase !== phase)
+      return fail(phase === 'start' ? 'Eso solo se puede hacer antes de tomar carta' : 'Primero toma el descarte o haz push');
     return null;
   }
   _draw() {

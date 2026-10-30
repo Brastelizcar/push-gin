@@ -1,0 +1,32 @@
+{
+  "private": true,
+  "name": "server",
+  "version": "0.1.0",
+  "description": "A Colyseus multiplayer server",
+  "main": "./src/index.js",
+  "type": "module",
+  "engines": {
+    "node": ">= 22.0.0"
+  },
+  "scripts": {
+    "start": "node --watch src/index.js",
+    "loadtest": "node loadtest/example.js --room push_gin --numClients 2",
+    "test": "mocha test/**.test.js --exit --timeout 15000",
+    "build": "exit 0"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@colyseus/loadtest": "^0.18.1",
+    "@colyseus/sdk": "^0.18.1",
+    "@colyseus/testing": "^0.18.5",
+    "mocha": "^11.7.5",
+    "rimraf": "^5.0.0"
+  },
+  "dependencies": {
+    "@colyseus/schema": "^5.0.14",
+    "@colyseus/tools": "^0.18.1",
+    "colyseus": "^0.18.2",
+    "express": "^5.2.1"
+  }
+}
