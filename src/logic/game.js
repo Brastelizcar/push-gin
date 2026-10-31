@@ -84,6 +84,7 @@ export class Round {
   // el que hace push roba una carta propia. (Interpretación a confirmar, ver notas.)
   push(pid) {
     const g = this._guard(pid, 'start'); if (g) return g;
+    if (this.deck.length < 2) return fail('El mazo se acabó: solo puedes tomar el descarte');
     const blind = this._draw();
     this.hands[this.nextPlayer].push(blind, this.discardTop);
     this.discardTop = null;
@@ -148,6 +149,12 @@ export class Round {
       this.phase = 'ended';
       this.winner = pid;
       return ok({ roundOver: true, scores: this.scores() });
+    }
+    // Mazo agotado (no alcanza para otro push): la ronda termina sin ganador y todos cuentan su mano.
+    if (this.deck.length < 2) {
+      this.phase = 'ended';
+      this.winner = null;
+      return ok({ roundOver: true, exhausted: true, scores: this.scores() });
     }
     this.turnIndex = (this.turnIndex + 1) % this.players.length;
     this.phase = 'start';

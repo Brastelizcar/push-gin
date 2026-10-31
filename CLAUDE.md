@@ -7,6 +7,8 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
   - `cards.js` cartas, baraja (3 barajas), puntos · `melds.js` tríos/cuartetos/consecutivos, enganche, robo de 2
   - `rounds.js` requisitos de las 5 rondas · `game.js` clase `Round` (estado y turnos de una ronda)
   - `turn.js` jugada completa de un turno, validada de una vez (`resolveTurn`) · `plan.js` ayudas para agrupar cartas
+  - `match.js` la PARTIDA (jugadores, 5 rondas, vistas privadas, temporizador). La usan la sala del servidor y la práctica
+  - `bot.js` jugador automático (solo ve su propia vista) · `progress.js` XP, niveles y fichas
 - `test/` — pruebas de la lógica (`npm test` en la raíz, `node --test`).
 - `server/` — servidor Colyseus 0.18 (`PushGinRoom`). Pruebas con mocha (`cd server && npm test`).
 - `client/` — Vite + JS sin framework. `table.js` es la mesa; `main.js` las pantallas. Pruebas puras en `client/test` (`cd client && npm test`).
@@ -25,6 +27,10 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
 - Plantarse exige EXACTAMENTE el requisito de la ronda. Tras jugar debes conservar ≥1 carta para descartar:
   se gana descartando la última carta. Puntos de lo que queda en mano: A=15, 2=20, 10/J/Q/K=10, 3–9=5. Gana el menor total.
 - Quién empieza la ronda: jugador `roundIndex % nJugadores` (provisional).
+- Mazo agotado (provisional, ver NOTAS.md): push exige ≥2 cartas en el mazo; si tras un descarte quedan <2, la ronda
+  termina sin ganador y todos cuentan su mano.
+- Temporizador (opcional, 30–120 s): si se acaba, el turno se juega solo (toma el descarte y lo devuelve, o descarta
+  la carta que tomó).
 
 ## Jugada validada (Lote 2)
 - En la fase `main` el cliente arma TODA su jugada localmente (grupos a la mesa, enganches, carta a descartar) y la
@@ -47,7 +53,8 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
 - Lote 2 (jugada validada): hecho. Grupos válidos de la mano (tramos entre espacios) se marcan y se arrastran
   enteros desde su primera o última carta; ✓ valida con `buildTurn` (client/src/staging.js) antes de enviar.
 - Lote 3 (cuentas y menús): hecho. Ver "Cuentas" abajo.
-- Lote 4 (práctica con bots, temporizador): pendiente.
+- Lote 4 (práctica con bots, temporizador): hecho. La práctica corre en el navegador (`client/src/practice.js`, una
+  "sala local" con la misma forma que la de Colyseus); el tiempo de turno se elige en Juego privado y en Práctica.
 
 ## Cuentas (Lote 3)
 - `src/logic/progress.js`: XP por puesto (100/50/30/10), nivel N→N+1 = 100×N XP, pozo de cuotas, fichas gratis (300 / 24 h).

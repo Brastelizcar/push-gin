@@ -36,9 +36,9 @@ const isDefinitive = (e) => /not found|locked|full|invalid/i.test(String(e?.mess
  * account: código de sincronización de tu cuenta (el servidor la verifica). entryFee: cuota (solo al crear).
  * handlers: { onState(view), onEvent(ev), onAccount(account), onRejected(error), onLeave() }
  */
-export async function connect({ mode, name, roomCode, account, entryFee = 0 }, handlers) {
+export async function connect({ mode, name, roomCode, account, entryFee = 0, turnTime = 0 }, handlers) {
   const opts = { name, ...(account ? { code: account } : {}) };
-  const start = () => (mode === "create" ? client.create("push_gin", { ...opts, entryFee }) : client.joinById(roomCode, opts));
+  const start = () => (mode === "create" ? client.create("push_gin", { ...opts, entryFee, turnTime }) : client.joinById(roomCode, opts));
   let room, tries = 0;
   for (;;) {
     try { room = await withTimeout(start, 40000); break; }

@@ -645,7 +645,7 @@ export function renderTable(app, { view, room, rerender }) {
       view.players.map((p) =>
         h("div", { class: "sc-item" + (p.id === me ? " you" : "") },
           h("div", { class: "name" }, p.name), h("div", { class: "total" }, p.total)))),
-    h("div", { class: "turn-flag" + (myTurn ? "" : " wait") }, hint),
+    h("div", { class: "turn-flag" + (myTurn ? "" : " wait") }, hint, turnClock(view)),
     h("div", { class: "top-btns" }, sizeButton(() => requestAnimationFrame(fitMesa)), fsButton()));
 
   // --- tira de jugadores (dinámica: 2, 3 o 4) ---
@@ -778,6 +778,27 @@ export function renderTable(app, { view, room, rerender }) {
   if (view.phase === "roundOver" || view.phase === "finished") app.append(overlay(view, room));
 }
 
+// ---------- temporizador de turno ----------
+// El servidor manda cuánto le queda al turno (turnMsLeft); aquí se convierte en una hora local al recibir cada vista
+// nueva y un intervalo actualiza el número cada segundo sin redibujar la mesa.
+const clock = { view: null, endsAt: null };
+function turnClock(view) {
+  if (view !== clock.view) { clock.view = view; clock.endsAt = view.turnMsLeft == null ? null : Date.now() + view.turnMsLeft; }
+  if (clock.endsAt == null || view.phase !== "playing") return null;
+  return h("span", { class: "turn-clock", "data-ends": clock.endsAt }, clockText(clock.endsAt));
+}
+const clockText = (endsAt) => {
+  const s = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+  return ` · ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+setInterval(() => {
+  for (const el of document.querySelectorAll(".turn-clock[data-ends]")) {
+    const ends = Number(el.dataset.ends);
+    el.textContent = clockText(ends);
+    el.classList.toggle("urgent", ends - Date.now() <= 10_000);
+  }
+}, 500);
+
 // ---------- fin de ronda / fin de partida ----------
 function overlay(view, room) {
   const byId = Object.fromEntries(view.players.map((p) => [p.id, p]));
@@ -792,7 +813,7 @@ function overlay(view, room) {
         h("div", { class: "tot" }, p.total)));
   const title = finished
     ? `Ganó ${view.gameWinners.map((id) => byId[id].name).join(" y ")}`
-    : `Ronda ${view.round}: ganó ${byId[view.winner].name}`;
+    : view.winner ? `Ronda ${view.round}: ganó ${byId[view.winner].name}` : `Ronda ${view.round}: se acabó el mazo`;
   return h("div", { class: "overlay" },
     h("div", { class: "overlay-card" },
       h("h2", {}, title),

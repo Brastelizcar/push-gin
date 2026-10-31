@@ -21,7 +21,7 @@
   entera al terminar el turno (sin dejar pasar si es inválida).
 - ✅ Lote 3 (hecho): cuentas (sin correo, con código de sincronización), nivel/XP (1.º 100, 2.º 50, 3.º 30, 4.º 10),
   fichas de póker (+300 cada 24 h), menú principal, ajustes, juego privado y sala de espera. Requiere BASE DE DATOS.
-- Lote 4: práctica contra la máquina y temporizador de turno.
+- ✅ Lote 4 (hecho): práctica contra la máquina y temporizador de turno.
 
 ## Decisiones del Lote 3
 - Base de datos: Supabase (PostgreSQL gratis). Cuentas nuevas empiezan con 0 fichas y pueden reclamar 300 de inmediato.
@@ -30,3 +30,11 @@
 - XP solo en partidas con cuenta. Los empatados comparten el mejor puesto (y su XP).
 - Menú de juego privado: en lugar de la lista de amigos de la referencia, un panel "Unirse con código"
   (no hay sistema de amigos). Ajustes: sin "Asistencia" (no hay canal de soporte).
+
+## Decisiones del Lote 4 (a confirmar)
+- **Mazo agotado:** cada push saca 2 cartas del mazo y nada vuelve a él, así que SÍ se puede agotar (con bots pasa en
+  ~4 de cada 10 rondas). Antes el servidor lanzaba un error. Regla provisional: push solo con ≥2 cartas en el mazo y,
+  si tras un descarte quedan <2, la ronda termina sin ganador (todos suman su mano).
+- **Tiempo agotado:** antes de tomar carta → toma el descarte y lo devuelve (nada cambia); después → descarta la carta
+  que tomó. Tiempos: sin límite, 30, 45, 60, 90, 120 s.
+- **Práctica:** corre en el navegador (sirve sin internet), 1 a 3 bots, no da XP ni fichas. Los bots solo ven su mano.

@@ -124,3 +124,16 @@ test('reparto con semilla: misma semilla, mismas manos', async () => {
   assert.deepEqual(a.hands, b.hands);
   assert.notDeepEqual(a.hands, c2.hands);
 });
+test('mazo agotado: no hay push y la ronda termina sin ganador al descartar', () => {
+  const r = mk();
+  r.deck = r.deck.slice(0, 1);
+  assert.match(r.push('A').error, /mazo se acabó/);
+  r.takeDiscard('A');
+  r.hands.B = cs('K♣', '3♦');                                  // 10 + 5
+  const res = r.discard('A', r.hands.A[0].id);
+  assert.equal(res.roundOver, true);
+  assert.equal(res.exhausted, true);
+  assert.equal(r.winner, null);
+  assert.equal(r.scores().B, 15);
+  assert.ok(r.scores().A > 0);                                  // nadie queda en 0
+});

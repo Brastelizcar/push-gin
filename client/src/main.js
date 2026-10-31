@@ -3,13 +3,14 @@ import { connect, actions, wakeServer, IS_REMOTE, SERVER_CONFIGURED } from "./ne
 import { h, toast } from "./dom.js";
 import { renderTable, handleRejected, playPushAnimation, notePush, notePlay, setTableHooks } from "./table.js";
 import { loadAccount, createAccount, useSyncCode, claimChips, accountFromServer } from "./account.js";
-import { welcomeScreen, mainMenu, privateMenu, waitingRoom, renderModal, tickCountdowns } from "./menus.js";
+import { welcomeScreen, mainMenu, privateMenu, practiceMenu, waitingRoom, renderModal, tickCountdowns } from "./menus.js";
+import { startPractice } from "./practice.js";
 import { play } from "./sound.js";
 
 const app = document.getElementById("app");
 
 // ---------- estado de la aplicación ----------
-let screen = "loading";          // loading | welcome | menu | private (sin sala) — con sala manda la fase de la vista
+let screen = "loading";          // loading | welcome | menu | private | practice (sin sala) — con sala manda la fase de la vista
 let account = null;              // tu cuenta (del servidor)
 let offline = false;             // no se pudo cargar la cuenta
 let modal = null;                // ventana abierta sobre el menú: settings | sync | rules | help
@@ -18,6 +19,8 @@ let view = null;
 let busy = false;
 let status = null;               // mensaje mientras se conecta / despierta el servidor
 let fee = 0;                     // cuota elegida en "Juego privado"
+let turnTime = 60;               // segundos por turno elegidos (0 = sin límite)
+let bots = 2;                    // rivales en práctica
 let leaving = false;             // saliste tú de la sala (no mostrar "te desconectaste")
 
 const setScreen = (s) => { screen = s; modal = null; render(); };
@@ -61,21 +64,8 @@ async function join(opts) {
   await withBusy(async () => {
     try {
       room = await connect({ ...opts, name: account.name, account: account.code }, {
+        ...roomHandlers(),
         onWaking: (n) => { status = `El servidor sigue despertando… (intento ${n + 1} de 4)`; render(); },
-        onState: (v) => {
-          const myTurnNow = v.phase === "playing" && v.current === v.you && v.turnPhase === "start";
-          const wasMyTurn = view?.phase === "playing" && view.current === view.you;
-          view = v;
-          if (myTurnNow && !wasMyTurn) play("turn");
-          render();
-        },
-        onEvent,
-        onAccount: (acc) => { account = accountFromServer(acc); render(); },
-        onRejected: (error) => { toast(error); play("bad"); handleRejected(); render(); },
-        onLeave: () => {
-          if (!leaving) toast("Te desconectaste de la sala");
-          room = null; view = null; screen = "menu"; render();
-        },
       });
     } catch (e) {
       room = null; view = null;
@@ -84,6 +74,32 @@ async function join(opts) {
         : /cuota|cuenta|sala/i.test(msg) ? msg : "No se pudo conectar al servidor");
     }
   }, "Conectando… si el servidor estaba dormido puede tardar hasta 1 minuto.");
+}
+
+// Lo mismo para una sala en línea y para la sala local de práctica.
+function roomHandlers() {
+  return {
+    onState: (v) => {
+      const myTurnNow = v.phase === "playing" && v.current === v.you && v.turnPhase === "start";
+      const wasMyTurn = view?.phase === "playing" && view.current === view.you;
+      view = v;
+      if (myTurnNow && !wasMyTurn) play("turn");
+      render();
+    },
+    onEvent,
+    onAccount: (acc) => { account = accountFromServer(acc); render(); },
+    onRejected: (error) => { toast(error); play("bad"); handleRejected(); render(); },
+    onLeave: () => {
+      if (!leaving) toast("Te desconectaste de la sala");
+      room = null; view = null; screen = "menu"; render();
+    },
+  };
+}
+
+// Práctica: la partida corre en este navegador contra bots (no hace falta servidor ni cuenta).
+function playPractice() {
+  leaving = false;
+  room = startPractice({ name: account?.name ?? "Tú", level: account?.level ?? null, bots, turnTime }, roomHandlers());
 }
 
 function onEvent(ev) {
@@ -97,6 +113,7 @@ function onEvent(ev) {
     notePush({ by: ev.by, to: ev.to, anim: playPushAnimation({ card: view.discardTop, toPid: ev.to, me: view.you }) });
   } else if (ev.type === "turn" && ev.planted) toast(ev.by === view.you ? "¡Te plantaste!" : `${name(ev.by)} se plantó`);
   else if (played && ev.by !== view.you) toast(`${name(ev.by)} ${ev.laid ? "bajó una combinación" : "enganchó en la mesa"}`);
+  else if (ev.type === "timeout") toast(ev.by === view.you ? "Se acabó tu tiempo: el turno pasó" : `A ${name(ev.by)} se le acabó el tiempo`);
   else if (ev.type === "steal") {
     toast(ev.by === view.you ? "Robaste un 2: este turno no puedes plantarte"
       : ev.victim === view.you ? `${name(ev.by)} te robó un 2`
@@ -106,9 +123,10 @@ function onEvent(ev) {
 
 function leaveRoom() {
   leaving = true;
+  const wasPractice = room?.practice;
   room?.leave();
-  room = null; view = null; screen = "menu";
-  refreshAccount();
+  room = null; view = null; screen = wasPractice ? "practice" : "menu";
+  if (wasPractice) render(); else refreshAccount();
 }
 
 // La mesa avisa cuando el jugador quiere volver al menú al terminar la partida.
@@ -127,10 +145,20 @@ function render() {
   else if (screen === "welcome") page = welcomeScreen({ busy, status, onCreate: onCreateAccount, onSync: () => { modal = "sync"; render(); } });
   else if (screen === "private") {
     page = privateMenu({
-      account, fee, busy, status,
+      account, fee, turnTime, busy, status,
       onFee: (f) => { fee = f; render(); },
-      onInvite: () => join({ mode: "create", entryFee: fee }),
+      onTurnTime: (t) => { turnTime = t; render(); },
+      onInvite: () => join({ mode: "create", entryFee: fee, turnTime }),
       onJoin: (roomCode) => join({ mode: "join", roomCode }),
+      onBack: () => setScreen("menu"),
+      onSettings: () => { modal = "settings"; render(); },
+    });
+  } else if (screen === "practice") {
+    page = practiceMenu({
+      account, bots, turnTime,
+      onBots: (n) => { bots = n; render(); },
+      onTurnTime: (t) => { turnTime = t; render(); },
+      onPlay: playPractice,
       onBack: () => setScreen("menu"),
       onSettings: () => { modal = "settings"; render(); },
     });
@@ -138,7 +166,7 @@ function render() {
     page = mainMenu({
       account, offline, onRetry: refreshAccount,
       onPrivate: () => setScreen("private"),
-      onPractice: () => toast("El modo práctica llega en el siguiente lote"),
+      onPractice: () => setScreen("practice"),
       onSettings: () => { modal = "settings"; render(); },
       onRules: () => { modal = "rules"; render(); },
       onClaim,

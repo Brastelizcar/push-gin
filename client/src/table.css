@@ -264,3 +264,9 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 
 /* ✓ con una jugada que aún no vale: se puede pulsar (explica el motivo) pero no la envía */
 .confirm-btn.invalid{ background:rgba(201,162,39,.18); color:var(--gold-light); border:1.5px dashed var(--gold); cursor:pointer; box-shadow:none; }
+
+/* ---------- Lote 4: temporizador de turno ---------- */
+.turn-clock{ font-variant-numeric:tabular-nums; }
+.turn-clock.urgent{ color:var(--red); animation:clock-blink 1s steps(2) infinite; }
+.turn-flag.wait .turn-clock.urgent{ color:#ff8f86; }
+@keyframes clock-blink{ 50%{ opacity:.45; } }

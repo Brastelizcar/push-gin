@@ -244,6 +244,26 @@ describe("PushGinRoom", () => {
     assert.equal(g.phase, "main");
   });
 
+  it("temporizador: la vista trae el tiempo y al acabarse el turno pasa solo", async () => {
+    const room = await colyseus.createRoom("push_gin", { turnTime: 30 });
+    const a = await join(colyseus, room, "Ana"), b = await join(colyseus, room, "Luis");
+    await tick();
+    a.send("start"); await tick();
+    assert.equal(a.view.turnTime, 30);
+    assert.ok(a.view.turnMsLeft > 29_000 && a.view.turnMsLeft <= 30_000);
+    const first = room.game.currentPlayer === a.sessionId ? a : b;
+    room.match.turnStartedAt = Date.now() - 31_000;      // como si ya hubieran pasado 31 s
+    first.send("takeDiscard"); await tick(250);          // al reprogramar, el tiempo ya está vencido
+    assert.notEqual(room.game.currentPlayer, first.sessionId);
+    assert.deepEqual(a.events.at(-1), { type: "timeout", by: first.sessionId });
+    assert.equal(room.game.hands[first.sessionId].length, 10);
+  });
+
+  it("un tiempo de turno que no está en la lista se ignora (sin límite)", async () => {
+    const room = await colyseus.createRoom("push_gin", { turnTime: 7 });
+    assert.equal(room.match.turnTime, 0);
+  });
+
   it("anfitrión se traspasa si sale en el lobby", async () => {
     const { cs } = await setup(3);
     await cs[0].leave(); await tick();

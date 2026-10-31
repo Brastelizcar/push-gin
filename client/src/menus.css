@@ -148,6 +148,7 @@
 .m-steppers{ display:flex; gap:34px; justify-content:center; flex-wrap:wrap; }
 .m-stepper{ display:flex; flex-direction:column; align-items:center; gap:6px; }
 .m-step-val{ font-family:'Fraunces',serif; font-weight:900; font-size:56px; line-height:1; color:var(--ivory); }
+.m-step-val small{ font-size:.5em; margin-left:2px; }
 .m-step-lbl{ font-size:15px; font-weight:700; color:var(--gold-light); }
 .m-step-btns{ display:flex; border-radius:14px; overflow:hidden; border:2px solid var(--gold); box-shadow:0 4px 10px rgba(0,0,0,.4); }
 .m-step-btns button{ width:66px; height:50px; padding:0; border:0; border-radius:0; font-size:30px; color:var(--ivory); background:linear-gradient(180deg, #1d5b45, #0d3a2b); }

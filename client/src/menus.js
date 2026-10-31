@@ -5,6 +5,20 @@ import { h, toast, fsButton } from "./dom.js";
 import { formatCountdown, isSyncCode } from "./format.js";
 import { settings, setSetting } from "./settings.js";
 import { ENTRY_FEES, DAILY_CHIPS } from "../../src/logic/progress.js";
+import { TURN_TIMES } from "../../src/logic/match.js";
+
+// Selector − / + de un valor dentro de una lista (cuota, tiempo de turno, rivales).
+function stepper(list, value, label, show, onChange) {
+  const i = list.indexOf(value);
+  return h("div", { class: "m-stepper" },
+    h("div", { class: "m-step-val" }, show(value)),
+    h("div", { class: "m-step-lbl" }, label),
+    h("div", { class: "m-step-btns" },
+      h("button", { "aria-label": `Bajar ${label}`, disabled: i <= 0, onclick: () => onChange(list[i - 1]) }, "−"),
+      h("button", { "aria-label": `Subir ${label}`, disabled: i >= list.length - 1, onclick: () => onChange(list[i + 1]) }, "+")));
+}
+const showTime = (t) => (t ? h("span", {}, t, h("small", {}, "s")) : "∞");
+const timeHint = (t) => (t ? `Si se acaba el tiempo, el turno se juega solo (se descarta la carta que tomaste).` : "Sin límite de tiempo por turno.");
 
 const coin = () => h("span", { class: "chip-coin", "aria-hidden": "true" });
 const frame = (cls, ...content) =>
@@ -175,15 +189,7 @@ export function helpModal({ onClose }) {
 }
 
 // ---------- juego privado ----------
-export function privateMenu({ account, fee, busy, status, onFee, onInvite, onJoin, onBack, onSettings }) {
-  const i = ENTRY_FEES.indexOf(fee);
-  const stepper = (value, label, dec, inc, decOk, incOk) =>
-    h("div", { class: "m-stepper" },
-      h("div", { class: "m-step-val" }, value),
-      h("div", { class: "m-step-lbl" }, label),
-      h("div", { class: "m-step-btns" },
-        h("button", { "aria-label": `Bajar ${label}`, disabled: !decOk, onclick: dec }, "−"),
-        h("button", { "aria-label": `Subir ${label}`, disabled: !incOk, onclick: inc }, "+")));
+export function privateMenu({ account, fee, turnTime, busy, status, onFee, onTurnTime, onInvite, onJoin, onBack, onSettings }) {
   const code = h("input", { placeholder: "0000", inputmode: "numeric", maxlength: "4", autocomplete: "off", class: "m-room-code" });
   code.addEventListener("input", () => (code.value = code.value.replace(/\D/g, "")));
   const join = () => /^\d{4}$/.test(code.value) ? onJoin(code.value) : (toast("El código de sala tiene 4 dígitos"), code.focus());
@@ -193,9 +199,9 @@ export function privateMenu({ account, fee, busy, status, onFee, onInvite, onJoi
     topBar(account, { onSettings }),
     h("div", { class: "m-private" },
       h("div", { class: "m-panel" },
-        h("div", { class: "m-steppers", id: "privateSteppers" },
-          stepper(fee ? fee.toLocaleString("es") : "Gratis", "Cuota de entrada",
-            () => onFee(ENTRY_FEES[i - 1]), () => onFee(ENTRY_FEES[i + 1]), i > 0, i < ENTRY_FEES.length - 1)),
+        h("div", { class: "m-steppers" },
+          stepper(TURN_TIMES, turnTime, "Tiempo de turnos", showTime, onTurnTime),
+          stepper(ENTRY_FEES, fee, "Cuota de entrada", (f) => (f ? f.toLocaleString("es") : "Gratis"), onFee)),
         h("div", { class: "hint" }, fee
           ? `Cada jugador paga ${fee} fichas al empezar; el ganador se lleva el pozo.${tooPoor ? " No te alcanzan las fichas." : ""}`
           : "Partida sin fichas: solo se gana experiencia.")),
@@ -210,6 +216,26 @@ export function privateMenu({ account, fee, busy, status, onFee, onInvite, onJoi
     status ? h("div", { class: "hint wake m-status" }, status) : null);
 }
 
+// ---------- práctica contra la máquina ----------
+export function practiceMenu({ account, bots, turnTime, onBots, onTurnTime, onPlay, onBack, onSettings }) {
+  return frame("wide-menu",
+    topBar(account, { onSettings }),
+    h("div", { class: "m-private" },
+      h("div", { class: "m-panel" },
+        h("div", { class: "m-steppers" },
+          stepper([1, 2, 3], bots, bots === 1 ? "Rival" : "Rivales", String, onBots),
+          stepper(TURN_TIMES, turnTime, "Tiempo de turnos", showTime, onTurnTime)),
+        h("div", { class: "hint" }, timeHint(turnTime))),
+      h("div", { class: "m-panel" },
+        h("h3", { class: "m-panel-title" }, "Práctica"),
+        h("p", { class: "m-text small" }, "Juega contra la máquina para aprender las rondas. Funciona sin internet; no da experiencia ni fichas."),
+        h("p", { class: "m-text small" }, "Tus rivales: ", ["Rosa", "Tomás", "Lucía"].slice(0, bots).join(", ")))),
+    h("div", { class: "m-bottom" },
+      h("button", { class: "m-back", "aria-label": "Volver", onclick: onBack }, "‹"),
+      h("button", { class: "m-invite", onclick: onPlay }, "Jugar"),
+      h("div", { class: "m-screen-title" }, "Práctica")));
+}
+
 // ---------- sala de espera ----------
 export function waitingRoom({ view, onStart, onLeave }) {
   const isHost = view.host === view.you;
@@ -220,6 +246,7 @@ export function waitingRoom({ view, onStart, onLeave }) {
       h("div", { class: "m-wait-body" },
         h("div", { class: "m-wait-info" },
           h("span", {}, "Cuota de entrada: ", h("b", { class: "gold" }, view.entryFee ? view.entryFee.toLocaleString("es") : "gratis"), view.entryFee ? coin() : null),
+          h("span", {}, "Turno: ", h("b", { class: "gold" }, view.turnTime ? `${view.turnTime} s` : "sin límite")),
           h("span", { class: "m-wait-code", title: "Código de la sala" }, view.code),
           h("button", { class: "m-pill gold", onclick: () => share(`Únete a mi partida de Push Gin con el código ${view.code}`, "Código") }, "Compartir código")),
         h("p", { class: "m-text" }, view.players.length < 2 ? "Esperando a que tus amigos se unan al juego." : `Jugadores: ${view.players.length} de 4`),

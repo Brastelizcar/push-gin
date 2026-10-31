@@ -5,3 +5,5 @@ export * from './game.js';
 export * from './plan.js';
 export * from './turn.js';
 export * from './progress.js';
+export * from './match.js';
+export * from './bot.js';
