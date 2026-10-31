@@ -1,5 +1,7 @@
 import { Room, matchMaker } from "colyseus";
-import { Match, seededRng, ENTRY_FEES, gameRewards, levelInfo } from "../../../src/logic/index.js";
+import {
+  Match, seededRng, ENTRY_FEES, gameRewards, levelInfo, botMove, BOT_NAMES, isBot, PRACTICE_XP_FACTOR,
+} from "../../../src/logic/index.js";
 import { initStore, publicAccount } from "../accounts/store.js";
 import { PushGinState } from "./schema/PushGinState.js";
 
@@ -28,6 +30,9 @@ export class PushGinRoom extends Room {
   starting = false;
   turnTimer = null;
   reconnectSeconds = RECONNECT_SECONDS; // (las pruebas lo acortan)
+  practice = 0;         // práctica contra bots: cuántos bots (0 = partida normal). Da la mitad del XP.
+  botDelay = [700, 1300]; // ms que "piensa" cada bot (las pruebas lo acortan)
+  botTimer = null;
 
   get game() { return this.match.game; } // la ronda actual (las pruebas la usan)
 
@@ -58,6 +63,12 @@ export class PushGinRoom extends Room {
     // Reparto reproducible para pruebas (nunca en producción).
     const rng = process.env.NODE_ENV !== "production" && Number.isInteger(options?.seed) ? seededRng(options.seed) : null;
     this.match = new Match({ rng, turnTime: options?.turnTime });
+    // Práctica: tú solo contra 1–3 bots que juegan en el servidor (así el XP también lo decide el servidor).
+    if (options?.practice !== undefined) {
+      this.practice = Math.max(1, Math.min(3, Number.parseInt(options.practice, 10) || 2));
+      this.entryFee = 0;
+      this.maxClients = 1;
+    }
     // El código corto ES el roomId: los demás se unen con client.joinById(codigo, { name, token }).
     this.roomId = await generateRoomCode();
   }
@@ -80,6 +91,12 @@ export class PushGinRoom extends Room {
     if (account) this.accounts.set(client.sessionId, account.id);
     const name = account?.name ?? (String(options?.name ?? "").trim().slice(0, 16) || "Jugador");
     this.match.addPlayer(client.sessionId, name, account ? levelInfo(account.xp).level : null);
+    if (this.practice) {                   // la práctica empieza apenas entras
+      BOT_NAMES.slice(0, this.practice).forEach((n, i) => this.match.addPlayer(`bot${i + 1}`, n));
+      this.lock();
+      this.#handle(client, "start");
+      return;
+    }
     this.#broadcastViews();
   }
 
@@ -104,7 +121,7 @@ export class PushGinRoom extends Room {
     this.#afterChange(ev);
   }
 
-  onDispose() { this.turnTimer?.clear(); }
+  onDispose() { this.turnTimer?.clear(); this.botTimer?.clear(); }
 
   // ---------- internos ----------
   // `event` (opcional): un aviso para TODOS (el cliente lo usa para animar). Se envía antes del estado.
@@ -120,6 +137,28 @@ export class PushGinRoom extends Room {
     if (this.match.phase === "finished" && !this.rewards) this.#giveRewards();
     this.#broadcastViews();
     this.#scheduleTimeout();
+    this.#scheduleBot();
+  }
+
+  // Práctica: si le toca a un bot, juega tras una pausa. Un bot nunca debería equivocarse; si pasa, solo descarta.
+  #scheduleBot() {
+    this.botTimer?.clear();
+    this.botTimer = null;
+    if (!this.practice || this.match.phase !== "playing" || !isBot(this.match.game.currentPlayer)) return;
+    const [a, b] = this.botDelay;
+    this.botTimer = this.clock.setTimeout(() => {
+      if (this.match.phase !== "playing") return;
+      const pid = this.match.game.currentPlayer;
+      if (!isBot(pid)) return;
+      const mv = botMove(this.match.viewFor(pid));
+      let res = this.match.handle(pid, mv.type, mv.msg);
+      if (!res.ok) {
+        console.warn("Bot rechazado:", res.error);
+        if (this.match.game.phase === "start") this.match.handle(pid, "takeDiscard");
+        res = this.match.handle(pid, "discard", { cardId: this.match.lastDrawn ?? this.match.game.hands[pid][0].id });
+      }
+      this.#afterChange(res.event);
+    }, a + Math.random() * (b - a));
   }
 
   // Temporizador de turno: si el jugador no termina a tiempo, el turno se juega solo (Match.timeoutTurn).
@@ -158,7 +197,8 @@ export class PushGinRoom extends Room {
   // jugador con cuenta le llega su cuenta actualizada (mensaje "account").
   #giveRewards() {
     const order = this.match.order;
-    this.rewards = gameRewards(order, this.match.totals, this.entryFee, [...this.match.left]);
+    this.rewards = gameRewards(order, this.match.totals, this.entryFee, [...this.match.left],
+      { xpFactor: this.practice ? PRACTICE_XP_FACTOR : 1 });
     const list = order.filter((sid) => this.accounts.has(sid))
       .map((sid) => ({ sid, id: this.accounts.get(sid), xp: this.rewards[sid].xp, chips: this.rewards[sid].chips + this.entryFee }));
     this.rewardsSaved = (async () => {
@@ -182,7 +222,7 @@ export class PushGinRoom extends Room {
 
   #viewFor(me) {
     return this.match.viewFor(me, {
-      entryFee: this.entryFee, code: this.roomId,
+      entryFee: this.entryFee, code: this.roomId, practice: this.practice > 0,
       ...(this.match.phase === "finished" && { rewards: this.rewards }),
     });
   }

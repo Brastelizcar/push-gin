@@ -46,4 +46,6 @@
   descarte). Si nadie se queda sin cartas, la ronda termina sin ganador y todos suman lo que tienen en la mano.
 - **Tiempo agotado:** antes de tomar carta → toma el descarte y lo devuelve (nada cambia); después → descarta la carta
   que tomó. Tiempos: sin límite, 30, 45, 60, 90, 120 s.
-- **Práctica:** corre en el navegador (sirve sin internet), 1 a 3 bots, no da XP ni fichas. Los bots solo ven su mano.
+- **Práctica** (decidido 30-oct-2026): contra bots vale la **mitad del XP** (50/25/15/5) y no se juegan fichas. Para
+  que el XP lo decida el servidor, con cuenta la práctica se juega en el servidor (los bots juegan allí). Sin cuenta o
+  sin internet sigue corriendo en el navegador y no da XP. 1 a 3 bots; solo ven su propia mano.

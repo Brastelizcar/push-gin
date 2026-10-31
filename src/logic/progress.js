@@ -2,6 +2,7 @@
 
 // XP al terminar una partida según el puesto (1.º, 2.º, 3.º, 4.º).
 export const XP_BY_PLACE = [100, 50, 30, 10];
+export const PRACTICE_XP_FACTOR = 0.5;           // contra bots vale la mitad: 50, 25, 15, 5
 export const DAILY_CHIPS = 300;                    // fichas gratis
 export const CLAIM_INTERVAL_MS = 24 * 60 * 60 * 1000;
 export const ENTRY_FEES = [0, 100, 200, 300, 500, 1000]; // cuotas de entrada permitidas en juego privado
@@ -27,7 +28,8 @@ export function placements(totals) {
 // al primero en el orden). order: ids en orden de asiento. Devuelve { id: { place, xp, chips } }.
 // left: quienes abandonaron a media partida. Pierden su cuota (queda en el pozo), no ganan XP y no tienen
 // puesto (place: null); los puestos se reparten entre los que siguieron jugando.
-export function gameRewards(order, totals, fee = 0, left = []) {
+// xpFactor: multiplica el XP (práctica contra bots: PRACTICE_XP_FACTOR).
+export function gameRewards(order, totals, fee = 0, left = [], { xpFactor = 1 } = {}) {
   const gone = new Set(left);
   const stayed = order.filter((id) => !gone.has(id));
   const place = placements(Object.fromEntries(stayed.map((id) => [id, totals[id]])));
@@ -39,7 +41,7 @@ export function gameRewards(order, totals, fee = 0, left = []) {
     ? { place: null, xp: 0, chips: -fee, left: true }
     : {
       place: place[id],
-      xp: XP_BY_PLACE[place[id]] ?? 0,
+      xp: Math.round((XP_BY_PLACE[place[id]] ?? 0) * xpFactor),
       chips: (place[id] === 0 ? share + (id === winners[0] ? extra : 0) : 0) - fee, // ganancia neta de la partida
     }]));
 }

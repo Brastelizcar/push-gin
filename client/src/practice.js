@@ -1,10 +1,11 @@
-// Modo práctica: una partida contra bots que corre COMPLETA en el navegador (no necesita servidor).
+// Práctica SIN conexión: una partida contra bots que corre COMPLETA en el navegador (no necesita servidor) y no da
+// XP. Con cuenta y servidor, la práctica se juega en el servidor (sala con `practice`) y da la mitad del XP.
 // Usa la misma lógica que el servidor (Match) y una "sala local" con la misma forma que la de Colyseus
 // (send / leave), así la mesa funciona igual que en línea.
 import { Match } from "../../src/logic/match.js";
-import { botMove } from "../../src/logic/bot.js";
+import { botMove, BOT_NAMES } from "../../src/logic/bot.js";
 
-export const BOT_NAMES = ["Rosa", "Tomás", "Lucía"];
+export { BOT_NAMES };
 const ME = "tú";
 const BOT_DELAY = [700, 1300]; // ms que "piensa" cada bot (al azar dentro del rango)
 

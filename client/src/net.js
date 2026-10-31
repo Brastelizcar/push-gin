@@ -32,13 +32,16 @@ function withTimeout(start, ms) {
 const isDefinitive = (e) => /not found|locked|full|invalid/i.test(String(e?.message ?? e));
 
 /**
- * Crea una sala ("create") o se une con su código de 4 dígitos ("join"). Devuelve la room de Colyseus.
+ * Crea una sala ("create"), se une con su código de 4 dígitos ("join") o empieza una práctica contra `bots` en el
+ * servidor ("practice", da la mitad del XP). Devuelve la room de Colyseus.
  * token: el de tu cuenta en este dispositivo (el servidor lo verifica). entryFee / turnTime: solo al crear.
  * handlers: { onState(view), onEvent(ev), onAccount(account), onRejected(error), onLeave() }
  */
-export async function connect({ mode, name, roomCode, token, entryFee = 0, turnTime = 0 }, handlers) {
+export async function connect({ mode, name, roomCode, token, entryFee = 0, turnTime = 0, bots = 2 }, handlers) {
   const opts = { name, ...(token ? { token } : {}) };
-  const start = () => (mode === "create" ? client.create("push_gin", { ...opts, entryFee, turnTime }) : client.joinById(roomCode, opts));
+  const start = () => (mode === "create" ? client.create("push_gin", { ...opts, entryFee, turnTime })
+    : mode === "practice" ? client.create("push_gin", { ...opts, practice: bots, turnTime })
+    : client.joinById(roomCode, opts));
   let room, tries = 0;
   for (;;) {
     try { room = await withTimeout(start, 40000); break; }

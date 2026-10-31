@@ -110,9 +110,11 @@ async function tryResume() {
   render();
 }
 
-// Práctica: la partida corre en este navegador contra bots (no hace falta servidor ni cuenta).
+// Práctica contra bots. Con cuenta, se juega en el servidor (da la mitad del XP). Sin cuenta o sin conexión, corre en
+// este navegador y no da XP.
 function playPractice() {
   leaving = false;
+  if (account && !offline && SERVER_CONFIGURED) return join({ mode: "practice", bots, turnTime });
   room = startPractice({ name: account?.name ?? "Tú", level: account?.level ?? null, bots, turnTime }, roomHandlers());
 }
 
@@ -137,10 +139,11 @@ function onEvent(ev) {
 
 function leaveRoom() {
   leaving = true;
-  const wasPractice = room?.practice;
+  const local = !!room?.practice;                 // práctica sin conexión (sala local)
+  const wasPractice = local || !!view?.practice;
   room?.leave();
   room = null; view = null; screen = wasPractice ? "practice" : "menu";
-  if (wasPractice) render(); else refreshAccount();
+  if (local) render(); else refreshAccount();
 }
 
 // La mesa avisa cuando el jugador quiere volver al menú al terminar la partida.

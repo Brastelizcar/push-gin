@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { xpToReach, levelInfo, placements, gameRewards, claimStatus, CLAIM_INTERVAL_MS } from '../src/logic/progress.js';
+import { xpToReach, levelInfo, placements, gameRewards, claimStatus, CLAIM_INTERVAL_MS, PRACTICE_XP_FACTOR } from '../src/logic/progress.js';
 
 test('nivel N → N+1 cuesta 100×N XP', () => {
   assert.equal(xpToReach(1), 0);
@@ -47,4 +47,9 @@ test('fichas gratis cada 24 h, con el reloj del servidor', () => {
   const t = 1_000_000;
   assert.deepEqual(claimStatus(t, t + 1000), { canClaim: false, msLeft: CLAIM_INTERVAL_MS - 1000 });
   assert.deepEqual(claimStatus(t, t + CLAIM_INTERVAL_MS), { canClaim: true, msLeft: 0 });
+});
+
+test('práctica contra bots: la mitad del XP (50, 25, 15, 5)', () => {
+  const r = gameRewards(['a', 'b', 'c', 'd'], { a: 30, b: 10, c: 50, d: 20 }, 0, [], { xpFactor: PRACTICE_XP_FACTOR });
+  assert.deepEqual(['b', 'd', 'a', 'c'].map((id) => r[id].xp), [50, 25, 15, 5]);
 });

@@ -170,6 +170,45 @@ describe("Cuentas: API y salas", () => {
     assert.deepEqual([luis.xp, luis.chips], [0, 200]);   // perdió la cuota y no ganó XP
   });
 
+  it("práctica en el servidor: empieza sola contra los bots, que juegan hasta tu turno", async () => {
+    const { token } = await store.create("Ana");
+    const room = await colyseus.createRoom("push_gin", { practice: 2 });
+    room.botDelay = [5, 10];
+    const a = await join(room, { token });
+    await tick(150);
+    assert.equal(a.view.phase, "playing");
+    assert.equal(a.view.practice, true);
+    assert.deepEqual(a.view.players.map((p) => p.name), ["Ana", "Rosa", "Tomás"]);
+    await assert.rejects(colyseus.connectTo(room, { name: "Intruso" }));  // nadie más entra
+    a.send("takeDiscard"); await tick();
+    a.send("discard", { cardId: a.view.drawn }); await tick(300);
+    assert.equal(a.view.current, a.sessionId);                             // los 2 bots ya jugaron
+    assert.equal(a.view.turnPhase, "start");
+  });
+
+  it("práctica en el servidor: da la MITAD del XP y no mueve fichas", async () => {
+    const { account: a1, token } = await store.create("Ana");
+    await store.claim(a1.id);
+    const room = await colyseus.createRoom("push_gin", { practice: 1, entryFee: 500 });
+    assert.equal(room.entryFee, 0);                                        // en práctica no hay cuota
+    room.botDelay = [60_000, 60_000];                                      // los bots no alcanzan a jugar
+    const a = await join(room, { token });
+    await tick(150);
+    for (let r = 0; r < 5; r++) {                                          // Ana gana todas las rondas
+      const g = room.game;
+      g.turnIndex = g.players.indexOf(a.sessionId);
+      g.hands[a.sessionId] = [{ id: `w${r}`, rank: "K", suit: "♣" }];
+      g.phase = "main";
+      a.send("discard", { cardId: `w${r}` }); await tick();
+      if (r < 4) { a.send("nextRound"); await tick(); }
+    }
+    await room.rewardsSaved; await tick();
+    assert.equal(a.view.phase, "finished");
+    assert.deepEqual(a.view.rewards[a.sessionId], { place: 0, xp: 50, chips: 0 });
+    const ana = await store.byId(a1.id);
+    assert.deepEqual([ana.xp, ana.chips], [50, 300]);
+  });
+
   it("API: canjear códigos tiene límite de intentos por IP (no se puede adivinar a la fuerza)", async () => {
     let last;
     for (let i = 0; i < 12; i++) last = await api("/sync/redeem", { body: { code: "AAAA-AAAA" } });

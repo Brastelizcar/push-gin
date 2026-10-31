@@ -210,6 +210,10 @@ export function findSteal(view) {
   return null;
 }
 
+// Nombres de los bots de práctica (ids bot1, bot2, bot3).
+export const BOT_NAMES = ['Rosa', 'Tomás', 'Lucía'];
+export const isBot = (id) => /^bot\d$/.test(id);
+
 // Siguiente acción del bot cuando es su turno.
 export function botMove(view) {
   const planted = view.players.find((p) => p.id === view.you)?.planted;

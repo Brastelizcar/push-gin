@@ -60,8 +60,10 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
 - Lote 2 (jugada validada): hecho. Grupos válidos de la mano (tramos entre espacios) se marcan y se arrastran
   enteros desde su primera o última carta; ✓ valida con `buildTurn` (client/src/staging.js) antes de enviar.
 - Lote 3 (cuentas y menús): hecho. Ver "Cuentas" abajo.
-- Lote 4 (práctica con bots, temporizador): hecho. La práctica corre en el navegador (`client/src/practice.js`, una
-  "sala local" con la misma forma que la de Colyseus); el tiempo de turno se elige en Juego privado y en Práctica.
+- Lote 4 (práctica con bots, temporizador): hecho. **Con cuenta**, la práctica se juega en el SERVIDOR (sala con la
+  opción `practice: nBots`; los bots juegan en `PushGinRoom`) y da la **mitad del XP** (`PRACTICE_XP_FACTOR`), sin fichas.
+  Sin cuenta o sin conexión corre en el navegador (`client/src/practice.js`) y no da XP. El tiempo de turno se elige
+  en Juego privado y en Práctica.
 
 ## Cuentas (Lote 3)
 - `src/logic/progress.js`: XP por puesto (100/50/30/10), nivel N→N+1 = 100×N XP, pozo de cuotas, fichas gratis (300 / 24 h).
@@ -72,6 +74,6 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
   vence a los 10 minutos (hora de la base de datos); se guarda solo su hash. `POST /api/sync/redeem` lo canjea de forma
   atómica y entrega un token NUEVO. Canjes limitados por IP.
 - **XP y fichas los decide siempre el servidor:** premios de la partida, cuota (a todos o a nadie) y fichas gratis.
-  Ninguna ruta acepta esos valores del cliente; la práctica (en el navegador) no da nada.
+  Ninguna ruta acepta esos valores del cliente. La práctica da la mitad del XP solo si se juega en el servidor.
 - Cliente: `account.js` (API), `menus.js`/`menus.css`, `settings.js`, `sound.js`.
 

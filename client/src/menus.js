@@ -192,7 +192,7 @@ export function rulesModal({ onClose }) {
         "Siempre terminas descartando una carta. Ganas la ronda al descartar la última."),
       sec("Robo del 2", "Antes de tomar carta, si aún no te plantaste, puedes cambiar un 2 de un plante ajeno por la carta que va en su lugar. Ese turno ya no te puedes plantar."),
       sec("Puntos en contra", "A = 15 · 2 = 20 · 10, J, Q, K = 10 · 3 a 9 = 5"),
-      sec("Experiencia y fichas", "Al terminar una partida: 1.º 100 XP, 2.º 50, 3.º 30, 4.º 10. Del nivel N al N+1 hacen falta 100×N XP.",
+      sec("Experiencia y fichas", "Al terminar una partida: 1.º 100 XP, 2.º 50, 3.º 30, 4.º 10 (contra bots, la mitad). Del nivel N al N+1 hacen falta 100×N XP.",
         `Cada 24 horas puedes reclamar ${DAILY_CHIPS} fichas gratis. En juego privado con cuota, el ganador se lleva el pozo.`)));
 }
 
@@ -246,7 +246,9 @@ export function practiceMenu({ account, bots, turnTime, onBots, onTurnTime, onPl
         h("div", { class: "hint" }, timeHint(turnTime))),
       h("div", { class: "m-panel" },
         h("h3", { class: "m-panel-title" }, "Práctica"),
-        h("p", { class: "m-text small" }, "Juega contra la máquina para aprender las rondas. Funciona sin internet; no da experiencia ni fichas."),
+        h("p", { class: "m-text small" }, account
+          ? "Juega contra la máquina: ganas la MITAD de la experiencia (1.º 50 XP, 2.º 25, 3.º 15, 4.º 5). No se juegan fichas."
+          : "Juega contra la máquina para aprender las rondas. Sin cuenta (o sin internet) no da experiencia."),
         h("p", { class: "m-text small" }, "Tus rivales: ", ["Rosa", "Tomás", "Lucía"].slice(0, bots).join(", ")))),
     h("div", { class: "m-bottom" },
       h("button", { class: "m-back", "aria-label": "Volver", onclick: onBack }, "‹"),
