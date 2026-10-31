@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Push Gin — Vista general v6</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700;900&family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --felt-dark:#0b3d2e; --felt-mid:#124f3b;
+    --wood:#5c3a21; --wood-dark:#3d2515;
+    --ivory:#f6f1e2; --ivory-shade:#e8dfc6; --card-border:#d3c39a;
+    --red:#a9302b; --black:#242220;
+    --gold:#c9a227; --gold-light:#e6c65a;
+    --confirm:#4a9d6e; --confirm-light:#7fd0a0;
+    --recent:#e2735e;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:'Manrope',sans-serif; background:#1a1a1a;
+    display:flex; align-items:center; justify-content:center;
+    min-height:100vh; padding:20px;
+  }
+  .table-frame{
+    width:100%; max-width:1080px;
+    background:linear-gradient(180deg,var(--wood),var(--wood-dark));
+    border-radius:24px; padding:16px; box-shadow:0 30px 60px rgba(0,0,0,0.5);
+  }
+  .table-felt{
+    background:radial-gradient(ellipse at 50% 20%, var(--felt-mid), var(--felt-dark) 78%);
+    border-radius:14px; border:2px solid rgba(0,0,0,0.35);
+    padding:14px; display:flex; gap:12px;
+  }
+  .main-col{ flex:1; display:flex; flex-direction:column; gap:10px; min-width:0; }
+
+  .topbar{
+    display:flex; justify-content:space-between; align-items:center;
+    background:rgba(0,0,0,0.25); border-radius:10px;
+    padding:9px 14px; border:1px solid rgba(201,162,39,0.3);
+  }
+  .round-info .r-title{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; color:var(--gold-light); }
+  .scoreboard{ display:flex; gap:14px; }
+  .sc-item{ text-align:center; min-width:48px; }
+  .sc-item .name{ font-size:10px; color:var(--ivory-shade); opacity:0.75; }
+  .sc-item .total{ font-family:'Fraunces',serif; font-weight:700; font-size:14px; color:var(--ivory); }
+  .sc-item.you .total{ color:var(--gold-light); }
+  .turn-flag{ font-size:10px; font-weight:800; padding:4px 10px; border-radius:20px; letter-spacing:0.03em; background:var(--gold); color:var(--wood-dark); }
+
+  .players-strip{ display:flex; gap:8px; }
+  .p-chip{
+    flex:1; display:flex; align-items:center; gap:7px;
+    background:rgba(0,0,0,0.14); border:1px solid rgba(255,255,255,0.07);
+    border-radius:10px; padding:7px 10px;
+  }
+  .p-chip.you{ border:1.5px solid var(--gold); background:rgba(0,0,0,0.2); }
+  .avatar{
+    width:24px;height:24px;border-radius:50%; background:var(--gold);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Fraunces',serif;font-weight:700;color:var(--wood-dark); font-size:10.5px; flex-shrink:0;
+  }
+  .p-chip-meta{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .p-name{ color:var(--ivory-shade); font-size:11.5px; font-weight:700; white-space:nowrap; }
+  .p-chip.you .p-name{ color:var(--gold-light); }
+  .status-chip{ font-size:8.5px; font-weight:800; padding:1px 6px; border-radius:20px; width:fit-content; background:var(--gold); color:var(--wood-dark); }
+  .card-count{ margin-left:auto; display:flex; align-items:center; gap:4px; color:var(--ivory-shade); font-size:11.5px; font-weight:700; flex-shrink:0; }
+  .card-count .icon{ width:12px; height:16px; border-radius:2px; background:linear-gradient(160deg,var(--ivory),var(--ivory-shade)); border:1.1px solid var(--card-border); }
+
+  .mesa-panel{
+    background:rgba(0,0,0,0.14); border:1px solid rgba(255,255,255,0.07);
+    border-radius:14px; padding:14px 16px;
+  }
+  .mesa-title{ font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ivory-shade); opacity:0.55; margin-bottom:10px; }
+  .owner-row{ margin-bottom:14px; }
+  .owner-row:last-child{ margin-bottom:0; }
+  .owner-label{ display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+  .owner-label .dot{ width:6px; height:6px; border-radius:50%; background:var(--gold); }
+  .owner-label span.name{ font-size:11px; color:var(--gold-light); font-weight:700; }
+  .melds-line{ display:flex; gap:22px; flex-wrap:wrap; }
+  .meld{ display:flex; }
+  .meld .card{ margin-left:-20px; }
+  .meld .card:first-child{ margin-left:0; }
+
+  .card{
+    width:38px; height:54px;
+    background:linear-gradient(160deg,var(--ivory) 0%, var(--ivory-shade) 100%);
+    border:1.2px solid var(--card-border); border-radius:6px;
+    position:relative; box-shadow:0 1px 0 rgba(255,255,255,0.6) inset, 0 3px 6px rgba(0,0,0,0.35);
+    padding:3px 4px; font-family:'Fraunces',serif;
+  }
+  .card.red{ color:var(--red); } .card.black{ color:var(--black); }
+  .card .corner{ font-size:10.5px; font-weight:700; line-height:1; }
+  .card .corner small{ display:block; font-size:8.5px; margin-top:1px; }
+  .card .pip{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:14.5px; opacity:0.9; }
+
+  /* Carta agregada por el último jugador */
+  .card.recent{
+    box-shadow:0 0 0 2px var(--recent), 0 3px 6px rgba(0,0,0,0.35);
+    z-index:2;
+  }
+
+  .hand-panel{
+    background:rgba(0,0,0,0.2); border:1.5px solid var(--gold);
+    box-shadow:0 0 0 1px rgba(201,162,39,0.25);
+    border-radius:14px; padding:14px 16px;
+  }
+  .hand-line{ display:flex; gap:16px; align-items:flex-end; min-height:70px; flex-wrap:wrap; }
+  .hand-group{ display:flex; }
+  .hand-group .card{ width:46px; height:66px; margin-left:-18px; cursor:grab; }
+  .hand-group .card:first-child{ margin-left:0; }
+  .hand-group .card .corner{ font-size:12.5px; }
+  .hand-group .card .pip{ font-size:18px; }
+  .hand-group .card.dragging{ opacity:0.3; }
+
+  .action-rail{
+    width:84px; flex-shrink:0;
+    display:flex; flex-direction:column; align-items:center;
+    padding-top:2px;
+  }
+  .rail-pill{
+    width:100%; background:rgba(0,0,0,0.28); border:1px solid rgba(201,162,39,0.3);
+    border-radius:14px; padding:8px 4px; text-align:center;
+  }
+  .rail-pill .val{ display:flex; align-items:center; justify-content:center; gap:4px; font-family:'Fraunces',serif; font-weight:700; color:var(--ivory); font-size:14px; }
+  .rail-pill .coin{ width:12px; height:12px; border-radius:50%; background:radial-gradient(circle at 35% 30%, var(--gold-light), var(--gold)); }
+  .rail-pill .sub{ font-size:7.5px; color:var(--ivory-shade); opacity:0.6; text-transform:uppercase; letter-spacing:0.03em; margin-top:2px; }
+
+  .rail-center-group{
+    flex:1; width:100%;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px;
+  }
+
+  .sort-btn{
+    width:100%; background:linear-gradient(180deg, rgba(201,162,39,0.18), rgba(201,162,39,0.08));
+    border:1px solid rgba(201,162,39,0.4); border-radius:12px;
+    padding:8px 4px; text-align:center; cursor:pointer;
+  }
+  .sort-btn.active{ background:linear-gradient(180deg, rgba(201,162,39,0.4), rgba(201,162,39,0.22)); }
+  .sort-btn .val{ font-family:'Fraunces',serif; font-weight:700; color:var(--gold-light); font-size:13px; }
+  .sort-btn .sub{ font-size:7px; color:var(--ivory-shade); opacity:0.65; text-transform:uppercase; margin-top:1px; }
+  .sort-btn:hover{ background:linear-gradient(180deg, rgba(201,162,39,0.28), rgba(201,162,39,0.14)); }
+
+  .unified-slot{
+    width:64px; height:92px; border-radius:9px;
+    position:relative;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces',serif;
+    transition:all .2s ease;
+    cursor:pointer;
+  }
+  .unified-slot.has-card{
+    background:linear-gradient(160deg,var(--ivory) 0%, var(--ivory-shade) 100%);
+    border:1.5px solid var(--card-border);
+    box-shadow:0 0 0 3px rgba(230,198,90,0.22), 0 4px 10px rgba(0,0,0,0.4);
+    animation:tap-pulse 2s ease-in-out infinite;
+  }
+  @keyframes tap-pulse{
+    0%,100%{ box-shadow:0 0 0 3px rgba(230,198,90,0.14), 0 4px 10px rgba(0,0,0,0.4); }
+    50%{ box-shadow:0 0 0 5px rgba(230,198,90,0.32), 0 4px 10px rgba(0,0,0,0.4); }
+  }
+  .unified-slot .face{ text-align:center; }
+  .unified-slot .face .corner{ font-size:22px; font-weight:700; }
+  .unified-slot .face .corner.red{ color:var(--red); }
+  .unified-slot .face .corner.black{ color:var(--black); }
+  .unified-slot .face .suit{ font-size:15px; opacity:0.85; }
+
+  .unified-slot.empty-wait{
+    background:repeating-linear-gradient(135deg, var(--felt-mid) 0 6px, var(--wood) 6px 12px);
+    border:2.5px dashed var(--gold-light);
+  }
+  .unified-slot.empty-wait.drag-over{ border-color:#fff; box-shadow:0 0 0 3px rgba(255,255,255,0.25); }
+  .unified-slot .drop-icon{ color:var(--gold-light); font-size:20px; opacity:0.8; }
+
+  .slot-label{ font-family:'Manrope',sans-serif; font-size:8.5px; letter-spacing:0.05em; text-transform:uppercase; color:var(--gold-light); font-weight:800; text-align:center; }
+
+  .push-btn{
+    width:100%; display:flex; align-items:center; justify-content:center; gap:5px;
+    background:rgba(0,0,0,0.28); border:1px solid rgba(201,162,39,0.4);
+    border-radius:20px; padding:6px 4px; cursor:pointer;
+  }
+  .push-btn .p-badge{
+    width:18px; height:18px; border-radius:50%; background:var(--gold);
+    color:var(--wood-dark); font-family:'Fraunces',serif; font-weight:800; font-size:11px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .push-btn .p-text{ font-size:9.5px; color:var(--gold-light); font-weight:700; }
+  .push-btn:hover{ background:rgba(0,0,0,0.4); }
+  .push-btn.disabled{ opacity:0.35; pointer-events:none; }
+
+  .confirm-btn{
+    width:52px; height:52px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px; font-weight:800; margin-top:2px;
+    box-shadow:0 5px 12px rgba(0,0,0,0.4);
+    transition:all .2s ease;
+  }
+  .confirm-btn.disabled{ background:rgba(255,255,255,0.06); color:rgba(232,223,198,0.25); box-shadow:none; cursor:not-allowed; }
+  .confirm-btn.active{ background:radial-gradient(circle at 35% 30%, var(--confirm-light), var(--confirm) 80%); color:#0e2f1f; cursor:pointer; }
+  .confirm-label{ font-size:8.5px; color:var(--ivory-shade); opacity:0.7; text-align:center; }
+
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--wood-dark); border:1px solid var(--gold); color:var(--gold-light);
+    padding:8px 16px; border-radius:20px; font-size:12px; font-weight:700;
+    opacity:0; pointer-events:none; transition:opacity .25s ease;
+  }
+  .toast.show{ opacity:1; }
+</style>
+</head>
+<body>
+
+<div class="table-frame">
+  <div class="table-felt">
+
+    <div class="main-col">
+
+      <div class="topbar">
+        <div class="round-info">
+          <div class="r-title">Ronda 3 de 5</div>
+        </div>
+        <div class="scoreboard">
+          <div class="sc-item you"><div class="name">Camilo</div><div class="total">20</div></div>
+          <div class="sc-item"><div class="name">Ana</div><div class="total">20</div></div>
+          <div class="sc-item"><div class="name">Luis</div><div class="total">45</div></div>
+          <div class="sc-item"><div class="name">Sofía</div><div class="total">10</div></div>
+        </div>
+        <div class="turn-flag">Tu turno</div>
+      </div>
+
+      <div class="players-strip">
+        <div class="p-chip">
+          <div class="avatar">A</div>
+          <div class="p-chip-meta"><div class="p-name">Ana</div><span class="status-chip">Plantada</span></div>
+          <div class="card-count"><span class="icon"></span>4</div>
+        </div>
+        <div class="p-chip">
+          <div class="avatar">L</div>
+          <div class="p-chip-meta"><div class="p-name">Luis</div><span class="status-chip">Plantado</span></div>
+          <div class="card-count"><span class="icon"></span>3</div>
+        </div>
+        <div class="p-chip">
+          <div class="avatar">S</div>
+          <div class="p-chip-meta"><div class="p-name">Sofía</div><span class="status-chip">Plantada</span></div>
+          <div class="card-count"><span class="icon"></span>2</div>
+        </div>
+        <div class="p-chip you">
+          <div class="avatar">C</div>
+          <div class="p-chip-meta"><div class="p-name">Camilo</div><span class="status-chip">Plantado</span></div>
+          <div class="card-count"><span class="icon"></span>9</div>
+        </div>
+      </div>
+
+      <div class="mesa-panel">
+        <div class="mesa-title">Plantes en mesa</div>
+
+        <div class="owner-row">
+          <div class="owner-label"><span class="dot"></span><span class="name">Ana</span></div>
+          <div class="melds-line">
+            <div class="meld">
+              <div class="card black"><div class="corner">4<small>♣</small></div><div class="pip">♣</div></div>
+              <div class="card black"><div class="corner">5<small>♣</small></div><div class="pip">♣</div></div>
+              <div class="card black"><div class="corner">6<small>♣</small></div><div class="pip">♣</div></div>
+              <div class="card black"><div class="corner">7<small>♣</small></div><div class="pip">♣</div></div>
+              <div class="card black"><div class="corner">8<small>♣</small></div><div class="pip">♣</div></div>
+              <div class="card black"><div class="corner">9<small>♣</small></div><div class="pip">♣</div></div>
+              <div class="card black recent"><div class="corner">10<small>♣</small></div><div class="pip">♣</div></div>
+            </div>
+            <div class="meld">
+              <div class="card red"><div class="corner">2<small>♥</small></div><div class="pip">♥</div></div>
+              <div class="card red"><div class="corner">3<small>♥</small></div><div class="pip">♥</div></div>
+              <div class="card red"><div class="corner">4<small>♥</small></div><div class="pip">♥</div></div>
+              <div class="card red"><div class="corner">5<small>♥</small></div><div class="pip">♥</div></div>
+              <div class="card red"><div class="corner">6<small>♥</small></div><div class="pip">♥</div></div>
+              <div class="card red"><div class="corner">7<small>♥</small></div><div class="pip">♥</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="owner-row">
+          <div class="owner-label"><span class="dot"></span><span class="name">Luis</span></div>
+          <div class="melds-line">
+            <div class="meld">
+              <div class="card black"><div class="corner">3<small>♠</small></div><div class="pip">♠</div></div>
+              <div class="card black"><div class="corner">4<small>♠</small></div><div class="pip">♠</div></div>
+              <div class="card black"><div class="corner">5<small>♠</small></div><div class="pip">♠</div></div>
+              <div class="card black"><div class="corner">6<small>♠</small></div><div class="pip">♠</div></div>
+              <div class="card black"><div class="corner">7<small>♠</small></div><div class="pip">♠</div></div>
+              <div class="card black"><div class="corner">8<small>♠</small></div><div class="pip">♠</div></div>
+            </div>
+            <div class="meld">
+              <div class="card red"><div class="corner">9<small>♦</small></div><div class="pip">♦</div></div>
+              <div class="card red"><div class="corner">10<small>♦</small></div><div class="pip">♦</div></div>
+              <div class="card red"><div class="corner">J<small>♦</small></div><div class="pip">♦</div></div>
+              <div class="card red"><div class="corner">Q<small>♦</small></div><div class="pip">♦</div></div>
+              <div class="card red"><div class="corner">K<small>♦</small></div><div class="pip">♦</div></div>
+              <div class="card red"><div class="corner">A<small>♦</small></div><div class="pip">♦</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="owner-row">
+          <div class="owner-label"><span class="dot"></span><span class="name">Sofía</span></div>
+          <div class="melds-line">
+            <div class="meld">
+              <div class="card black"><div class="corner">5<small>♠</small></div><div class="pip">♠</div></div>
+              <div class="card black"><div class="corner">6<small>♠</small></div><div class="pip">♠</div></div>
+              <div class="card black"><div class="corner">7<small>♠</small></div><div class="pip">♠</div></div>
+              <div class="card black"><div class="corner">8<small>♠</small></div><div class="pip">♠</div></div>
+              <div class="card black"><div class="corner">9<small>♠</small></div><div class="pip">♠</div></div>
+              <div class="card black"><div class="corner">10<small>♠</small></div><div class="pip">♠</div></div>
+            </div>
+            <div class="meld">
+              <div class="card red"><div class="corner">J<small>♦</small></div><div class="pip">♦</div></div>
+              <div class="card red"><div class="corner">Q<small>♦</small></div><div class="pip">♦</div></div>
+              <div class="card red"><div class="corner">K<small>♦</small></div><div class="pip">♦</div></div>
+              <div class="card red"><div class="corner">A<small>♦</small></div><div class="pip">♦</div></div>
+              <div class="card red"><div class="corner">2<small>♦</small></div><div class="pip">♦</div></div>
+              <div class="card red"><div class="corner">3<small>♦</small></div><div class="pip">♦</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="owner-row">
+          <div class="owner-label"><span class="dot"></span><span class="name">Camilo (vos)</span></div>
+          <div class="melds-line">
+            <div class="meld">
+              <div class="card red"><div class="corner">6<small>♥</small></div><div class="pip">♥</div></div>
+              <div class="card red"><div class="corner">7<small>♥</small></div><div class="pip">♥</div></div>
+              <div class="card red"><div class="corner">8<small>♥</small></div><div class="pip">♥</div></div>
+              <div class="card red"><div class="corner">9<small>♥</small></div><div class="pip">♥</div></div>
+              <div class="card red"><div class="corner">10<small>♥</small></div><div class="pip">♥</div></div>
+              <div class="card red"><div class="corner">J<small>♥</small></div><div class="pip">♥</div></div>
+            </div>
+            <div class="meld">
+              <div class="card black"><div class="corner">8<small>♠</small></div><div class="pip">♠</div></div>
+              <div class="card black"><div class="corner">9<small>♠</small></div><div class="pip">♠</div></div>
+              <div class="card black"><div class="corner">10<small>♠</small></div><div class="pip">♠</div></div>
+              <div class="card black"><div class="corner">J<small>♠</small></div><div class="pip">♠</div></div>
+              <div class="card black"><div class="corner">Q<small>♠</small></div><div class="pip">♠</div></div>
+              <div class="card black"><div class="corner">K<small>♠</small></div><div class="pip">♠</div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="hand-panel">
+        <div class="hand-line" id="handLine"></div>
+      </div>
+
+    </div>
+
+    <div class="action-rail">
+      <div class="rail-pill">
+        <div class="val"><span class="coin"></span>65</div>
+        <div class="sub">En juego</div>
+      </div>
+
+      <div class="rail-center-group">
+        <div class="sort-btn" id="btn789">
+          <div class="val">789</div>
+          <div class="sub">Consecutivos</div>
+        </div>
+        <div class="sort-btn" id="btn777">
+          <div class="val">777</div>
+          <div class="sub">Tríos</div>
+        </div>
+
+        <button class="push-btn" id="pushBtn">
+          <span class="p-badge">P</span>
+          <span class="p-text">Push</span>
+        </button>
+
+        <div id="unifiedSlot" class="unified-slot has-card">
+          <div class="face">
+            <div class="corner black" id="slotCorner">7</div>
+            <div class="suit" id="slotSuit">♦</div>
+          </div>
+        </div>
+        <div class="slot-label" id="slotLabel">Descarte</div>
+
+        <div class="confirm-btn disabled" id="confirmBtn">✓</div>
+        <div class="confirm-label">Fin de turno</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ---------- Estado de la mano ----------
+  let idSeq = 1;
+  function mk(r,s,c){ return {id:'c'+(idSeq++), r, s, c}; }
+  let HAND = [
+    mk('9','♠','black'), mk('2','♣','black'), mk('5','♦','red'), mk('K','♦','red'),
+    mk('7','♦','red'), mk('4','♣','black'), mk('2','♥','red'), mk('6','♦','red'), mk('2','♠','black')
+  ];
+  let mode = 'none'; // 'none' | 'runs' | 'sets'
+
+  function rankValue(r){
+    if(r==='A') return 1;
+    if(r==='J') return 11;
+    if(r==='Q') return 12;
+    if(r==='K') return 13;
+    return parseInt(r,10);
+  }
+
+  function groupRuns(cards){
+    const bySuit = {};
+    cards.forEach(c => { (bySuit[c.s] = bySuit[c.s]||[]).push(c); });
+    const groups = [];
+    Object.values(bySuit).forEach(list => {
+      list.sort((a,b)=> rankValue(a.r)-rankValue(b.r));
+      let run = [list[0]];
+      for(let i=1;i<list.length;i++){
+        if(rankValue(list[i].r) === rankValue(list[i-1].r)+1){
+          run.push(list[i]);
+        } else {
+          groups.push(run);
+          run = [list[i]];
+        }
+      }
+      groups.push(run);
+    });
+    // runs de 2+ primero, luego sueltas
+    groups.sort((a,b)=> b.length - a.length);
+    return groups;
+  }
+
+  function groupSets(cards){
+    const byRank = {};
+    cards.forEach(c => { (byRank[c.r] = byRank[c.r]||[]).push(c); });
+    const groups = Object.values(byRank);
+    groups.sort((a,b)=> b.length - a.length);
+    return groups;
+  }
+
+  function render(){
+    const handLine = document.getElementById('handLine');
+    handLine.innerHTML = '';
+    let groups;
+    if(mode === 'runs') groups = groupRuns(HAND);
+    else if(mode === 'sets') groups = groupSets(HAND);
+    else groups = [HAND];
+
+    groups.forEach(group => {
+      const g = document.createElement('div');
+      g.className = 'hand-group';
+      group.forEach(card => {
+        const el = document.createElement('div');
+        el.className = 'card ' + card.c;
+        el.draggable = true;
+        el.dataset.id = card.id;
+        el.innerHTML = '<div class="corner">'+card.r+'<small>'+card.s+'</small></div><div class="pip">'+card.s+'</div>';
+        el.addEventListener('dragstart', () => { el.classList.add('dragging'); window.__draggedId = card.id; });
+        el.addEventListener('dragend', () => el.classList.remove('dragging'));
+        g.appendChild(el);
+      });
+      handLine.appendChild(g);
+    });
+
+    document.getElementById('btn789').classList.toggle('active', mode==='runs');
+    document.getElementById('btn777').classList.toggle('active', mode==='sets');
+  }
+
+  document.getElementById('btn789').addEventListener('click', () => { mode = (mode==='runs') ? 'none' : 'runs'; render(); });
+  document.getElementById('btn777').addEventListener('click', () => { mode = (mode==='sets') ? 'none' : 'sets'; render(); });
+
+  // ---------- Slot unificado (descarte / push) ----------
+  const slot = document.getElementById('unifiedSlot');
+  const slotCorner = document.getElementById('slotCorner');
+  const slotSuit = document.getElementById('slotSuit');
+  const slotLabel = document.getElementById('slotLabel');
+  const pushBtn = document.getElementById('pushBtn');
+  const confirmBtn = document.getElementById('confirmBtn');
+  const toast = document.getElementById('toast');
+  let waitingForDiscard = false;
+
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(()=> toast.classList.remove('show'), 1600);
+  }
+
+  function setEmptyWaitingState(){
+    waitingForDiscard = true;
+    slot.classList.remove('has-card');
+    slot.classList.add('empty-wait');
+    slot.innerHTML = '<span class="drop-icon">&#8681;</span>';
+    slotLabel.textContent = 'Descartar';
+    pushBtn.classList.add('disabled');
+  }
+
+  function setDiscardFaceState(r, s, c){
+    waitingForDiscard = false;
+    slot.classList.remove('empty-wait');
+    slot.classList.add('has-card');
+    slot.innerHTML = '<div class="face"><div class="corner '+c+'">'+r+'</div><div class="suit">'+s+'</div></div>';
+    slotLabel.textContent = 'Descarte';
+    pushBtn.classList.remove('disabled');
+    confirmBtn.classList.remove('active');
+    confirmBtn.classList.add('disabled');
+  }
+
+  const DRAW_POOL = [
+    {r:'6',s:'♦',c:'red'}, {r:'Q',s:'♣',c:'black'}, {r:'3',s:'♥',c:'red'}, {r:'9',s:'♦',c:'red'}
+  ];
+
+  slot.addEventListener('click', () => {
+    if (waitingForDiscard) return;
+    const r = slotCorner.textContent, s = slotSuit.textContent;
+    const c = slotCorner.classList.contains('red') ? 'red' : 'black';
+    showToast('Tomaste el ' + r + s);
+    HAND.push(mk(r,s,c));
+    render();
+    setEmptyWaitingState();
+  });
+
+  pushBtn.addEventListener('click', () => {
+    if (pushBtn.classList.contains('disabled')) return;
+    const d = DRAW_POOL[Math.floor(Math.random()*DRAW_POOL.length)];
+    showToast('Hiciste push · robaste una carta');
+    HAND.push(mk(d.r,d.s,d.c));
+    render();
+    setEmptyWaitingState();
+  });
+
+  slot.addEventListener('dragover', (e) => { if(waitingForDiscard){ e.preventDefault(); slot.classList.add('drag-over'); } });
+  slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+  slot.addEventListener('drop', (e) => {
+    e.preventDefault();
+    slot.classList.remove('drag-over');
+    if (!waitingForDiscard || !window.__draggedId) return;
+    const idx = HAND.findIndex(c => c.id === window.__draggedId);
+    if(idx === -1) return;
+    const [discarded] = HAND.splice(idx,1);
+    render();
+    setDiscardFaceState(discarded.r, discarded.s, discarded.c);
+    confirmBtn.classList.remove('disabled');
+    confirmBtn.classList.add('active');
+    showToast('Descartaste ' + discarded.r + discarded.s);
+  });
+
+  confirmBtn.addEventListener('click', () => {
+    if (!confirmBtn.classList.contains('active')) return;
+    showToast('Turno terminado');
+  });
+
+  render();
+</script>
+
+</body>
+</html>
