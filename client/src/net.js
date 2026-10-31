@@ -33,11 +33,11 @@ const isDefinitive = (e) => /not found|locked|full|invalid/i.test(String(e?.mess
 
 /**
  * Crea una sala ("create") o se une con su código de 4 dígitos ("join"). Devuelve la room de Colyseus.
- * account: código de sincronización de tu cuenta (el servidor la verifica). entryFee: cuota (solo al crear).
+ * token: el de tu cuenta en este dispositivo (el servidor lo verifica). entryFee / turnTime: solo al crear.
  * handlers: { onState(view), onEvent(ev), onAccount(account), onRejected(error), onLeave() }
  */
-export async function connect({ mode, name, roomCode, account, entryFee = 0, turnTime = 0 }, handlers) {
-  const opts = { name, ...(account ? { code: account } : {}) };
+export async function connect({ mode, name, roomCode, token, entryFee = 0, turnTime = 0 }, handlers) {
+  const opts = { name, ...(token ? { token } : {}) };
   const start = () => (mode === "create" ? client.create("push_gin", { ...opts, entryFee, turnTime }) : client.joinById(roomCode, opts));
   let room, tries = 0;
   for (;;) {

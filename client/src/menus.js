@@ -2,7 +2,7 @@
 // Estilo de la mesa (fieltro, madera y dorado); la disposición sigue las referencias de docs/referencias/.
 import "./menus.css";
 import { h, toast, fsButton } from "./dom.js";
-import { formatCountdown, isSyncCode } from "./format.js";
+import { formatCountdown, normalizeSyncCode, formatSyncCode } from "./format.js";
 import { settings, setSetting } from "./settings.js";
 import { ENTRY_FEES, DAILY_CHIPS } from "../../src/logic/progress.js";
 import { TURN_TIMES } from "../../src/logic/match.js";
@@ -138,24 +138,41 @@ export async function share(text, what) {
   }
 }
 
-export function syncModal({ account, onClose, onUseCode }) {
-  const input = h("input", { placeholder: "Pega aquí el código de tu otra cuenta", maxlength: "20", autocomplete: "off", spellcheck: "false" });
-  const enter = h("div", { class: "m-sync-enter hidden" }, input,
-    h("button", { class: "primary", onclick: () => {
-      const c = input.value.trim();
-      if (!isSyncCode(c)) return toast("El código tiene 20 letras y números");
-      onUseCode(c);
-    } }, "Usar esta cuenta"),
-    h("div", { class: "hint" }, "La cuenta de este dispositivo se reemplaza por la del código."));
+// Sincronización: en el dispositivo que ya tiene la cuenta se GENERA un código corto (1 uso, 10 minutos);
+// en el otro se INGRESA. sync: { code, expiresAt } del último código pedido (o null).
+export function syncModal({ account, sync, busy, onRequestCode, onRedeem, onClose }) {
+  const input = h("input", { placeholder: "ABCD-EFGH", maxlength: "9", autocomplete: "off", spellcheck: "false", class: "m-sync-input" });
+  input.addEventListener("input", () => {
+    const raw = input.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+    input.value = raw.length > 4 ? `${raw.slice(0, 4)}-${raw.slice(4)}` : raw;
+  });
+  const redeem = () => {
+    const c = normalizeSyncCode(input.value);
+    if (!c) return toast("El código tiene 8 letras y números (ej. ABCD-EFGH)");
+    onRedeem(c);
+  };
+  input.addEventListener("keydown", (e) => e.key === "Enter" && redeem());
+  const enter = h("div", { class: "m-sync-enter" + (account ? " hidden" : "") },
+    h("p", { class: "m-text small" }, "Escribe el código que generaste en tu otro dispositivo."),
+    h("div", { class: "m-join-row" }, input, h("button", { class: "primary", disabled: busy, onclick: redeem }, "Usar")),
+    account ? h("div", { class: "hint" }, "La cuenta de este dispositivo se reemplaza por la del código.") : null);
+
+  const live = sync && sync.expiresAt > Date.now();
+  const shareBox = account && h("div", { class: "m-sync-share" },
+    live
+      ? [h("p", { class: "m-text" }, "Ingresa este código en tu otro dispositivo:"),
+         h("div", { class: "m-code-row" },
+           h("span", { class: "m-code big" }, formatSyncCode(sync.code)),
+           h("button", { class: "m-pill gold", onclick: () => share(formatSyncCode(sync.code), "Código") }, "Compartir código")),
+         h("p", { class: "m-text small" }, "Sirve una sola vez y vence en ",
+           h("b", { "data-sync-ends": sync.expiresAt }, formatCountdown(sync.expiresAt - Date.now(), { short: true })), ".")]
+      : [h("p", { class: "m-text" }, "Para jugar con tu cuenta en otro dispositivo, genera un código y escríbelo allá."),
+         h("p", { class: "m-text small" }, "El código sirve una sola vez y vence a los 10 minutos."),
+         h("button", { class: "m-pill gold wide", disabled: busy, onclick: onRequestCode }, sync ? "Generar otro código" : "Generar código")]);
+
   return modal("Sincronización", onClose,
-    h("p", { class: "m-text" }, account
-      ? "Copia este código e ingrésalo en tu segundo dispositivo. Si ya tienes un código, pulsa «Ingresar código»."
-      : "Si ya tienes un código de otro dispositivo, ingrésalo aquí."),
-    account ? h("div", { class: "m-code-row" },
-      h("span", { class: "m-code" }, account.code),
-      h("button", { class: "m-pill gold", onclick: () => share(account.code, "Código") }, "Compartir código")) : null,
-    h("p", { class: "m-text small" }, "Guárdalo en privado: quien lo tenga puede usar tu cuenta."),
-    h("button", { class: "m-pill gold wide", onclick: () => { enter.classList.remove("hidden"); input.focus(); } }, "Ingresar código"),
+    shareBox,
+    account ? h("button", { class: "m-pill wide", onclick: () => { enter.classList.remove("hidden"); input.focus(); } }, "Ingresar código") : null,
     enter);
 }
 
@@ -271,11 +288,17 @@ export function renderModal(kind, props) {
   return null;
 }
 
-// Actualiza cada segundo los contadores "Fichas gratis en: …" sin redibujar el menú.
+// Actualiza cada segundo los contadores ("Fichas gratis en", vencimiento del código) sin redibujar el menú.
+// onDone se llama cuando alguno llega a cero (para mostrar el botón de reclamar o "generar otro código").
 export function tickCountdowns(onDone) {
   for (const el of document.querySelectorAll("[data-countdown]")) {
     const left = Number(el.dataset.countdown) - Date.now();
     el.textContent = formatCountdown(left);
+    if (left <= 0) onDone?.();
+  }
+  for (const el of document.querySelectorAll("[data-sync-ends]")) {
+    const left = Number(el.dataset.syncEnds) - Date.now();
+    el.textContent = formatCountdown(left, { short: true });
     if (left <= 0) onDone?.();
   }
 }

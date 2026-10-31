@@ -24,7 +24,9 @@
 - ✅ Lote 4 (hecho): práctica contra la máquina y temporizador de turno.
 
 ## Decisiones del Lote 3
-- Base de datos: Supabase (PostgreSQL gratis). Cuentas nuevas empiezan con 0 fichas y pueden reclamar 300 de inmediato.
+- Base de datos: Neon (PostgreSQL gratis; Supabase pausa tras 1 semana sin uso). Cuentas nuevas empiezan con 0
+  fichas y pueden reclamar 300 de inmediato.
+- Cuentas con token por dispositivo (se guarda su hash) y sincronización con código corto de 1 uso y 10 minutos.
 - Cuotas permitidas: 0, 100, 200, 300, 500, 1000. El ganador se lleva el pozo (empate: se reparte).
   Si alguien sale a mitad de partida, su cuota no se devuelve.
 - XP solo en partidas con cuenta. Los empatados comparten el mejor puesto (y su XP).

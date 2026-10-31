@@ -2,7 +2,7 @@ import "./style.css";
 import { connect, actions, wakeServer, IS_REMOTE, SERVER_CONFIGURED } from "./net.js";
 import { h, toast } from "./dom.js";
 import { renderTable, handleRejected, playPushAnimation, notePush, notePlay, setTableHooks } from "./table.js";
-import { loadAccount, createAccount, useSyncCode, claimChips, accountFromServer } from "./account.js";
+import { loadAccount, createAccount, requestSyncCode, redeemSyncCode, claimChips, accountFromServer, savedToken } from "./account.js";
 import { welcomeScreen, mainMenu, privateMenu, practiceMenu, waitingRoom, renderModal, tickCountdowns } from "./menus.js";
 import { startPractice } from "./practice.js";
 import { play } from "./sound.js";
@@ -14,6 +14,7 @@ let screen = "loading";          // loading | welcome | menu | private | practic
 let account = null;              // tu cuenta (del servidor)
 let offline = false;             // no se pudo cargar la cuenta
 let modal = null;                // ventana abierta sobre el menú: settings | sync | rules | help
+let sync = null;                  // último código de sincronización pedido: { code, expiresAt }
 let room = null;
 let view = null;
 let busy = false;
@@ -48,7 +49,8 @@ async function withBusy(fn, slowMsg = "Despertando el servidor… la primera vez
 }
 
 const onCreateAccount = (name) => withBusy(async () => { account = await createAccount(name); screen = "menu"; });
-const onUseCode = (code) => withBusy(async () => { account = await useSyncCode(code); modal = null; screen = "menu"; toast(`Ahora juegas como ${account.name}`); });
+const onRedeem = (code) => withBusy(async () => { account = await redeemSyncCode(code); modal = null; sync = null; screen = "menu"; toast(`Ahora juegas como ${account.name}`); });
+const onRequestCode = () => withBusy(async () => { sync = await requestSyncCode(); });
 const onClaim = () => withBusy(async () => {
   const r = await claimChips();
   account = r.account;
@@ -63,7 +65,7 @@ async function join(opts) {
   leaving = false;
   await withBusy(async () => {
     try {
-      room = await connect({ ...opts, name: account.name, account: account.code }, {
+      room = await connect({ ...opts, name: account.name, token: savedToken() }, {
         ...roomHandlers(),
         onWaking: (n) => { status = `El servidor sigue despertando… (intento ${n + 1} de 4)`; render(); },
       });
@@ -174,7 +176,7 @@ function render() {
   }
   const close = () => { modal = null; render(); };
   const overlay = modal && renderModal(modal, {
-    account, onClose: close, onUseCode,
+    account, sync, busy, onClose: close, onRedeem, onRequestCode,
     onSync: () => { modal = "sync"; render(); },
     onRules: () => { modal = "rules"; render(); },
     onHelp: () => { modal = "help"; render(); },

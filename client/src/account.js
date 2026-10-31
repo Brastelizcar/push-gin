@@ -1,18 +1,18 @@
-// Tu cuenta: el código de sincronización se guarda en este navegador y viaja en la cabecera Authorization.
-// El servidor guarda nombre, XP, fichas y decide cuándo puedes reclamar las fichas gratis.
+// Tu cuenta. Este dispositivo guarda su TOKEN (el servidor solo guarda su hash) y lo envía en la cabecera
+// Authorization. XP, nivel y fichas los decide el servidor: aquí solo se muestran.
 import { HTTP_URL } from "./net.js";
-export { isSyncCode, formatCountdown } from "./format.js";
 
-const KEY = "pushgin:code";
-export const savedCode = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
-const saveCode = (code) => { try { code ? localStorage.setItem(KEY, code) : localStorage.removeItem(KEY); } catch {} };
+const KEY = "pushgin:token";
+export const savedToken = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
+const saveToken = (t) => { try { t ? localStorage.setItem(KEY, t) : localStorage.removeItem(KEY); } catch {} };
+try { localStorage.removeItem("pushgin:code"); } catch {} // (formato anterior, ya no se usa)
 
-async function call(path, { body, code = savedCode() } = {}) {
+async function call(path, { body, token = savedToken() } = {}) {
   let res;
   try {
     res = await fetch(`${HTTP_URL}/api${path}`, {
       method: body ? "POST" : "GET",
-      headers: { "Content-Type": "application/json", ...(code ? { Authorization: `Bearer ${code}` } : {}) },
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
@@ -27,19 +27,24 @@ async function call(path, { body, code = savedCode() } = {}) {
 const withClock = (account) => ({ ...account, claimAt: Date.now() + (account.claim?.msLeft ?? 0) });
 
 export async function loadAccount() {
-  if (!savedCode()) return null;
+  if (!savedToken()) return null;
   try { return withClock((await call("/account")).account); }
-  catch (e) { if (e.status === 401) { saveCode(null); return null; } throw e; }
+  catch (e) { if (e.status === 401) { saveToken(null); return null; } throw e; }
 }
 export async function createAccount(name) {
-  const { account } = await call("/account", { body: { name }, code: null });
-  saveCode(account.code);
+  const { account, token } = await call("/account", { body: { name }, token: null });
+  saveToken(token);
   return withClock(account);
 }
-// Sincronización: usar en este dispositivo la cuenta de otro (reemplaza la de aquí).
-export async function useSyncCode(code) {
-  const { account } = await call("/account", { code });
-  saveCode(account.code);
+// Pide un código corto para entrar con esta cuenta en otro dispositivo (1 uso, vence a los 10 minutos).
+export async function requestSyncCode() {
+  const { code, expiresInMs } = await call("/sync/code", { body: {} });
+  return { code, expiresAt: Date.now() + expiresInMs };
+}
+// Usa en ESTE dispositivo la cuenta del código (reemplaza la de aquí).
+export async function redeemSyncCode(code) {
+  const { account, token } = await call("/sync/redeem", { body: { code }, token: null });
+  saveToken(token);
   return withClock(account);
 }
 export const renameAccount = async (name) => withClock((await call("/account/name", { body: { name } })).account);

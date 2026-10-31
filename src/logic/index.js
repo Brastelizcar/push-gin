@@ -7,3 +7,4 @@ export * from './turn.js';
 export * from './progress.js';
 export * from './match.js';
 export * from './bot.js';
+export * from './sync.js';

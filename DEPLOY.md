@@ -101,31 +101,33 @@ Cuando termine, entra a `https://github.com/TU-USUARIO/push-gin` y verifica que 
 
 ---
 
-## Paso 3b · Base de datos para las cuentas (Supabase, gratis)
+## Paso 3b · Base de datos para las cuentas (Neon, gratis)
 
-Render gratis **no guarda archivos**: si reinicia, se pierde todo lo que esté en memoria. Las cuentas (nombre, nivel,
-XP y fichas) se guardan en una base de datos PostgreSQL gratuita de **Supabase**. Sin ella el juego funciona, pero las
-cuentas se borran cada vez que el servidor se reinicia.
+Render gratis **no guarda archivos**: si reinicia, se pierde lo que esté en memoria. Las cuentas (nombre, nivel, XP y
+fichas) se guardan en una base de datos PostgreSQL gratuita de **Neon**. Sin ella el juego funciona, pero las cuentas
+se borran cada vez que el servidor se reinicia.
 
-1. Entra a [supabase.com](https://supabase.com) → **Start your project** e inicia sesión con **GitHub**.
-2. **New project**: nombre `push-gin`, plan **Free**, región **East US** (la más cercana a Render Virginia).
-   Inventa una **contraseña de base de datos** y guárdala en un lugar seguro (no en el repositorio).
-3. Cuando el proyecto esté listo, pulsa **Connect** (arriba) → pestaña **Connection string** → elige
-   **Session pooler**. Es importante: la conexión "Direct" no funciona desde Render gratis (usa IPv6).
-4. Copia la dirección. Se ve así:
-   `postgresql://postgres.abcdefgh:[YOUR-PASSWORD]@aws-0-us-east-1.pooler.supabase.com:5432/postgres`
-   y reemplaza `[YOUR-PASSWORD]` por tu contraseña.
-5. En Render: entra al servicio **push-gin-server** → **Environment** → **Add Environment Variable**:
+**Por qué Neon** (límites del plan Free revisados el 30-oct-2026 en neon.com/pricing): 1 GB por proyecto, 100 horas de
+cómputo al mes, 5 GB de transferencia. Se apaga tras 5 minutos sin uso y **se despierta solo** con la siguiente consulta
+(tarda un instante). Si se pasara de un límite, se pausa hasta el mes siguiente **sin borrar datos**. Supabase Free
+(500 MB) pausa el proyecto tras **1 semana** sin uso y hay que reactivarlo a mano: peor para un juego entre amigos.
+
+1. Entra a [neon.com](https://neon.com) → **Sign up** e inicia sesión con **GitHub**. Plan **Free**.
+2. Crea un proyecto: nombre `push-gin`, región **AWS US East (N. Virginia)** (la misma zona que Render Virginia).
+3. En el panel del proyecto pulsa **Connect**. Copia la **connection string** (la que dice *Pooled connection*). Se ve así:
+   `postgresql://neondb_owner:CONTRASEÑA@ep-xxxx-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require`
+4. En Render: servicio **push-gin-server** → **Environment** → **Add Environment Variable**:
    - Key: `DATABASE_URL`
-   - Value: la dirección del punto 4
+   - Value: la dirección del punto 3
    Pulsa **Save Changes**. Render reinicia el servidor solo.
-6. **Pruébalo:** en **Logs** de Render NO debe aparecer el aviso "Sin DATABASE_URL". La tabla `accounts` se crea sola
-   la primera vez (la puedes ver en Supabase → **Table Editor**).
+5. **Pruébalo:** en **Logs** de Render NO debe aparecer el aviso "Sin DATABASE_URL". Las tablas `accounts`, `sessions`
+   y `sync_codes` se crean solas la primera vez (las ves en Neon → **Tables**).
 
 > 🔒 La dirección con la contraseña es un secreto: **solo** va en la variable de entorno de Render. Nunca la escribas
-> en un archivo del repositorio. Si se filtra, cámbiala en Supabase → Project Settings → Database → Reset password.
+> en un archivo del repositorio. Si se filtra, cámbiala en Neon → **Roles** → *Reset password* y actualiza Render.
 >
-> ⏸️ Supabase gratis **pausa el proyecto tras 7 días sin uso**. Si pasa, entra al panel y pulsa **Restore project**.
+> En la base de datos no hay contraseñas ni tokens en claro: solo sus *hashes* (SHA-256). Aunque alguien viera las
+> tablas, no podría entrar a ninguna cuenta.
 
 Para probar con la base de datos en tu computador: `DATABASE_URL="..." node src/index.js` dentro de `server/`
 (sin la variable, el servidor usa memoria).
@@ -181,7 +183,7 @@ Haz el cambio, **Confirmar** y **Sincronizar cambios**. GitHub Pages republica l
 |---|---|---|
 | El servidor se **duerme tras ~15 minutos sin actividad** y tarda hasta 1 minuto en despertar. | Es el límite del plan gratuito de Render. | Al abrir la página la "toca" para despertarla, y mientras estás en una sala la mantiene despierta (una petición cada 4 minutos). |
 | Render **puede reiniciar** el servidor en cualquier momento. | También es parte del plan gratuito. | Se perdería la partida en curso. Todavía no hay reconexión: es el siguiente paso recomendado. |
-| Las salas viven **en memoria**. | Así se diseñó: una partida dura minutos. | Al reiniciar el servidor, las salas desaparecen (las cuentas no: están en Supabase). Si sales de una partida con cuota, la cuota no se devuelve. |
+| Las salas viven **en memoria**. | Así se diseñó: una partida dura minutos. | Al reiniciar el servidor, las salas desaparecen (las cuentas no: están en Neon). Si sales de una partida con cuota, la cuota no se devuelve. |
 | El plan gratuito tiene **límites mensuales**. | Render los define y pueden cambiar. | Para jugar con amigos suele ser suficiente. Revisa tu panel de Render si juegas mucho. |
 
 ---

@@ -1,26 +1,32 @@
-// Rutas HTTP de cuentas. El código de sincronización viaja en la cabecera Authorization (nunca en la URL).
-//   POST /api/account          { name }  → crea una cuenta nueva          → { account }
-//   GET  /api/account                     → tu cuenta (para sincronizar)  → { account }
+// Rutas HTTP de cuentas. El token del dispositivo viaja en la cabecera Authorization (nunca en la URL).
+//   POST /api/account          { name }  → crea una cuenta nueva          → { account, token }
+//   GET  /api/account                     → tu cuenta                     → { account }
 //   POST /api/account/name     { name }  → cambia tu nombre              → { account }
 //   POST /api/chips/claim                 → reclama las fichas gratis    → { ok, account }
+//   POST /api/sync/code                   → código corto (1 uso, 10 min) → { code, expiresInMs }
+//   POST /api/sync/redeem      { code }  → usar la cuenta en este equipo → { account, token }
+// XP y fichas solo cambian por decisión del servidor: ninguna ruta acepta esos valores del cliente.
 import express from "express";
-import { initStore, publicAccount, isSyncCode, cleanName } from "./store.js";
+import { initStore, publicAccount, cleanName } from "./store.js";
 
-// Límite simple de cuentas nuevas por IP (evita que alguien llene la base de datos).
-const CREATE_LIMIT = 20, CREATE_WINDOW_MS = 60 * 60 * 1000;
-const created = new Map(); // ip -> [instantes]
-function allowCreate(ip, now = Date.now()) {
-  const list = (created.get(ip) ?? []).filter((t) => now - t < CREATE_WINDOW_MS);
-  if (list.length >= CREATE_LIMIT) { created.set(ip, list); return false; }
-  list.push(now); created.set(ip, list);
-  return true;
+// Límite de intentos por IP en una ventana de tiempo (memoria del proceso).
+function limiter(max, windowMs) {
+  const hits = new Map(); // ip -> [instantes]
+  return (ip, now = Date.now()) => {
+    const list = (hits.get(ip) ?? []).filter((t) => now - t < windowMs);
+    const ok = list.length < max;
+    if (ok) list.push(now);
+    hits.set(ip, list);
+    return ok;
+  };
 }
+const allowCreate = limiter(20, 60 * 60 * 1000);   // cuentas nuevas: evita llenar la base de datos
+const allowRedeem = limiter(10, 10 * 60 * 1000);   // canjes: el código es corto, así se impide adivinarlo a la fuerza
 
 async function auth(req, res) {
-  const code = /^Bearer (.+)$/.exec(req.get("authorization") ?? "")?.[1];
-  if (!isSyncCode(code)) { res.status(401).json({ error: "Código no válido" }); return null; }
-  const acc = await (await initStore()).byCode(code);
-  if (!acc) { res.status(401).json({ error: "No existe una cuenta con ese código" }); return null; }
+  const token = /^Bearer (.+)$/.exec(req.get("authorization") ?? "")?.[1];
+  const acc = token && (await (await initStore()).byToken(token));
+  if (!acc) { res.status(401).json({ error: "Sesión no válida" }); return null; }
   return acc;
 }
 
@@ -45,8 +51,8 @@ export function mountAccountRoutes(app) {
     const name = cleanName(req.body?.name);
     if (!name) return res.status(400).json({ error: "Escribe tu nombre" });
     if (!allowCreate(req.ip)) return res.status(429).json({ error: "Demasiadas cuentas nuevas, intenta más tarde" });
-    const acc = await (await initStore()).create(name);
-    res.json({ account: publicAccount(acc) });
+    const { account, token } = await (await initStore()).create(name);
+    res.json({ account: publicAccount(account), token });
   }));
 
   app.get("/api/account", safe(async (req, res) => {
@@ -65,5 +71,17 @@ export function mountAccountRoutes(app) {
     const acc = await auth(req, res); if (!acc) return;
     const r = await (await initStore()).claim(acc.id);
     res.json({ ok: r.ok, account: publicAccount(r.account, r.now) });
+  }));
+
+  app.post("/api/sync/code", safe(async (req, res) => {
+    const acc = await auth(req, res); if (!acc) return;
+    res.json(await (await initStore()).createSyncCode(acc.id));
+  }));
+
+  app.post("/api/sync/redeem", safe(async (req, res) => {
+    if (!allowRedeem(req.ip)) return res.status(429).json({ error: "Demasiados intentos, espera unos minutos" });
+    const r = await (await initStore()).redeemSyncCode(req.body?.code);
+    if (!r) return res.status(400).json({ error: "Código incorrecto, vencido o ya usado" });
+    res.json({ account: publicAccount(r.account), token: r.token });
   }));
 }

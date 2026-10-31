@@ -5,10 +5,10 @@ import { MemoryStore, setStore } from "../src/accounts/store.js";
 const PORT = 2568; // boot() siempre usa 2568 cuando la configuración ya es un Server (defineServer)
 const API = `http://127.0.0.1:${PORT}/api`;
 const tick = (ms = 60) => new Promise((r) => setTimeout(r, ms));
-const api = (path, { code, body, method } = {}) =>
+const api = (path, { token, body, method } = {}) =>
   fetch(API + path, {
     method: method ?? (body ? "POST" : "GET"),
-    headers: { "Content-Type": "application/json", ...(code ? { Authorization: `Bearer ${code}` } : {}) },
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   }).then(async (r) => ({ status: r.status, ...(await r.json()) }));
 
@@ -28,56 +28,83 @@ describe("Cuentas: API y salas", () => {
     return c;
   }
 
-  it("API: crear cuenta, leerla con el código y cambiar el nombre", async () => {
+  it("API: crear cuenta devuelve un token; con él se lee la cuenta y se cambia el nombre", async () => {
     const r = await api("/account", { body: { name: "Ana" } });
     assert.equal(r.status, 200);
     assert.equal(r.account.name, "Ana");
     assert.equal(r.account.level, 1);
     assert.equal(r.account.chips, 0);
-    assert.match(r.account.code, /^[A-Za-z0-9]{20}$/);
-    const me = await api("/account", { code: r.account.code });
+    assert.match(r.token, /^[A-Za-z0-9_-]{43}$/);
+    assert.equal(r.account.code, undefined);
+    const me = await api("/account", { token: r.token });
     assert.equal(me.account.name, "Ana");
-    const renamed = await api("/account/name", { code: r.account.code, body: { name: "Anita" } });
+    const renamed = await api("/account/name", { token: r.token, body: { name: "Anita" } });
     assert.equal(renamed.account.name, "Anita");
   });
 
-  it("API: código inválido o inexistente → 401; nombre vacío → 400", async () => {
-    assert.equal((await api("/account", { code: "corto" })).status, 401);
-    assert.equal((await api("/account", { code: "A".repeat(20) })).status, 401);
+  it("API: token inválido o inexistente → 401; nombre vacío → 400", async () => {
+    assert.equal((await api("/account", { token: "corto" })).status, 401);
+    assert.equal((await api("/account", { token: "A".repeat(43) })).status, 401);
+    assert.equal((await api("/account")).status, 401);
     assert.equal((await api("/account", { body: { name: "   " } })).status, 400);
   });
 
+  it("API: XP y fichas los decide el servidor (lo que mande el cliente se ignora)", async () => {
+    const r = await api("/account", { body: { name: "Ana", xp: 99999, chips: 99999, level: 50 } });
+    assert.deepEqual([r.account.xp, r.account.chips, r.account.level], [0, 0, 1]);
+    const n = await api("/account/name", { token: r.token, body: { name: "Ana", xp: 500, chips: 500 } });
+    assert.deepEqual([n.account.xp, n.account.chips], [0, 0]);
+    const c = await api("/chips/claim", { token: r.token, body: { chips: 100000, now: 0 } });
+    assert.equal(c.account.chips, 300);                                  // siempre 300, nunca lo que se pida
+  });
+
   it("API: fichas gratis una vez cada 24 h (lo decide el servidor)", async () => {
-    const { account } = await api("/account", { body: { name: "Ana" } });
-    const r1 = await api("/chips/claim", { code: account.code, body: {} });
+    const { token } = await api("/account", { body: { name: "Ana" } });
+    const r1 = await api("/chips/claim", { token, body: {} });
     assert.equal(r1.ok, true);
     assert.equal(r1.account.chips, 300);
     assert.equal(r1.account.claim.canClaim, false);
-    const r2 = await api("/chips/claim", { code: account.code, body: {} });
+    const r2 = await api("/chips/claim", { token, body: {} });
     assert.equal(r2.ok, false);
     assert.equal(r2.account.chips, 300);
     assert.ok(r2.account.claim.msLeft > 0);
   });
 
+  it("API: sincronizar otro dispositivo con un código corto de un solo uso", async () => {
+    const { token: t1 } = await api("/account", { body: { name: "Ana" } });
+    assert.equal((await api("/sync/code", { body: {} })).status, 401);   // sin sesión no hay código
+    const { code, expiresInMs } = await api("/sync/code", { token: t1, body: {} });
+    assert.equal(code.length, 8);
+    assert.equal(expiresInMs, 600_000);
+    const r = await api("/sync/redeem", { body: { code: `${code.slice(0, 4)}-${code.slice(4)}` } });
+    assert.equal(r.status, 200);
+    assert.equal(r.account.name, "Ana");
+    assert.notEqual(r.token, t1);                                        // token propio para el nuevo dispositivo
+    assert.equal((await api("/account", { token: r.token })).account.name, "Ana");
+    const again = await api("/sync/redeem", { body: { code } });
+    assert.equal(again.status, 400);
+    assert.match(again.error, /vencido o ya usado/);
+  });
+
   it("sala: con cuenta entras con tu nombre y nivel; un código falso no entra", async () => {
-    const acc = await store.create("Ana");
+    const { account: acc, token } = await store.create("Ana");
     await store.reward([{ id: acc.id, xp: 150, chips: 0 }]);
     const room = await colyseus.createRoom("push_gin", {});
-    const a = await join(room, { code: acc.code, name: "otro nombre" });
+    const a = await join(room, { token, name: "otro nombre" });
     await tick();
     assert.equal(a.view.players[0].name, "Ana");
     assert.equal(a.view.players[0].level, 2);
-    await assert.rejects(colyseus.connectTo(room, { code: "B".repeat(20) }));
-    await assert.rejects(colyseus.connectTo(room, { code: acc.code }));     // la misma cuenta dos veces, no
+    await assert.rejects(colyseus.connectTo(room, { token: "B".repeat(43) }));
+    await assert.rejects(colyseus.connectTo(room, { token }));              // la misma cuenta dos veces, no
   });
 
   it("sala con cuota: invitados no entran y se cobra a todos al empezar", async () => {
-    const [a1, b1] = [await store.create("Ana"), await store.create("Luis")];
+    const [{ account: a1, token: ta }, { account: b1, token: tb }] = [await store.create("Ana"), await store.create("Luis")];
     await store.claim(a1.id);                                          // Ana 300, Luis 0
     const room = await colyseus.createRoom("push_gin", { entryFee: 100 });
-    const a = await join(room, { code: a1.code });
+    const a = await join(room, { token: ta });
     await assert.rejects(colyseus.connectTo(room, { name: "Invitado" }));
-    const b = await join(room, { code: b1.code });
+    const b = await join(room, { token: tb });
     await tick();
     assert.equal(a.view.entryFee, 100);
     a.send("start"); await tick();
@@ -97,11 +124,11 @@ describe("Cuentas: API y salas", () => {
   });
 
   it("fin de la partida: XP por puesto y el pozo para el ganador", async () => {
-    const [a1, b1] = [await store.create("Ana"), await store.create("Luis")];
+    const [{ account: a1, token: ta }, { account: b1, token: tb }] = [await store.create("Ana"), await store.create("Luis")];
     await store.claim(a1.id); await store.claim(b1.id);
     const room = await colyseus.createRoom("push_gin", { entryFee: 100 });
-    const a = await join(room, { code: a1.code });
-    const b = await join(room, { code: b1.code });
+    const a = await join(room, { token: ta });
+    const b = await join(room, { token: tb });
     await tick();
     a.send("start"); await tick(150);
     for (let r = 0; r < 5; r++) {                // Ana gana todas las rondas
@@ -122,5 +149,11 @@ describe("Cuentas: API y salas", () => {
     assert.deepEqual([luis.xp, luis.chips], [50, 200]);
     assert.equal(a.account.chips, 400);                  // la cuenta actualizada llega al cliente
     assert.equal(a.account.level, 2);
+  });
+
+  it("API: canjear códigos tiene límite de intentos por IP (no se puede adivinar a la fuerza)", async () => {
+    let last;
+    for (let i = 0; i < 12; i++) last = await api("/sync/redeem", { body: { code: "AAAA-AAAA" } });
+    assert.equal(last.status, 429);
   });
 });

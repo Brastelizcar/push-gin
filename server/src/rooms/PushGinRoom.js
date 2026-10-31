@@ -1,6 +1,6 @@
 import { Room, matchMaker } from "colyseus";
 import { Match, seededRng, ENTRY_FEES, gameRewards, levelInfo } from "../../../src/logic/index.js";
-import { initStore, isSyncCode, publicAccount } from "../accounts/store.js";
+import { initStore, publicAccount } from "../accounts/store.js";
 import { PushGinState } from "./schema/PushGinState.js";
 
 // Código de sala de 4 dígitos (1000–9999), fácil de dictar. Se reintenta si ya existe.
@@ -54,19 +54,18 @@ export class PushGinRoom extends Room {
     // Reparto reproducible para pruebas (nunca en producción).
     const rng = process.env.NODE_ENV !== "production" && Number.isInteger(options?.seed) ? seededRng(options.seed) : null;
     this.match = new Match({ rng, turnTime: options?.turnTime });
-    // El código corto ES el roomId: los demás se unen con client.joinById(codigo, { name, code }).
+    // El código corto ES el roomId: los demás se unen con client.joinById(codigo, { name, token }).
     this.roomId = await generateRoomCode();
   }
 
-  // Si traes el código de tu cuenta, se verifica aquí (si no existe, no entras). Sin código entras como invitado,
-  // solo en salas sin cuota y sin ganar XP.
+  // Si traes el token de tu cuenta, se verifica aquí (si no es válido, no entras). Sin token entras como invitado,
+  // solo en salas sin cuota y sin ganar XP. El nombre y el nivel salen de la base de datos, no del cliente.
   async onAuth(client, options) {
-    if (options?.code === undefined) {
+    if (options?.token === undefined) {
       if (this.entryFee > 0) throw new Error("Necesitas una cuenta para entrar a una sala con cuota");
       return { account: null };
     }
-    if (!isSyncCode(options.code)) throw new Error("Cuenta no válida");
-    const account = await (await initStore()).byCode(options.code);
+    const account = await (await initStore()).byToken(options.token);
     if (!account) throw new Error("Cuenta no válida");
     if ([...this.accounts.values()].includes(account.id)) throw new Error("Ya estás en esta sala");
     return { account };

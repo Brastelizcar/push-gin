@@ -135,7 +135,10 @@
 .m-text.small{ font-size:13px; color:var(--ivory-shade); opacity:.8; }
 .m-code-row{ display:flex; align-items:center; gap:12px; padding:8px 8px 8px 20px; border-radius:30px; background:rgba(0,0,0,.35); border:1px solid rgba(201,162,39,.3); }
 .m-code{ flex:1; font-family:ui-monospace,Consolas,monospace; font-size:19px; color:var(--ivory); letter-spacing:.04em; word-break:break-all; user-select:all; }
-.m-sync-enter{ display:flex; flex-direction:column; gap:10px; }
+.m-sync-enter{ display:flex; flex-direction:column; align-items:center; gap:10px; }
+.m-sync-share{ display:flex; flex-direction:column; align-items:center; gap:12px; }
+.m-code.big{ font-size:30px; letter-spacing:.14em; text-align:center; font-family:'Fraunces',serif; font-weight:900; color:var(--gold-light); }
+.m-sync-input{ width:190px; text-align:center; font-family:'Fraunces',serif; font-size:24px; letter-spacing:.12em; padding:8px; text-transform:uppercase; }
 .m-rules{ color:var(--ivory); font-size:14.5px; line-height:1.45; }
 .m-rules h3{ margin:10px 0 4px; font-family:'Fraunces',serif; color:var(--gold-light); font-size:16px; }
 .m-rules ul{ margin:0; padding-left:20px; }
