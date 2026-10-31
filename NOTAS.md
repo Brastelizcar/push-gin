@@ -19,6 +19,14 @@
 ## Pendientes decididos con el usuario (lotes siguientes)
 - ✅ Lote 2 (hecho): agrupación automática con espacio, arrastrar grupos completos a la mesa y validar la jugada
   entera al terminar el turno (sin dejar pasar si es inválida).
-- Lote 3: cuentas (sin correo, con código de sincronización), nivel/XP (1.º 100, 2.º 50, 3.º 30, 4.º 10),
+- ✅ Lote 3 (hecho): cuentas (sin correo, con código de sincronización), nivel/XP (1.º 100, 2.º 50, 3.º 30, 4.º 10),
   fichas de póker (+300 cada 24 h), menú principal, ajustes, juego privado y sala de espera. Requiere BASE DE DATOS.
 - Lote 4: práctica contra la máquina y temporizador de turno.
+
+## Decisiones del Lote 3
+- Base de datos: Supabase (PostgreSQL gratis). Cuentas nuevas empiezan con 0 fichas y pueden reclamar 300 de inmediato.
+- Cuotas permitidas: 0, 100, 200, 300, 500, 1000. El ganador se lleva el pozo (empate: se reparte).
+  Si alguien sale a mitad de partida, su cuota no se devuelve.
+- XP solo en partidas con cuenta. Los empatados comparten el mejor puesto (y su XP).
+- Menú de juego privado: en lugar de la lista de amigos de la referencia, un panel "Unirse con código"
+  (no hay sistema de amigos). Ajustes: sin "Asistencia" (no hay canal de soporte).

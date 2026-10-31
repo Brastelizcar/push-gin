@@ -30,6 +30,9 @@ const ui = {
 };
 const MAX_GAPS = 10;
 let cur = null; // contexto del último render { view, room, rerender, canTake, mustDiscard }
+let hooks = { onExit: () => location.reload(), play: () => {} };
+// main.js conecta aquí la salida al menú y los sonidos.
+export function setTableHooks(next) { hooks = { ...hooks, ...next }; }
 
 export function resetPending() {
   ui.pending = null;
@@ -300,6 +303,7 @@ const previewOf = (meldId) => previewMelds(cur.view.melds, ui.stage.hooks).find(
 function stageGroups(groups) {
   if (keptAfter(groups.reduce((s, g) => s + g.cards.length, 0)) < 1) return toast("Debes quedarte con una carta para descartar");
   ui.stage.groups.push(...groups.map((g) => ({ cards: [...g.cards], ordered: g.ordered === true })));
+  hooks.play("card");
   groups.forEach((g) => g.cards.forEach((c) => ui.selected.delete(c.id)));
   cur.rerender();
 }
@@ -315,6 +319,7 @@ function stageHooks(entry, cards, prefer) {
   if (!plan) return toast("Esas cartas no encajan en ese plante");
   if (keptAfter(cards.length) < 1) return toast("Debes quedarte con una carta para descartar");
   ui.stage.hooks.push(...plan.map(({ card, end }) => ({ meldId: entry.id, card, end })));
+  hooks.play("card");
   cards.forEach((c) => ui.selected.delete(c.id));
   cur.rerender();
 }
@@ -337,6 +342,7 @@ function confirmTurn(btn) {
   const res = buildTurn(cur.view, ui.stage, ui.pending, amPlanted());
   if (res.error) {
     toast(res.error);
+    hooks.play("bad");
     if (!reduceMotion()) btn?.animate([{ transform: "translateX(0)" }, { transform: "translateX(-4px)" }, { transform: "translateX(4px)" }, { transform: "translateX(0)" }], { duration: 220, iterations: 2 });
     return;
   }
@@ -548,6 +554,7 @@ function beginDrag(e, { kind, mode, card, el, onTap, gapId, group }) {
       if (ok && cur.mustDiscard && inRect(slot().getBoundingClientRect(), ev.clientX, ev.clientY, 14)) {
         if (ui.pending && ui.pending !== card.id) return swapWithPending(card); // intercambio animado
         ui.pending = card.id;                       // descartar (se confirma con ✓)
+        hooks.play("card");
         ui.selected.delete(card.id);
       } else if (overHand) {
         commitDomOrder();                           // reordenar (los espacios no se tocan)
@@ -791,11 +798,24 @@ function overlay(view, room) {
       h("h2", {}, title),
       h("div", { class: "score-head" }, h("span", {}, "Jugador"), h("span", {}, "Ronda"), h("span", {}, "Total")),
       rows,
+      finished ? rewardsBox(view) : null,
       finished
-        ? h("button", { class: "primary", onclick: () => location.reload() }, "Volver al inicio")
+        ? h("button", { class: "primary", onclick: () => hooks.onExit() }, "Volver al menú")
         : isHost
           ? h("button", { class: "primary", onclick: () => actions.nextRound(room) }, "Siguiente ronda")
           : h("div", { class: "hint" }, "Esperando al anfitrión…")));
+}
+
+// Tus premios al terminar la partida (XP y fichas). Los invitados sin cuenta no tienen.
+function rewardsBox(view) {
+  const r = view.rewards?.[view.you];
+  if (!r) return null;
+  const place = ["1.º", "2.º", "3.º", "4.º"][r.place] ?? "";
+  return h("div", { class: "rewards" },
+    h("div", { class: "rewards-row" },
+      h("span", {}, "Puesto ", h("b", {}, place)),
+      h("span", {}, "+", h("b", {}, r.xp), " XP"),
+      view.entryFee ? h("span", {}, "Fichas ", h("b", {}, (r.chips > 0 ? "+" : "") + r.chips)) : null));
 }
 
 // ---------- objetivo de la ronda ----------

@@ -16,3 +16,5 @@ services:
         value: "22"
       - key: NODE_ENV           # en producción se apagan el panel de pruebas y el monitor
         value: production
+      - key: DATABASE_URL       # cuentas en Supabase (ver DEPLOY.md, Paso 3b). Render la pide; NUNCA va en el repositorio.
+        sync: false

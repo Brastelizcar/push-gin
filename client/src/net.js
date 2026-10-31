@@ -2,7 +2,7 @@ import { Client } from "@colyseus/sdk";
 
 // Dirección del servidor. En producción se define en client/.env.production (VITE_SERVER_URL=wss://...).
 const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? "ws://localhost:2567";
-const HTTP_URL = SERVER_URL.replace(/^ws/, "http"); // wss:// → https://
+export const HTTP_URL = SERVER_URL.replace(/^ws/, "http"); // wss:// → https://
 export const IS_REMOTE = !/^wss?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(SERVER_URL);
 export const SERVER_CONFIGURED = !SERVER_URL.includes("CAMBIA-ESTO");
 const KEEPALIVE_MS = Number(import.meta.env.VITE_KEEPALIVE_MS) || 4 * 60 * 1000;
@@ -32,11 +32,13 @@ function withTimeout(start, ms) {
 const isDefinitive = (e) => /not found|locked|full|invalid/i.test(String(e?.message ?? e));
 
 /**
- * Crea una sala ("create") o se une con código ("join"). Devuelve la room de Colyseus.
- * handlers: { onState(view), onRejected(error), onLeave() }
+ * Crea una sala ("create") o se une con su código de 4 dígitos ("join"). Devuelve la room de Colyseus.
+ * account: código de sincronización de tu cuenta (el servidor la verifica). entryFee: cuota (solo al crear).
+ * handlers: { onState(view), onEvent(ev), onAccount(account), onRejected(error), onLeave() }
  */
-export async function connect({ mode, name, code }, handlers) {
-  const start = () => (mode === "create" ? client.create("push_gin", { name }) : client.joinById(code, { name }));
+export async function connect({ mode, name, roomCode, account, entryFee = 0 }, handlers) {
+  const opts = { name, ...(account ? { code: account } : {}) };
+  const start = () => (mode === "create" ? client.create("push_gin", { ...opts, entryFee }) : client.joinById(roomCode, opts));
   let room, tries = 0;
   for (;;) {
     try { room = await withTimeout(start, 40000); break; }
@@ -52,6 +54,7 @@ export async function connect({ mode, name, code }, handlers) {
 
   room.onMessage("state", (view) => handlers.onState(view));
   room.onMessage("event", (ev) => handlers.onEvent?.(ev));
+  room.onMessage("account", (acc) => handlers.onAccount?.(acc));
   room.onMessage("rejected", ({ error }) => handlers.onRejected(error));
   room.onLeave(() => handlers.onLeave());
 

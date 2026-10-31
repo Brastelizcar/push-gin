@@ -1,5 +1,6 @@
 import { Room, matchMaker } from "colyseus";
-import { Round, TOTAL_ROUNDS, ROUND_REQUIREMENTS, cardPoints, seededRng } from "../../../src/logic/index.js";
+import { Round, TOTAL_ROUNDS, ROUND_REQUIREMENTS, cardPoints, seededRng, ENTRY_FEES, gameRewards, levelInfo } from "../../../src/logic/index.js";
+import { initStore, isSyncCode, publicAccount } from "../accounts/store.js";
 import { PushGinState } from "./schema/PushGinState.js";
 
 const MIN_PLAYERS = 2;
@@ -53,12 +54,34 @@ export class PushGinRoom extends Room {
   totals = {};         // puntaje acumulado por jugador
   roundScores = null;  // puntaje de la última ronda terminada
   rng = null;          // generador con semilla (solo pruebas); null = Math.random
+  entryFee = 0;        // cuota de entrada en fichas (la paga cada jugador al empezar; el ganador se lleva el pozo)
+  accounts = new Map(); // sessionId -> id de cuenta (los invitados sin cuenta no aparecen)
+  levels = new Map();   // sessionId -> nivel (público)
+  rewards = null;       // premios al terminar la partida: { sessionId: { place, xp, chips } }
+  starting = false;
 
   messages = {
-    start: (client) => {
-      if (this.state.phase !== "lobby") return this.#reject(client, "La partida ya empezó");
+    start: async (client) => {
+      if (this.state.phase !== "lobby" || this.starting) return this.#reject(client, "La partida ya empezó");
       if (client.sessionId !== this.order[0]) return this.#reject(client, "Solo el anfitrión puede empezar");
       if (this.order.length < MIN_PLAYERS) return this.#reject(client, "Se necesitan al menos 2 jugadores");
+      if (this.entryFee > 0) {
+        // Se cobra la cuota a todos o a nadie (y se verifica en la base de datos, no aquí).
+        this.starting = true;
+        const store = await initStore();
+        const ids = this.order.map((sid) => this.accounts.get(sid));
+        const ok = ids.every(Boolean) && (await store.chargeFee(ids, this.entryFee));
+        this.starting = false;
+        if (!ok) {
+          const poor = [];
+          for (const sid of this.order) {
+            const acc = this.accounts.get(sid) && (await store.byId(this.accounts.get(sid)));
+            if (!acc || acc.chips < this.entryFee) poor.push(this.names.get(sid));
+          }
+          return this.#reject(client, `No tienen fichas suficientes para la cuota: ${poor.join(", ")}`);
+        }
+        if (this.state.phase !== "lobby") return;
+      }
       this.lock(); // nadie más puede entrar
       this.totals = Object.fromEntries(this.order.map((id) => [id, 0]));
       this.roundIndex = 0;
@@ -105,14 +128,34 @@ export class PushGinRoom extends Room {
   };
 
   async onCreate(options) {
+    this.entryFee = ENTRY_FEES.includes(options?.entryFee) ? options.entryFee : 0;
     // El código corto ES el roomId: los demás se unen con client.joinById(codigo, { name }).
     this.roomId = await generateRoomCode();
     // Reparto reproducible para pruebas (nunca en producción).
     if (process.env.NODE_ENV !== "production" && Number.isInteger(options?.seed)) this.rng = seededRng(options.seed);
   }
 
-  onJoin(client, options) {
-    const name = String(options?.name ?? "").trim().slice(0, 16) || "Jugador";
+  // Si traes el código de tu cuenta, se verifica aquí (si no existe, no entras). Sin código entras como invitado,
+  // solo en salas sin cuota y sin ganar XP.
+  async onAuth(client, options) {
+    if (options?.code === undefined) {
+      if (this.entryFee > 0) throw new Error("Necesitas una cuenta para entrar a una sala con cuota");
+      return { account: null };
+    }
+    if (!isSyncCode(options.code)) throw new Error("Cuenta no válida");
+    const account = await (await initStore()).byCode(options.code);
+    if (!account) throw new Error("Cuenta no válida");
+    if ([...this.accounts.values()].includes(account.id)) throw new Error("Ya estás en esta sala");
+    return { account };
+  }
+
+  onJoin(client, options, auth) {
+    const account = auth?.account ?? null;
+    if (account) {
+      this.accounts.set(client.sessionId, account.id);
+      this.levels.set(client.sessionId, levelInfo(account.xp).level);
+    }
+    const name = account?.name ?? (String(options?.name ?? "").trim().slice(0, 16) || "Jugador");
     this.names.set(client.sessionId, name);
     this.order.push(client.sessionId);
     this.connected.add(client.sessionId);
@@ -125,6 +168,8 @@ export class PushGinRoom extends Room {
       // En la sala de espera, se libera el cupo y el anfitrión pasa al siguiente.
       this.order = this.order.filter((id) => id !== client.sessionId);
       this.names.delete(client.sessionId);
+      this.accounts.delete(client.sessionId);
+      this.levels.delete(client.sessionId);
     }
     // En partida el asiento se conserva (reconexión: pendiente para más adelante).
     this.#broadcastViews();
@@ -151,6 +196,23 @@ export class PushGinRoom extends Room {
     this.roundScores = scores;
     for (const id of this.order) this.totals[id] += scores[id];
     this.state.phase = this.roundIndex + 1 >= TOTAL_ROUNDS ? "finished" : "roundOver";
+    if (this.state.phase === "finished") this.#giveRewards();
+  }
+
+  // Fin de la partida: XP según el puesto y el pozo de cuotas al ganador. Se guarda en la base de datos y a cada
+  // jugador con cuenta le llega su cuenta actualizada (mensaje "account").
+  #giveRewards() {
+    this.rewards = gameRewards(this.order, this.totals, this.entryFee);
+    const list = this.order.filter((sid) => this.accounts.has(sid))
+      .map((sid) => ({ sid, id: this.accounts.get(sid), xp: this.rewards[sid].xp, chips: this.rewards[sid].chips + this.entryFee }));
+    this.rewardsSaved = (async () => {
+      const store = await initStore();
+      await store.reward(list);
+      for (const { sid, id } of list) {
+        const acc = await store.byId(id);
+        this.clients.find((c) => c.sessionId === sid)?.send("account", publicAccount(acc));
+      }
+    })().catch((e) => console.error("No se pudieron guardar los premios:", e));
   }
 
   // El cliente usa "rejected" para revertir su UI optimista (spec 3.4).
@@ -169,13 +231,14 @@ export class PushGinRoom extends Room {
       id,
       name: this.names.get(id),
       connected: this.connected.has(id),
+      level: this.levels.get(id) ?? null,
       total: this.totals[id] ?? 0,
       ...(this.game && {
         cards: this.game.hands[id].length,
         planted: this.game.planted[id],
       }),
     }));
-    const base = { phase, you: me, host: this.order[0], players };
+    const base = { phase, you: me, host: this.order[0], players, entryFee: this.entryFee, code: this.roomId };
     if (phase === "lobby" || !this.game) return base;
 
     const g = this.game;
@@ -201,6 +264,7 @@ export class PushGinRoom extends Room {
       if (phase === "finished") {
         const best = Math.min(...this.order.map((id) => this.totals[id]));
         view.gameWinners = this.order.filter((id) => this.totals[id] === best);
+        view.rewards = this.rewards;
       }
     }
     return view;

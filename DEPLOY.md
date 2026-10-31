@@ -101,6 +101,37 @@ Cuando termine, entra a `https://github.com/TU-USUARIO/push-gin` y verifica que 
 
 ---
 
+## Paso 3b · Base de datos para las cuentas (Supabase, gratis)
+
+Render gratis **no guarda archivos**: si reinicia, se pierde todo lo que esté en memoria. Las cuentas (nombre, nivel,
+XP y fichas) se guardan en una base de datos PostgreSQL gratuita de **Supabase**. Sin ella el juego funciona, pero las
+cuentas se borran cada vez que el servidor se reinicia.
+
+1. Entra a [supabase.com](https://supabase.com) → **Start your project** e inicia sesión con **GitHub**.
+2. **New project**: nombre `push-gin`, plan **Free**, región **East US** (la más cercana a Render Virginia).
+   Inventa una **contraseña de base de datos** y guárdala en un lugar seguro (no en el repositorio).
+3. Cuando el proyecto esté listo, pulsa **Connect** (arriba) → pestaña **Connection string** → elige
+   **Session pooler**. Es importante: la conexión "Direct" no funciona desde Render gratis (usa IPv6).
+4. Copia la dirección. Se ve así:
+   `postgresql://postgres.abcdefgh:[YOUR-PASSWORD]@aws-0-us-east-1.pooler.supabase.com:5432/postgres`
+   y reemplaza `[YOUR-PASSWORD]` por tu contraseña.
+5. En Render: entra al servicio **push-gin-server** → **Environment** → **Add Environment Variable**:
+   - Key: `DATABASE_URL`
+   - Value: la dirección del punto 4
+   Pulsa **Save Changes**. Render reinicia el servidor solo.
+6. **Pruébalo:** en **Logs** de Render NO debe aparecer el aviso "Sin DATABASE_URL". La tabla `accounts` se crea sola
+   la primera vez (la puedes ver en Supabase → **Table Editor**).
+
+> 🔒 La dirección con la contraseña es un secreto: **solo** va en la variable de entorno de Render. Nunca la escribas
+> en un archivo del repositorio. Si se filtra, cámbiala en Supabase → Project Settings → Database → Reset password.
+>
+> ⏸️ Supabase gratis **pausa el proyecto tras 7 días sin uso**. Si pasa, entra al panel y pulsa **Restore project**.
+
+Para probar con la base de datos en tu computador: `DATABASE_URL="..." node src/index.js` dentro de `server/`
+(sin la variable, el servidor usa memoria).
+
+---
+
 ## Paso 4 · Dile a la página dónde está el servidor
 
 Abre `client/.env.production` y reemplaza la línea por tu dirección, **cambiando `https://` por `wss://`**:
@@ -130,8 +161,8 @@ Ese es el enlace que compartes.
 
 ## Paso 6 · Pruébalo
 
-1. Abre el enlace en tu computador, escribe tu nombre y pulsa **Crear sala**. Verás un código de 4 dígitos.
-2. Abre el mismo enlace en tu celular (con datos móviles, para comprobar que funciona fuera de tu casa), entra con el código.
+1. Abre el enlace en tu computador, escribe tu nombre y pulsa **Empezar** (se crea tu cuenta). Entra a **Juego privado** → **Invitar**. Verás un código de 4 dígitos.
+2. Abre el mismo enlace en tu celular (con datos móviles, para comprobar que funciona fuera de tu casa), crea tu cuenta y en **Juego privado** escribe el código y pulsa **Unirse**.
 3. Inicia la partida. 🎉
 
 Si el servidor estaba dormido, la pantalla dice "Despertando el servidor…" y se conecta sola. No cierres la página.
@@ -150,7 +181,7 @@ Haz el cambio, **Confirmar** y **Sincronizar cambios**. GitHub Pages republica l
 |---|---|---|
 | El servidor se **duerme tras ~15 minutos sin actividad** y tarda hasta 1 minuto en despertar. | Es el límite del plan gratuito de Render. | Al abrir la página la "toca" para despertarla, y mientras estás en una sala la mantiene despierta (una petición cada 4 minutos). |
 | Render **puede reiniciar** el servidor en cualquier momento. | También es parte del plan gratuito. | Se perdería la partida en curso. Todavía no hay reconexión: es el siguiente paso recomendado. |
-| Las salas viven **en memoria**. | Así se diseñó: no hay base de datos. | Al reiniciar el servidor, todas las salas desaparecen. |
+| Las salas viven **en memoria**. | Así se diseñó: una partida dura minutos. | Al reiniciar el servidor, las salas desaparecen (las cuentas no: están en Supabase). Si sales de una partida con cuota, la cuota no se devuelve. |
 | El plan gratuito tiene **límites mensuales**. | Render los define y pueden cambiar. | Para jugar con amigos suele ser suficiente. Revisa tu panel de Render si juegas mucho. |
 
 ---

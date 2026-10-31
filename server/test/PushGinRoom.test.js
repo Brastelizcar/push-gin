@@ -1,6 +1,5 @@
 import assert from "assert";
-import { boot } from "@colyseus/testing";
-import appConfig from "../src/app.config.js";
+import { getServer } from "./_server.js";
 
 // Conecta un cliente y guarda su última vista y último rechazo.
 async function join(colyseus, room, name) {
@@ -17,8 +16,7 @@ const tick = (ms = 60) => new Promise((r) => setTimeout(r, ms));
 
 describe("PushGinRoom", () => {
   let colyseus;
-  before(async () => (colyseus = await boot(appConfig)));
-  after(async () => colyseus.shutdown());
+  before(async () => (colyseus = await getServer()));
   beforeEach(async () => colyseus.cleanup());
 
   async function setup(n = 3) {

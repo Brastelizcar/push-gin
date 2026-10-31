@@ -11,6 +11,7 @@ import {
  * Import your Room files
  */
 import { PushGinRoom } from "./rooms/PushGinRoom.js";
+import { mountAccountRoutes } from "./accounts/api.js";
 
 const server = defineServer({
 
@@ -39,6 +40,8 @@ const server = defineServer({
    * Read more: https://expressjs.com/en/starter/basic-routing.html
    */
   express: (app) => {
+    // Cuentas, XP y fichas (ver src/accounts/api.js).
+    mountAccountRoutes(app);
 
     app.get("/hi", (req, res) => {
       res.send("It's time to kick ass and chew bubblegum!");

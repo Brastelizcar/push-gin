@@ -46,4 +46,15 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
 - Lote 1 (juego completo multijugador): hecho.
 - Lote 2 (jugada validada): hecho. Grupos válidos de la mano (tramos entre espacios) se marcan y se arrastran
   enteros desde su primera o última carta; ✓ valida con `buildTurn` (client/src/staging.js) antes de enviar.
-- Lote 3 (cuentas, XP, fichas, base de datos, menús) y Lote 4 (práctica con bots, temporizador): pendientes.
+- Lote 3 (cuentas y menús): hecho. Ver "Cuentas" abajo.
+- Lote 4 (práctica con bots, temporizador): pendiente.
+
+## Cuentas (Lote 3)
+- `src/logic/progress.js`: XP por puesto (100/50/30/10), nivel N→N+1 = 100×N XP, pozo de cuotas, fichas gratis (300 / 24 h).
+- `server/src/accounts/store.js`: `PgStore` (PostgreSQL/Supabase si hay `DATABASE_URL`) o `MemoryStore` (local/pruebas),
+  misma interfaz. El reloj de las fichas es el de la base de datos. `api.js`: rutas `/api/...`; el código de sincronización
+  (20 caracteres, es la llave de la cuenta) va en `Authorization: Bearer`, nunca en la URL.
+- La sala verifica la cuenta en `onAuth` (opción `code`), cobra la cuota a todos o a nadie al empezar y al terminar
+  guarda premios y envía el mensaje `"account"`. Sin cuenta se entra como invitado solo a salas sin cuota.
+- Cliente: `account.js` (API), `menus.js`/`menus.css` (bienvenida, menú principal, ajustes, sincronización, reglas,
+  juego privado, sala de espera), `settings.js` (sonidos, resaltar último movimiento), `sound.js` (Web Audio).
