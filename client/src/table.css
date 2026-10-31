@@ -240,3 +240,27 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .goal-inline .req-pill{ padding:2px 9px 2px 6px; gap:5px; }
 .goal-inline .req-label{ font-size:clamp(11px,.9vw,14px); }
 .goal-inline .req-count{ font-size:clamp(13px,1.1vw,17px); }
+
+/* ---------- Lote 2: grupos de la mano y jugada sin confirmar ---------- */
+/* Un tramo de la mano (entre espacios) que forma plante: se separa un poco y lleva una barra verde debajo. */
+.hand-line .card.in-grp::after{ content:""; position:absolute; left:-2px; right:-2px; bottom:calc(var(--hw) * -.14); height:3px; border-radius:2px; background:var(--confirm-light); opacity:.85; }
+.hand-line .card.grp-first{ margin-left:calc(var(--hw) * .12); }
+.hand-line .hand-gap + .card.grp-first{ margin-left:calc(var(--hw) * .12); }
+.hand-line .card.grp-last{ margin-right:calc(var(--hw) * .12); }
+.hand-line .card.grp-first, .hand-line .card.grp-last{ cursor:move; }
+.hand-line .card.grp-first::before, .hand-line .card.grp-last::before{ content:"⠿"; position:absolute; top:2px; right:3px; font-family:'Manrope',sans-serif; font-size:calc(var(--hw) * .2); color:var(--confirm); opacity:.7; }
+.hand-line .card.lifted{ display:none; }
+.card.placeholder.group-ph{ margin-left:0; }
+.ghost-group{ position:fixed; z-index:100; pointer-events:none; display:flex; transform:translate(-50%,-60%) scale(1.05); filter:drop-shadow(0 10px 18px rgba(0,0,0,.5)); }
+.ghost-group .card{ --cw:var(--hw); margin-left:calc(var(--hw) * -.39); }
+.ghost-group .card:first-child{ margin-left:0; }
+
+/* Cartas en la mesa que todavía no confirmaste con ✓ */
+.card.staged-card{ outline:2px dashed var(--confirm-light); outline-offset:-1px; opacity:.92; }
+.staged-row .owner-label .dot{ background:var(--confirm-light); }
+.staged-row .owner-label span.name{ color:var(--confirm-light); }
+.meld.staged-meld{ padding:3px; border-radius:8px; background:rgba(127,208,160,.10); }
+.mesa-panel.droppable.drop-over{ outline:2.5px dashed var(--confirm-light); outline-offset:-4px; }
+
+/* ✓ con una jugada que aún no vale: se puede pulsar (explica el motivo) pero no la envía */
+.confirm-btn.invalid{ background:rgba(201,162,39,.18); color:var(--gold-light); border:1.5px dashed var(--gold); cursor:pointer; box-shadow:none; }

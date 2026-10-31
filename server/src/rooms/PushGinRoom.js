@@ -1,5 +1,5 @@
 import { Room, matchMaker } from "colyseus";
-import { Round, TOTAL_ROUNDS, ROUND_REQUIREMENTS, cardPoints } from "../../../src/logic/index.js";
+import { Round, TOTAL_ROUNDS, ROUND_REQUIREMENTS, cardPoints, seededRng } from "../../../src/logic/index.js";
 import { PushGinState } from "./schema/PushGinState.js";
 
 const MIN_PLAYERS = 2;
@@ -12,6 +12,23 @@ function cleanGroups(groups) {
     (g) => g && isIdList(g.cardIds) && (g.start === undefined || Number.isInteger(g.start))
   );
   return ok ? groups.map((g) => ({ cardIds: g.cardIds, start: g.start, ordered: g.ordered === true })) : null;
+}
+
+// Valida y limpia la jugada { plant?, melds?, hooks?, discard } (ver src/logic/turn.js).
+function cleanTurn(m) {
+  if (!m || typeof m.discard !== "string") return null;
+  const groups = (x) => (x == null || (Array.isArray(x) && !x.length) ? [] : cleanGroups(x));
+  const plant = groups(m.plant), melds = groups(m.melds);
+  if (!plant || !melds) return null;
+  const hooks = m.hooks ?? [];
+  if (!Array.isArray(hooks) || hooks.length > 20) return null;
+  const okHook = (h) => h && typeof h.meldId === "number" && typeof h.cardId === "string" &&
+    (h.end === undefined || h.end === null || h.end === "low" || h.end === "high");
+  if (!hooks.every(okHook)) return null;
+  return {
+    plant, melds, discard: m.discard,
+    hooks: hooks.map((h) => ({ meldId: h.meldId, cardId: h.cardId, end: h.end ?? undefined })),
+  };
 }
 
 // Código de sala de 4 dígitos (1000–9999), fácil de dictar. Se reintenta si ya existe.
@@ -35,6 +52,7 @@ export class PushGinRoom extends Room {
   roundIndex = 0;
   totals = {};         // puntaje acumulado por jugador
   roundScores = null;  // puntaje de la última ronda terminada
+  rng = null;          // generador con semilla (solo pruebas); null = Math.random
 
   messages = {
     start: (client) => {
@@ -68,34 +86,29 @@ export class PushGinRoom extends Room {
       this.#act(client, (g) => g.push(client.sessionId), () => ({
         type: "push", by: client.sessionId, to: this.game.nextPlayer, // el turno no cambia durante el push
       })),
-    plant: (client, m) => {
-      const groups = cleanGroups(m?.groups);
-      if (!groups) return this.#reject(client, "Mensaje inválido");
-      this.#act(client, (g) => g.plant(client.sessionId, groups), () => ({ type: "plant", by: client.sessionId }));
+    // Jugada COMPLETA del turno (plantarse/bajar/enganchar + descarte). Todo o nada: si es inválida, el turno no pasa.
+    playTurn: (client, m) => {
+      const turn = cleanTurn(m);
+      if (!turn) return this.#reject(client, "Mensaje inválido");
+      this.#act(client, (g) => g.playTurn(client.sessionId, turn), (res) => ({
+        type: "turn", by: client.sessionId, planted: res.plantedNow, laid: res.laid, hooked: res.hooked,
+      }));
     },
-    layMelds: (client, m) => {
-      const groups = cleanGroups(m?.groups);
-      if (!groups) return this.#reject(client, "Mensaje inválido");
-      this.#act(client, (g) => g.layMelds(client.sessionId, groups), () => ({ type: "lay", by: client.sessionId }));
-    },
-    hook: (client, m) => {
-      if (typeof m?.meldId !== "number" || typeof m?.cardId !== "string" ||
-          (m.end !== undefined && m.end !== "low" && m.end !== "high"))
-        return this.#reject(client, "Mensaje inválido");
-      this.#act(client, (g) => g.hook(client.sessionId, m.meldId, m.cardId, m.end), () => ({ type: "hook", by: client.sessionId }));
-    },
+    // Descartar sin jugar nada: es una jugada completa con solo el descarte.
     discard: (client, m) => {
       if (typeof m?.cardId !== "string") return this.#reject(client, "Mensaje inválido");
-      this.#act(client, (g) => g.discard(client.sessionId, m.cardId));
+      this.#act(client, (g) => g.playTurn(client.sessionId, { discard: m.cardId }));
     },
 
     // El cliente puede pedir su vista (útil al recargar o reconectar).
     requestState: (client) => client.send("state", this.#viewFor(client.sessionId)),
   };
 
-  async onCreate() {
+  async onCreate(options) {
     // El código corto ES el roomId: los demás se unen con client.joinById(codigo, { name }).
     this.roomId = await generateRoomCode();
+    // Reparto reproducible para pruebas (nunca en producción).
+    if (process.env.NODE_ENV !== "production" && Number.isInteger(options?.seed)) this.rng = seededRng(options.seed);
   }
 
   onJoin(client, options) {
@@ -119,7 +132,7 @@ export class PushGinRoom extends Room {
 
   // ---------- internos ----------
   #startRound() {
-    this.game = new Round(this.order, this.roundIndex);
+    this.game = new Round(this.order, this.roundIndex, this.rng ? { rng: this.rng } : {});
     this.roundScores = null;
     this.state.phase = "playing";
   }

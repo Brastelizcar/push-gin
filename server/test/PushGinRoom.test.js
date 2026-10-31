@@ -123,9 +123,10 @@ describe("PushGinRoom", () => {
   it("mensajes malformados no tumban el servidor", async () => {
     const { cs } = await setup(2);
     cs[0].send("start"); await tick();
-    cs[0].send("plant", { groups: "x" });
+    cs[0].send("playTurn", { plant: "x", discard: "a" });
+    cs[0].send("playTurn", { hooks: [{}], discard: "a" });
+    cs[0].send("playTurn", {});
     cs[0].send("discard", { cardId: 5 });
-    cs[0].send("hook", {});
     await tick();
     assert.equal(cs[0].rejected, "Mensaje inválido");
     cs[0].send("takeDiscard"); await tick();
@@ -162,21 +163,45 @@ describe("PushGinRoom", () => {
   const ids = (cards) => cards.map((x) => x.id);
   const card = (rank, suit, id) => ({ id, rank, suit });
 
-  it("plantarse: el servidor valida, avisa a todos y deja la carta para descartar", async () => {
+  it("plantarse con playTurn: el servidor valida, avisa a todos y pasa el turno", async () => {
     const { room, cs } = await setup(3);
     cs[0].send("start"); await tick();
     const g = room.game, A = cs[0].sessionId;
     const hand = [card("5","♥","a1"),card("5","♠","a2"),card("5","♦","a3"), card("7","♥","b1"),card("7","♠","b2"),card("7","♦","b3"),
-                  card("9","♥","c1"),card("9","♠","c2"),card("9","♦","c3"), card("K","♣","k1")];
+                  card("9","♥","c1"),card("9","♠","c2"),card("9","♦","c3"), card("K","♣","k1"), card("Q","♣","q1")];
     g.hands[A] = hand; g.phase = "main";
     const grp = (a, b) => ({ cardIds: ids(hand.slice(a, b)) });
-    cs[0].send("plant", { groups: [grp(0, 3), grp(3, 5)] }); await tick();           // incompleto
+    cs[0].send("playTurn", { plant: [grp(0, 3), grp(3, 5)], discard: "k1" }); await tick();   // incompleto
     assert.match(cs[0].rejected, /requisito/);
-    cs[0].send("plant", { groups: [grp(0, 3), grp(3, 6), grp(6, 9)] }); await tick();
-    assert.equal(cs[0].view.hand.length, 1);
+    assert.equal(g.hands[A].length, 11);                   // nada cambió…
+    assert.equal(g.currentPlayer, A);                      // …y el turno no pasó
+    cs[0].send("playTurn", { plant: [grp(0, 3), grp(3, 6), grp(6, 9)], discard: "k1" }); await tick();
+    assert.deepEqual(ids(cs[0].view.hand), ["q1"]);
     assert.equal(cs[1].view.melds.length, 3);
+    assert.equal(cs[1].view.discardTop.id, "k1");
+    assert.equal(cs[1].view.current, cs[1].sessionId);
     assert.equal(cs[1].view.players.find((p) => p.id === A).planted, true);
-    for (const c of cs) assert.deepEqual(c.events.at(-1), { type: "plant", by: A });
+    for (const c of cs) assert.deepEqual(c.events.at(-1), { type: "turn", by: A, planted: true, laid: 0, hooked: 0 });
+  });
+
+  it("playTurn es atómico: si un enganche falla no se planta nada", async () => {
+    const { room, cs } = await setup(2);
+    cs[0].send("start"); await tick();
+    const g = room.game, A = cs[0].sessionId, B = cs[1].sessionId;
+    g.melds.push({ id: 1, owner: B, meld: { kind: "run", suit: "♠", slots: [5,6,7].map((v, i) => ({ card: card(String(v),"♠","r"+i), value: v })) } });
+    g.nextMeldId = 2;
+    const hand = [card("5","♥","a1"),card("5","♠","a2"),card("5","♦","a3"), card("7","♥","b1"),card("7","♠","b2"),card("7","♦","b3"),
+                  card("9","♥","c1"),card("9","♠","c2"),card("9","♦","c3"), card("K","♣","k1"), card("8","♥","x1")];
+    g.hands[A] = hand; g.phase = "main";
+    const grp = (a, b) => ({ cardIds: ids(hand.slice(a, b)) });
+    cs[0].send("playTurn", { plant: [grp(0, 3), grp(3, 6), grp(6, 9)], hooks: [{ meldId: 1, cardId: "x1" }], discard: "k1" }); await tick();
+    assert.match(cs[0].rejected, /extiende/);
+    assert.equal(g.hands[A].length, 11);
+    assert.equal(g.melds.length, 1);
+    assert.equal(g.melds[0].meld.slots.length, 3);
+    assert.equal(g.planted[A], false);
+    assert.equal(g.currentPlayer, A);
+    assert.equal(cs[0].events.length, 0);
   });
 
   it("robar un 2: solo antes de tomar carta, avisa a todos y bloquea plantarse", async () => {
@@ -195,19 +220,30 @@ describe("PushGinRoom", () => {
     assert.match(cs[0].rejected, /antes de tomar/);    // ya tomó carta: mensaje claro
   });
 
-  it("enganchar: extiende el plante y rechaza lo que no encaja", async () => {
+  it("enganchar con playTurn: extiende el plante y rechaza lo que no encaja", async () => {
     const { room, cs } = await setup(2);
     cs[0].send("start"); await tick();
     const g = room.game, A = cs[0].sessionId;
     g.melds.push({ id: 1, owner: A, meld: { kind: "run", suit: "♥", slots: [5,6,7].map((v, i) => ({ card: card(String(v),"♥","r"+i), value: v })) } });
     g.planted[A] = true; g.phase = "main";
     g.hands[A] = [card("8","♥","x1"), card("9","♠","x2"), card("K","♣","x3")];
-    cs[0].send("hook", { meldId: 1, cardId: "x2" }); await tick();
+    cs[0].send("playTurn", { hooks: [{ meldId: 1, cardId: "x2" }], discard: "x3" }); await tick();
     assert.match(cs[0].rejected, /extiende/);
-    cs[0].send("hook", { meldId: 1, cardId: "x1", end: "high" }); await tick();
+    cs[0].send("playTurn", { hooks: [{ meldId: 1, cardId: "x1", end: "high" }], discard: "x3" }); await tick();
     assert.equal(cs[1].view.melds[0].meld.slots.length, 4);
-    assert.equal(cs[0].view.hand.length, 2);
-    for (const c of cs) assert.deepEqual(c.events.at(-1), { type: "hook", by: A }); // todos ven quién enganchó
+    assert.equal(cs[0].view.hand.length, 1);
+    for (const c of cs) assert.deepEqual(c.events.at(-1), { type: "turn", by: A, planted: false, laid: 0, hooked: 1 });
+  });
+
+  it("las acciones sueltas plant/layMelds/hook ya no existen: todo pasa por playTurn", async () => {
+    const { room, cs } = await setup(2);
+    cs[0].send("start"); await tick();
+    const g = room.game, A = cs[0].sessionId;
+    g.phase = "main";
+    const before = g.hands[A].length;
+    cs[0].send("plant", { groups: [{ cardIds: [g.hands[A][0].id] }] }); await tick();
+    assert.equal(g.hands[A].length, before);
+    assert.equal(g.phase, "main");
   });
 
   it("anfitrión se traspasa si sale en el lobby", async () => {

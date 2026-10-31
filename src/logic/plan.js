@@ -2,6 +2,7 @@
 // agruparlas (plantarse / bajar combinaciones / enganchar). Funciones puras; el servidor
 // sigue siendo quien valida de verdad (esto solo evita tener que armar los grupos a mano).
 import { buildSet, buildRun, extendMeld } from './melds.js';
+import { matchPlant, ROUND_REQUIREMENTS } from './rounds.js';
 
 // ¿Forman un consecutivo? Primero respetando el ORDEN en que el jugador las tiene (así un 2 vale por la
 // posición donde lo puso); si no, acomodándolas solas. Devuelve { meld, ordered } o null.
@@ -83,4 +84,17 @@ export function planHooks(meld, cards) {
       }
   }
   return left.length ? null : out;
+}
+
+// Jugada armada en la mesa: decide qué grupos son el PLANTE (si aún no te plantaste) y cuáles son combinaciones
+// extra. groups: [{ cards, ordered? }]. Devuelve { plant:[...], melds:[...] } (subconjuntos de groups) o null.
+export function splitTurnGroups(groups, roundIndex, planted) {
+  if (planted || !groups.length) return { plant: [], melds: [...groups] };
+  const need = ROUND_REQUIREMENTS[roundIndex]?.length ?? 0;
+  if (groups.length < need) return null;
+  for (const pick of combinations(groups.map((_, i) => i), need)) {
+    if (!matchPlant(pick.map((i) => groups[i]), roundIndex)) continue;
+    return { plant: pick.map((i) => groups[i]), melds: groups.filter((_, i) => !pick.includes(i)) };
+  }
+  return null;
 }

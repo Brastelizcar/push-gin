@@ -1,8 +1,8 @@
 // Estado y turnos de UNA ronda. Pensado para vivir en el servidor (Colyseus) más adelante:
 // cada método valida y devuelve { ok:true, ... } o { ok:false, error }.
 import { makeDeck, shuffle, cardPoints } from './cards.js';
-import { matchPlant } from './rounds.js';
-import { buildSet, buildRun, extendMeld, stealTwo, meldCards } from './melds.js';
+import { stealTwo } from './melds.js';
+import { resolveTurn } from './turn.js';
 
 export const HAND_SIZE = 10;
 const fail = (error) => ({ ok: false, error });
@@ -43,33 +43,13 @@ export class Round {
     if (!this.deck.length) throw new Error('Mazo vacío (no debería pasar con 3 barajas)');
     return this.deck.pop();
   }
-  _cardsFromHand(pid, ids) {
-    if (new Set(ids).size !== ids.length) return null;
-    const cards = ids.map((id) => this.hands[pid].find((c) => c.id === id));
-    return cards.every(Boolean) ? cards : null;
-  }
   _removeFromHand(pid, cards) {
     const ids = new Set(cards.map((c) => c.id));
     this.hands[pid] = this.hands[pid].filter((c) => !ids.has(c.id));
   }
-  _parseGroups(pid, groups) {
-    const all = groups.flatMap((g) => g.cardIds);
-    const flat = this._cardsFromHand(pid, all);
-    if (!flat) return { error: 'Cartas inválidas o repetidas' };
-    let i = 0;
-    const parsed = groups.map((g) => ({ cards: flat.slice(i, (i += g.cardIds.length)), start: g.start, ordered: g.ordered === true }));
-    return { groups: parsed, count: flat.length };
-  }
   _markRecent(cards) {
     if (this._freshTurn) { this.recentCardIds = []; this._freshTurn = false; }
     this.recentCardIds.push(...cards.map((c) => c.id));
-  }
-  _addMelds(pid, melds) {
-    for (const meld of melds) this.melds.push({ id: this.nextMeldId++, owner: pid, meld });
-    this._markRecent(melds.flatMap(meldCards));
-  }
-  _mustKeepOne(pid, removing) {
-    return this.hands[pid].length - removing < 1;
   }
 
   // ---------- Fase 'start' ----------
@@ -114,51 +94,48 @@ export class Round {
   }
 
   // ---------- Fase 'main' ----------
-  // groups: [{ cardIds:[...], start? }]
-  plant(pid, groups) {
+  // Aplica (si es válida) una jugada de resolveTurn, sin descartar. Atómico: si falla, nada cambia.
+  _commit(pid, turn) {
     const g = this._guard(pid, 'main'); if (g) return g;
-    if (this.planted[pid]) return fail('Ya te plantaste');
-    if (this.stoleThisTurn) return fail('Robaste un 2: no puedes plantarte este turno');
-    const p = this._parseGroups(pid, groups);
-    if (p.error) return fail(p.error);
-    const melds = matchPlant(p.groups, this.roundIndex);
-    if (!melds) return fail('Las cartas no cumplen exactamente el requisito de la ronda');
-    if (this._mustKeepOne(pid, p.count)) return fail('Debes conservar al menos una carta para descartar');
-    this._removeFromHand(pid, p.groups.flatMap((x) => x.cards));
-    this._addMelds(pid, melds);
-    this.planted[pid] = true;
-    return ok({ melds });
+    const res = resolveTurn({
+      hand: this.hands[pid], melds: this.melds, planted: this.planted[pid],
+      stoleThisTurn: this.stoleThisTurn, roundIndex: this.roundIndex, nextMeldId: this.nextMeldId,
+    }, pid, turn);
+    if (!res.ok) return res;
+    this.hands[pid] = res.hand;
+    this.melds = res.melds;
+    this.nextMeldId = res.nextMeldId;
+    this.planted[pid] = res.planted;
+    if (res.playedCards.length) this._markRecent(res.playedCards);
+    return res;
+  }
+
+  // Jugada COMPLETA del turno: plantarse/bajar/enganchar y descartar, todo o nada.
+  // turn: { plant?, melds?, hooks?, discard } (ver turn.js). Si es inválida, el turno no pasa.
+  playTurn(pid, turn) {
+    if (typeof turn?.discard !== 'string') return fail('Elige una carta para descartar');
+    const res = this._commit(pid, turn);
+    if (!res.ok) return res;
+    const d = this.discard(pid, turn.discard);
+    return ok({ ...d, plantedNow: res.plantedNow, laid: res.laid, hooked: res.hooked });
+  }
+
+  // Acciones sueltas (las usa la lógica y las pruebas; el servidor solo expone playTurn).
+  // groups: [{ cardIds:[...], start?, ordered? }]
+  plant(pid, groups) {
+    if (!groups?.length) return fail('Mensaje inválido');
+    return this._commit(pid, { plant: groups });
   }
 
   // Ya plantado: bajar nuevos tríos/cuartetos/consecutivos.
   layMelds(pid, groups) {
-    const g = this._guard(pid, 'main'); if (g) return g;
-    if (!this.planted[pid]) return fail('Primero debes plantarte');
-    const p = this._parseGroups(pid, groups);
-    if (p.error) return fail(p.error);
-    const melds = p.groups.map((x) => buildSet(x.cards) ?? buildRun(x.cards, { start: x.start, ordered: x.ordered }));
-    if (melds.some((m) => !m)) return fail('Alguna combinación no es válida');
-    if (this._mustKeepOne(pid, p.count)) return fail('Debes conservar al menos una carta para descartar');
-    this._removeFromHand(pid, p.groups.flatMap((x) => x.cards));
-    this._addMelds(pid, melds);
-    return ok({ melds });
+    if (!groups?.length) return fail('Mensaje inválido');
+    return this._commit(pid, { melds: groups });
   }
 
   // Enganche en plante propio o ajeno. end: 'low' | 'high' (solo consecutivos ambiguos).
   hook(pid, meldId, cardId, end) {
-    const g = this._guard(pid, 'main'); if (g) return g;
-    if (!this.planted[pid]) return fail('Primero debes plantarte');
-    const entry = this.melds.find((m) => m.id === meldId);
-    if (!entry) return fail('Plante inexistente');
-    const card = this.hands[pid].find((c) => c.id === cardId);
-    if (!card) return fail('Carta no está en tu mano');
-    if (this._mustKeepOne(pid, 1)) return fail('Debes conservar al menos una carta para descartar');
-    const next = extendMeld(entry.meld, card, end);
-    if (!next) return fail('La carta no extiende ese plante');
-    entry.meld = next;
-    this._removeFromHand(pid, [card]);
-    this._markRecent([card]);
-    return ok();
+    return this._commit(pid, { hooks: [{ meldId, cardId, end }] });
   }
 
   discard(pid, cardId) {

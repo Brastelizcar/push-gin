@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findPlantGroups, findFreeMelds, planHooks } from '../src/logic/plan.js';
+import { findPlantGroups, findFreeMelds, planHooks, splitTurnGroups } from '../src/logic/plan.js';
 import { buildSet, buildRun, meldCards } from '../src/logic/melds.js';
 import { ROUND_REQUIREMENTS } from '../src/logic/rounds.js';
 import { cs, c } from './helpers.js';
@@ -65,4 +65,17 @@ test('enganchar a un trío: solo hasta cuarteto y con palo nuevo', () => {
   assert.ok(planHooks(set, [c('5♣')]));
   assert.equal(planHooks(set, [c('5♥')]), null);
   assert.equal(planHooks(set, [c('5♣'), c('2♣')]), null); // ya sería de 5
+});
+
+test('jugada en mesa: separa el plante de las combinaciones extra', () => {
+  const g = (...list) => ({ cards: cs(...list) });
+  const trios = [g('5♥', '5♠', '5♦'), g('7♥', '7♠', '7♦'), g('9♥', '9♠', '9♦')];
+  const extra = g('3♣', '4♣', '5♣');
+  const res = splitTurnGroups([extra, ...trios], 0, false);   // el orden en que se soltaron no importa
+  assert.deepEqual(res.plant, trios);
+  assert.deepEqual(res.melds, [extra]);
+  assert.equal(splitTurnGroups(trios.slice(0, 2), 0, false), null);           // faltan grupos
+  assert.equal(splitTurnGroups([extra, ...trios.slice(0, 2)], 0, false), null); // no cumple
+  assert.deepEqual(splitTurnGroups([extra], 0, true), { plant: [], melds: [extra] }); // ya plantado
+  assert.deepEqual(splitTurnGroups([], 0, false), { plant: [], melds: [] });          // solo descartar
 });

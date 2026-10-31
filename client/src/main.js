@@ -100,12 +100,13 @@ async function join(opts) {
       onEvent: (ev) => {
         if (!view) return;
         const name = (id) => (id === view.you ? "Tú" : view.players.find((p) => p.id === id)?.name ?? "alguien");
-        if (["plant", "lay", "hook"].includes(ev.type) && ev.by !== view.you) notePlay(ev.by); // anima sus cartas hacia la mesa
+        const played = ev.type === "turn" && (ev.planted || ev.laid || ev.hooked);
+        if (played && ev.by !== view.you) notePlay(ev.by); // anima sus cartas hacia la mesa
         if (ev.type === "push") {
           toast(`${name(ev.by)} hizo push: ${ev.to === view.you ? "recibes" : name(ev.to) + " recibe"} 2 cartas`);
           notePush({ by: ev.by, to: ev.to, anim: playPushAnimation({ card: view.discardTop, toPid: ev.to, me: view.you }) });
-        } else if (ev.type === "plant") toast(ev.by === view.you ? "¡Te plantaste!" : `${name(ev.by)} se plantó`);
-        else if (ev.type === "lay") { if (ev.by !== view.you) toast(`${name(ev.by)} bajó una combinación`); }
+        } else if (ev.type === "turn" && ev.planted) toast(ev.by === view.you ? "¡Te plantaste!" : `${name(ev.by)} se plantó`);
+        else if (played && ev.by !== view.you) toast(`${name(ev.by)} ${ev.laid ? "bajó una combinación" : "enganchó en la mesa"}`);
         else if (ev.type === "steal") {
           toast(ev.by === view.you ? "Robaste un 2: este turno no puedes plantarte"
             : ev.victim === view.you ? `${name(ev.by)} te robó un 2`

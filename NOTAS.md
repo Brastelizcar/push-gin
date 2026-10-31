@@ -12,10 +12,12 @@
 5. **Tras plantarte/bajar/enganchar debes conservar ≥1 carta** para el descarte obligatorio.
 6. **Robo de 2s** solo antes de tomar carta; si robas, no puedes plantarte ese turno.
 7. **Enganchar/bajar** solo después de tomar carta (descarte o push).
-8. Quién empieza la ronda: jugador `roundIndex % nJugadores` (provisional).
+8. **Jugada validada:** plantarse, bajar y enganchar se arman en local y se envían junto con el descarte (`playTurn`).
+   Se permite plantarse y enganchar/bajar en el MISMO turno (como ya hacía la lógica).
+9. Quién empieza la ronda: jugador `roundIndex % nJugadores` (provisional).
 
 ## Pendientes decididos con el usuario (lotes siguientes)
-- Lote 2: agrupación automática con espacio, arrastrar grupos completos a la mesa y validar la jugada
+- ✅ Lote 2 (hecho): agrupación automática con espacio, arrastrar grupos completos a la mesa y validar la jugada
   entera al terminar el turno (sin dejar pasar si es inválida).
 - Lote 3: cuentas (sin correo, con código de sincronización), nivel/XP (1.º 100, 2.º 50, 3.º 30, 4.º 10),
   fichas de póker (+300 cada 24 h), menú principal, ajustes, juego privado y sala de espera. Requiere BASE DE DATOS.

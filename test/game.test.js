@@ -116,3 +116,11 @@ test('ganar descartando la última carta; puntaje del resto', () => {
   assert.equal(r.winner, 'A');
   assert.deepEqual(r.scores(), { A: 0, B: 50, C: 0, D: 5 });
 });
+test('reparto con semilla: misma semilla, mismas manos', async () => {
+  const { seededRng } = await import('../src/logic/cards.js');
+  const a = new Round(['A', 'B'], 0, { rng: seededRng(42) });
+  const b = new Round(['A', 'B'], 0, { rng: seededRng(42) });
+  const c2 = new Round(['A', 'B'], 0, { rng: seededRng(43) });
+  assert.deepEqual(a.hands, b.hands);
+  assert.notDeepEqual(a.hands, c2.hands);
+});

@@ -67,9 +67,7 @@ export const actions = {
   nextRound: (room) => room.send("nextRound"),
   takeDiscard: (room) => room.send("takeDiscard"),
   push: (room) => room.send("push"),
-  discard: (room, cardId) => room.send("discard", { cardId }),
-  plant: (room, groups) => room.send("plant", { groups }),
-  layMelds: (room, groups) => room.send("layMelds", { groups }),
-  hook: (room, meldId, cardId, end) => room.send("hook", { meldId, cardId, end }),
+  // Jugada completa del turno: { plant, melds, hooks, discard }. El servidor la aplica toda o nada.
+  playTurn: (room, turn) => room.send("playTurn", turn),
   steal2: (room, meldId, index, cardId) => room.send("steal2", { meldId, index, cardId }),
 };
