@@ -24,11 +24,15 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
 - Turno: (robar 2s opcional, solo si no te has plantado) → tomar el descarte o hacer **push** (carta ciega + descarte
   viejo van a la MANO del siguiente; tú robas una) → plantarte / bajar / enganchar → **descartar** (obligatorio).
 - Enganchar y bajar solo **después de tomar carta**. Robar 2s solo **antes** de tomar carta; si robas, no te plantas ese turno.
+- **No se planta y engancha en el mismo turno:** primero te plantas; enganchas desde tu próximo turno (bajar extra sí).
 - Plantarse exige EXACTAMENTE el requisito de la ronda. Tras jugar debes conservar ≥1 carta para descartar:
   se gana descartando la última carta. Puntos de lo que queda en mano: A=15, 2=20, 10/J/Q/K=10, 3–9=5. Gana el menor total.
 - Quién empieza la ronda: jugador `roundIndex % nJugadores` (provisional).
-- Mazo agotado (provisional, ver NOTAS.md): push exige ≥2 cartas en el mazo; si tras un descarte quedan <2, la ronda
-  termina sin ganador y todos cuentan su mano.
+- Mazo agotado: push exige ≥2 cartas en el mazo; si tras un descarte quedan <2, se juega **una vuelta más** (cada
+  jugador un turno, solo tomando el descarte; `Round.finalTurnsLeft`) y luego la ronda termina sin ganador y todos
+  cuentan su mano (si alguien se queda sin cartas en esa vuelta, gana la ronda).
+- Abandonar a media partida: pierdes la cuota y el XP (`Match.left`, `gameRewards(..., left)`); tus turnos se juegan
+  solos. Si queda un solo jugador, la partida termina y él gana.
 - Temporizador (opcional, 30–120 s): si se acaba, el turno se juega solo (toma el descarte y lo devuelve, o descarta
   la carta que tomó).
 

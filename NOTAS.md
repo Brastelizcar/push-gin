@@ -13,7 +13,8 @@
 6. **Robo de 2s** solo antes de tomar carta; si robas, no puedes plantarte ese turno.
 7. **Enganchar/bajar** solo después de tomar carta (descarte o push).
 8. **Jugada validada:** plantarse, bajar y enganchar se arman en local y se envían junto con el descarte (`playTurn`).
-   Se permite plantarse y enganchar/bajar en el MISMO turno (como ya hacía la lógica).
+   **No se puede plantar y enganchar en el mismo turno** (decidido con el usuario, 30-oct-2026): primero te plantas y
+   enganchas desde tu próximo turno. Al plantarte sí puedes bajar combinaciones extra en ese mismo turno.
 9. Quién empieza la ronda: jugador `roundIndex % nJugadores` (provisional).
 
 ## Pendientes decididos con el usuario (lotes siguientes)
@@ -28,15 +29,18 @@
   fichas y pueden reclamar 300 de inmediato.
 - Cuentas con token por dispositivo (se guarda su hash) y sincronización con código corto de 1 uso y 10 minutos.
 - Cuotas permitidas: 0, 100, 200, 300, 500, 1000. El ganador se lleva el pozo (empate: se reparte).
-  Si alguien sale a mitad de partida, su cuota no se devuelve.
+  **Abandonar** (salir a media partida, decidido 30-oct-2026): pierdes la cuota (queda en el pozo) y no ganas XP ni
+  puesto. Tu asiento se queda y tus turnos se juegan solos al instante. Si queda un solo jugador, la partida termina y
+  él gana el pozo. Ojo: hoy perder la conexión también cuenta como abandonar (no hay reconexión).
 - XP solo en partidas con cuenta. Los empatados comparten el mejor puesto (y su XP).
 - Menú de juego privado: en lugar de la lista de amigos de la referencia, un panel "Unirse con código"
   (no hay sistema de amigos). Ajustes: sin "Asistencia" (no hay canal de soporte).
 
-## Decisiones del Lote 4 (a confirmar)
-- **Mazo agotado:** cada push saca 2 cartas del mazo y nada vuelve a él, así que SÍ se puede agotar (con bots pasa en
-  ~4 de cada 10 rondas). Antes el servidor lanzaba un error. Regla provisional: push solo con ≥2 cartas en el mazo y,
-  si tras un descarte quedan <2, la ronda termina sin ganador (todos suman su mano).
+## Decisiones del Lote 4
+- **Mazo agotado** (decidido con el usuario, 30-oct-2026): cada push saca 2 cartas del mazo y nada vuelve a él, así
+  que SÍ se puede agotar. Push exige ≥2 cartas en el mazo. Cuando tras un descarte quedan <2, se juega **una vuelta
+  más** (cada jugador un turno, empezando por el siguiente y terminando con quien la abrió; solo se puede tomar el
+  descarte). Si nadie se queda sin cartas, la ronda termina sin ganador y todos suman lo que tienen en la mano.
 - **Tiempo agotado:** antes de tomar carta → toma el descarte y lo devuelve (nada cambia); después → descarta la carta
   que tomó. Tiempos: sin límite, 30, 45, 60, 90, 120 s.
 - **Práctica:** corre en el navegador (sirve sin internet), 1 a 3 bots, no da XP ni fichas. Los bots solo ven su mano.

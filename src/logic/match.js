@@ -49,9 +49,12 @@ export class Match {
     this.roundScores = null;
     this.turnStartedAt = null;
     this.lastDrawn = null;    // carta que tomó el jugador en turno (la descarta si se le acaba el tiempo)
+    this.left = new Set();    // abandonaron a media partida: pierden la cuota y el XP; sus turnos se juegan solos
   }
 
-  get host() { return this.order[0]; }
+  // Anfitrión: el primero en llegar que sigue en la partida.
+  get host() { return this.order.find((id) => !this.left.has(id)) ?? this.order[0]; }
+  get stayed() { return this.order.filter((id) => !this.left.has(id)); }
 
   // ---------- jugadores ----------
   addPlayer(id, name, level = null) {
@@ -60,13 +63,26 @@ export class Match {
     if (level) this.levels.set(id, level);
     this.connected.add(id);
   }
-  // En la sala de espera se libera el cupo (y el anfitrión pasa al siguiente); en partida se conserva el asiento.
+  // En la sala de espera se libera el cupo (y el anfitrión pasa al siguiente).
+  // A media partida es ABANDONAR: pierde la cuota y el XP, conserva el asiento y sus turnos se juegan solos.
+  // Si queda un solo jugador, la partida termina y él gana. Devuelve el evento para todos (o null).
   leave(id) {
     this.connected.delete(id);
-    if (this.phase !== 'lobby') return;
-    this.order = this.order.filter((x) => x !== id);
-    this.names.delete(id);
-    this.levels.delete(id);
+    if (this.phase === 'lobby') {
+      this.order = this.order.filter((x) => x !== id);
+      this.names.delete(id);
+      this.levels.delete(id);
+      return null;
+    }
+    if (this.phase === 'finished' || this.left.has(id) || !this.order.includes(id)) return null;
+    this.left.add(id);
+    if (this.stayed.length <= 1) {
+      this.roundScores ??= Object.fromEntries(this.order.map((x) => [x, 0]));
+      this.phase = 'finished';
+    } else {
+      this.#autoPlay();
+    }
+    return { type: 'left', by: id };
   }
 
   // ¿Puede `pid` empezar ahora? (la sala del servidor lo pregunta antes de cobrar la cuota)
@@ -79,6 +95,13 @@ export class Match {
 
   // ---------- mensajes ----------
   handle(pid, type, m) {
+    if (this.left.has(pid)) return fail('Abandonaste la partida');
+    const res = this.#handle(pid, type, m);
+    if (res.ok) this.#autoPlay();
+    return res;
+  }
+
+  #handle(pid, type, m) {
     switch (type) {
       case 'start': {
         const c = this.canStart(pid); if (!c.ok) return c;
@@ -126,6 +149,14 @@ export class Match {
   //  · después → descarta la carta que acababa de tomar (o la que más puntos vale)
   timeoutTurn() {
     if (this.deadline == null || this.now() < this.deadline) return null;
+    const pid = this.game.currentPlayer;
+    this.#autoTurn();
+    this.#autoPlay();
+    return { type: 'timeout', by: pid };
+  }
+
+  // Turno automático (tiempo agotado o jugador que abandonó).
+  #autoTurn() {
     const g = this.game, pid = g.currentPlayer;
     if (g.phase === 'start') {
       const r = g.takeDiscard(pid);
@@ -134,9 +165,11 @@ export class Match {
     }
     const hand = g.hands[pid];
     const card = hand.find((c) => c.id === this.lastDrawn) ?? [...hand].sort((a, b) => cardPoints(b) - cardPoints(a))[0];
-    const res = g.playTurn(pid, { discard: card.id });
-    this.#after(res);
-    return { type: 'timeout', by: pid };
+    this.#after(g.playTurn(pid, { discard: card.id }));
+  }
+  // Juega al instante los turnos de quienes abandonaron.
+  #autoPlay() {
+    for (let i = 0; i < 1000 && this.phase === 'playing' && this.left.has(this.game.currentPlayer); i++) this.#autoTurn();
   }
 
   // ---------- internos ----------
@@ -175,6 +208,7 @@ export class Match {
       id,
       name: this.names.get(id),
       connected: this.connected.has(id),
+      left: this.left.has(id),
       level: this.levels.get(id) ?? null,
       total: this.totals[id] ?? 0,
       ...(this.game && { cards: this.game.hands[id].length, planted: this.game.planted[id] }),
@@ -195,6 +229,7 @@ export class Match {
       stoleThisTurn: g.stoleThisTurn,
       discardTop: g.discardTop,
       deckCount: g.deck.length,
+      finalTurnsLeft: g.finalTurnsLeft, // mazo agotado: turnos que quedan de la última vuelta (null = hay mazo)
       melds: g.melds,
       recentCardIds: g.recentCardIds,
       hand: g.hands[me] ?? [],
@@ -205,8 +240,8 @@ export class Match {
       view.roundScores = this.roundScores;
       view.hands = g.hands; // al terminar la ronda se revelan las cartas restantes
       if (phase === 'finished') {
-        const best = Math.min(...this.order.map((id) => this.totals[id]));
-        view.gameWinners = this.order.filter((id) => this.totals[id] === best);
+        const best = Math.min(...this.stayed.map((id) => this.totals[id]));
+        view.gameWinners = this.stayed.filter((id) => this.totals[id] === best);
       }
     }
     return view;

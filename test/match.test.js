@@ -28,6 +28,51 @@ test('lobby: solo el anfitrión empieza, con 2+ jugadores; quien sale libera el 
   assert.equal(m.connected.has('C'), false);
 });
 
+test('abandonar a media partida: sus turnos se juegan solos y ya no puede actuar', () => {
+  const { m } = started();                             // A, B, C; empieza A
+  const ev = m.leave('B');
+  assert.deepEqual(ev, { type: 'left', by: 'B' });
+  assert.equal(m.viewFor('A').players.find((p) => p.id === 'B').left, true);
+  assert.match(m.handle('B', 'push').error, /Abandonaste/);
+  m.handle('A', 'takeDiscard');
+  m.handle('A', 'playTurn', { discard: m.lastDrawn });
+  assert.equal(m.game.currentPlayer, 'C');             // el turno de B se jugó solo
+  assert.equal(m.game.hands.B.length, 10);             // tomó el descarte y lo devolvió
+});
+
+test('abandonar: si el que abandona estaba en turno, su turno se juega al instante', () => {
+  const { m } = started();
+  m.leave('A');
+  assert.equal(m.game.currentPlayer, 'B');
+  assert.equal(m.host, 'B');                           // el anfitrión pasa al siguiente que sigue jugando
+});
+
+test('abandonar: si queda un solo jugador, la partida termina y él gana', () => {
+  const { m } = started();
+  m.leave('B');
+  m.leave('C');
+  assert.equal(m.phase, 'finished');
+  const v = m.viewFor('A');
+  assert.deepEqual(v.gameWinners, ['A']);
+  assert.ok(v.roundScores);
+  assert.equal(m.leave('A'), null);                    // ya terminó: no cambia nada
+});
+
+test('abandonar entre rondas: el anfitrión nuevo continúa y el que se fue sigue sin jugar', () => {
+  const { m } = started({ players: ['A', 'B', 'C'] });
+  m.game.hands.A = cs('K♣');                           // A gana la ronda al descartar su última carta
+  m.handle('A', 'takeDiscard');
+  m.game.hands.A = m.game.hands.A.slice(-1);
+  m.handle('A', 'playTurn', { discard: m.game.hands.A[0].id });
+  assert.equal(m.phase, 'roundOver');
+  m.leave('B');                                        // la ronda 2 la empieza B
+  assert.equal(m.handle('A', 'nextRound').ok, true);
+  assert.equal(m.game.currentPlayer, 'C');             // el turno de B ya se jugó solo
+  m.leave('A');
+  assert.equal(m.phase, 'finished');                   // solo queda C
+  assert.deepEqual(m.viewFor('C').gameWinners, ['C']);
+});
+
 test('handle: turnos, eventos y mensajes inválidos', () => {
   const { m } = started();
   assert.match(m.handle('B', 'takeDiscard').error, /turno/);

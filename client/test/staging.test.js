@@ -79,6 +79,17 @@ test("buildTurn: rechaza la jugada incompleta, sin descarte o con enganche sin p
   assert.ok(buildTurn(v, hookOnly, t[7].id, true).turn);          // ya plantado: válido
 });
 
+test("buildTurn: plantarse y enganchar en el mismo turno no vale (primero te plantas)", () => {
+  const t = cs("5♥", "5♠", "5♦", "7♥", "7♠", "7♦", "9♥", "9♠", "9♦", "8♥", "K♣");
+  const st = emptyStage();
+  for (let i = 0; i < 9; i += 3) st.groups.push({ cards: t.slice(i, i + 3), ordered: false });
+  st.hooks.push({ meldId: 1, card: t[9], end: "high" });
+  const v = view(t, { melds: [{ id: 1, owner: "B", meld: runMeld("♥", 5, 6, 7) }] });
+  assert.match(buildTurn(v, st, t[10].id, false).error, /turno en que te plantas/);
+  st.hooks = [];
+  assert.ok(buildTurn(v, st, t[10].id, false).turn);              // sin el enganche, el plante sí vale
+});
+
 test("buildTurn: solo descartar es una jugada válida", () => {
   const t = cs("K♣", "3♦");
   assert.deepEqual(buildTurn(view(t), emptyStage(), t[0].id, false).turn, { plant: [], melds: [], hooks: [], discard: t[0].id });

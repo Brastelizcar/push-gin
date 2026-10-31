@@ -30,21 +30,40 @@ test('resolveTurn: no modifica el estado recibido', () => {
   const meld = { id: 1, owner: 'B', meld: run('♥', 5, 6, 7) };
   const st = base(t, { melds: [meld], planted: false });
   const before = JSON.stringify(st);
-  const res = resolveTurn(st, 'A', { plant, hooks: [{ meldId: 1, cardId: t[10].id }], discard: t[9].id });
+  const res = resolveTurn(st, 'A', { plant, discard: t[9].id });
   assert.equal(res.ok, true);
   assert.equal(JSON.stringify(st), before);
-  assert.equal(res.melds[0].meld.slots.length, 4); // la copia cambia...
-  assert.equal(st.melds[0].meld.slots.length, 3);  // ...el original no
+  const st2 = base(t, { melds: [meld], planted: true });
+  const before2 = JSON.stringify(st2);
+  const res2 = resolveTurn(st2, 'A', { hooks: [{ meldId: 1, cardId: t[10].id }], discard: t[9].id });
+  assert.equal(res2.ok, true);
+  assert.equal(JSON.stringify(st2), before2);
+  assert.equal(res2.melds[0].meld.slots.length, 4); // la copia cambia...
+  assert.equal(st2.melds[0].meld.slots.length, 3);  // ...el original no
 });
 
-test('resolveTurn: plantarse y enganchar en el mismo turno (8♥ en el 5-6-7♥ ajeno)', () => {
+test('resolveTurn: NO se puede plantar y enganchar en el mismo turno (primero te plantas)', () => {
   const { t, plant } = plantHand();
   const st = base(t, { melds: [{ id: 1, owner: 'B', meld: run('♥', 5, 6, 7) }], nextMeldId: 2 });
   const res = resolveTurn(st, 'A', { plant, hooks: [{ meldId: 1, cardId: t[10].id, end: 'high' }], discard: t[9].id });
+  assert.equal(res.ok, false);
+  assert.match(res.error, /turno en que te plantas/);
+  // Tampoco en un plante propio recién bajado.
+  const own = resolveTurn(base(t, { nextMeldId: 5 }), 'A', { plant, hooks: [{ meldId: 5, cardId: t[10].id }], discard: t[9].id });
+  assert.match(own.error, /turno en que te plantas/);
+  // En el turno siguiente (ya plantado) sí.
+  const later = resolveTurn(base(t, { planted: true, melds: st.melds, nextMeldId: 2 }), 'A',
+    { hooks: [{ meldId: 1, cardId: t[10].id, end: 'high' }], discard: t[9].id });
+  assert.equal(later.ok, true);
+  assert.equal(later.melds[0].meld.slots.at(-1).value, 8);
+});
+
+test('resolveTurn: al plantarte sí puedes bajar combinaciones extra en el mismo turno', () => {
+  const t = cs('5♥', '5♠', '5♦', '7♥', '7♠', '7♦', '9♥', '9♠', '9♦', 'J♥', 'J♠', 'J♦', 'K♣');
+  const g = (a, b) => grp(t.slice(a, b));
+  const res = resolveTurn(base(t), 'A', { plant: [g(0, 3), g(3, 6), g(6, 9)], melds: [g(9, 12)], discard: t[12].id });
   assert.equal(res.ok, true);
-  assert.equal(res.hooked, 1);
-  assert.equal(res.melds[0].meld.slots.at(-1).value, 8);
-  assert.deepEqual(ids(res.hand), [t[9].id]);
+  assert.equal(res.laid, 1);
 });
 
 test('resolveTurn: requisito incompleto o incorrecto se rechaza', () => {

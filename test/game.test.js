@@ -124,16 +124,39 @@ test('reparto con semilla: misma semilla, mismas manos', async () => {
   assert.deepEqual(a.hands, b.hands);
   assert.notDeepEqual(a.hands, c2.hands);
 });
-test('mazo agotado: no hay push y la ronda termina sin ganador al descartar', () => {
-  const r = mk();
+// Toma el descarte y lo vuelve a descartar (un turno que no cambia nada).
+const passTurn = (r) => { const p = r.currentPlayer; const t = r.takeDiscard(p).taken; return r.discard(p, t.id); };
+
+test('mazo agotado: se juega UNA vuelta más (sin push) y luego se cuentan las manos', () => {
+  const r = mk();                                               // 4 jugadores, empieza A
   r.deck = r.deck.slice(0, 1);
   assert.match(r.push('A').error, /mazo se acabó/);
-  r.takeDiscard('A');
-  r.hands.B = cs('K♣', '3♦');                                  // 10 + 5
-  const res = r.discard('A', r.hands.A[0].id);
+  assert.equal(r.finalTurnsLeft, null);
+  assert.equal(passTurn(r).roundOver, false);                   // el descarte de A abre la última vuelta
+  assert.equal(r.finalTurnsLeft, 4);
+  for (const p of ['B', 'C', 'D']) {
+    assert.equal(r.currentPlayer, p);
+    assert.match(r.push(p).error, /mazo se acabó/);
+    assert.equal(passTurn(r).roundOver, false);
+  }
+  assert.equal(r.currentPlayer, 'A');                           // A también juega su último turno
+  r.hands.B = cs('K♣', '3♦');                                   // 10 + 5
+  const res = passTurn(r);
   assert.equal(res.roundOver, true);
   assert.equal(res.exhausted, true);
   assert.equal(r.winner, null);
   assert.equal(r.scores().B, 15);
   assert.ok(r.scores().A > 0);                                  // nadie queda en 0
+});
+
+test('mazo agotado: en la última vuelta todavía se puede ganar la ronda', () => {
+  const r = mk();
+  r.deck = r.deck.slice(0, 1);
+  passTurn(r);                                                  // A abre la última vuelta
+  r.hands.B = [];                                               // B toma el descarte y se queda sin cartas al tirarlo
+  r.takeDiscard('B');
+  const win = r.discard('B', r.hands.B[0].id);
+  assert.equal(win.roundOver, true);
+  assert.equal(r.winner, 'B');
+  assert.equal(win.exhausted, undefined);
 });

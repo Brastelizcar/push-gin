@@ -166,9 +166,12 @@ export function planTurn(view) {
       const cards = g.cardIds.map((id) => view.hand.find((c) => c.id === id));
       return { id: nextId++, meld: buildSet(cards) ?? buildRun(cards, { ordered: true }) };
     });
-    const { hooks, left } = planHooksOnTable([...view.melds, ...newMelds], hand, 1);
-    turn.hooks = hooks;
-    hand = left;
+    // Enganchar solo si ya estaba plantado de un turno anterior (no en el turno en que se planta).
+    if (me?.planted) {
+      const { hooks, left } = planHooksOnTable([...view.melds, ...newMelds], hand, 1);
+      turn.hooks = hooks;
+      hand = left;
+    }
   }
   turn.discard = chooseDiscard(hand, planted, view.drawn).id;
 
@@ -216,7 +219,8 @@ export function botMove(view) {
       const steal = findSteal(view);
       if (steal) return { type: 'steal2', msg: steal };
     }
-    return { type: wantsDiscard(view) ? 'takeDiscard' : 'push' };
+    // Con el mazo agotado (última vuelta) no hay push: solo se puede tomar el descarte.
+    return { type: wantsDiscard(view) || view.deckCount < 2 ? 'takeDiscard' : 'push' };
   }
   return { type: 'playTurn', msg: planTurn(view) };
 }

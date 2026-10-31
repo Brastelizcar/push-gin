@@ -8,7 +8,7 @@
 // }
 // state = { hand, melds:[{ id, owner, meld }], planted, stoleThisTurn, roundIndex, nextMeldId }
 //
-// Orden: plantarse → bajar → enganchar → descartar. Devuelve
+// Orden: plantarse → bajar → enganchar → descartar (enganchar solo si ya estabas plantado antes de este turno). Devuelve
 //   { ok:true, hand, melds, planted, nextMeldId, playedCards, plantedNow, laid, hooked }
 // (hand SIN las cartas jugadas, pero todavía CON la carta a descartar) o { ok:false, error }.
 import { matchPlant } from './rounds.js';
@@ -71,8 +71,10 @@ export function resolveTurn(state, pid, turn = {}) {
     ...newMelds.map((meld) => ({ id: nextMeldId++, owner: pid, meld })),
   ];
 
-  // 4) Enganchar (sobre plantes propios o ajenos, incluidos los que acabas de bajar).
+  // 4) Enganchar (sobre plantes propios o ajenos). Solo si te plantaste en un turno ANTERIOR:
+  //    en el turno en que te plantas no puedes enganchar.
   if (hooks.length && !planted) return fail('Primero debes plantarte');
+  if (hooks.length && plantedNow) return fail('No puedes enganchar en el turno en que te plantas: engancha desde tu próximo turno');
   for (const h of hooks) {
     if (h.end !== undefined && h.end !== 'low' && h.end !== 'high') return fail('Mensaje inválido');
     const entry = melds.find((m) => m.id === h.meldId);

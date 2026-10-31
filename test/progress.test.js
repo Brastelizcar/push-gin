@@ -33,6 +33,15 @@ test('pozo de cuotas: el ganador se lo lleva; empate se reparte', () => {
   assert.equal(odd.a.chips + odd.b.chips + odd.c.chips, 0);                  // nada se pierde
 });
 
+test('abandonar: pierdes la cuota (queda en el pozo) y el XP; los puestos se reparten entre los demás', () => {
+  // b tenía el menor total, pero abandonó: gana a (el mejor de los que siguieron).
+  const r = gameRewards(['a', 'b', 'c'], { a: 20, b: 5, c: 40 }, 100, ['b']);
+  assert.deepEqual(r.b, { place: null, xp: 0, chips: -100, left: true });
+  assert.deepEqual([r.a.place, r.a.xp, r.a.chips], [0, 100, 200]);           // cobra el pozo de 300
+  assert.deepEqual([r.c.place, r.c.xp, r.c.chips], [1, 50, -100]);
+  assert.equal(r.a.chips + r.b.chips + r.c.chips, 0);
+});
+
 test('fichas gratis cada 24 h, con el reloj del servidor', () => {
   assert.deepEqual(claimStatus(null, 1000), { canClaim: true, msLeft: 0 });
   const t = 1_000_000;

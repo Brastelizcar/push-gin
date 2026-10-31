@@ -182,7 +182,7 @@ describe("PushGinRoom", () => {
     for (const c of cs) assert.deepEqual(c.events.at(-1), { type: "turn", by: A, planted: true, laid: 0, hooked: 0 });
   });
 
-  it("playTurn es atómico: si un enganche falla no se planta nada", async () => {
+  it("playTurn es atómico: plantarse + enganchar en el mismo turno se rechaza y no se planta nada", async () => {
     const { room, cs } = await setup(2);
     cs[0].send("start"); await tick();
     const g = room.game, A = cs[0].sessionId, B = cs[1].sessionId;
@@ -193,7 +193,7 @@ describe("PushGinRoom", () => {
     g.hands[A] = hand; g.phase = "main";
     const grp = (a, b) => ({ cardIds: ids(hand.slice(a, b)) });
     cs[0].send("playTurn", { plant: [grp(0, 3), grp(3, 6), grp(6, 9)], hooks: [{ meldId: 1, cardId: "x1" }], discard: "k1" }); await tick();
-    assert.match(cs[0].rejected, /extiende/);
+    assert.match(cs[0].rejected, /turno en que te plantas/);
     assert.equal(g.hands[A].length, 11);
     assert.equal(g.melds.length, 1);
     assert.equal(g.melds[0].meld.slots.length, 3);

@@ -25,17 +25,23 @@ export function placements(totals) {
 
 // Premios al final: XP según el puesto y el pozo de cuotas para el/los ganadores (repartido; el sobrante,
 // al primero en el orden). order: ids en orden de asiento. Devuelve { id: { place, xp, chips } }.
-export function gameRewards(order, totals, fee = 0) {
-  const place = placements(totals);
-  const winners = order.filter((id) => place[id] === 0);
+// left: quienes abandonaron a media partida. Pierden su cuota (queda en el pozo), no ganan XP y no tienen
+// puesto (place: null); los puestos se reparten entre los que siguieron jugando.
+export function gameRewards(order, totals, fee = 0, left = []) {
+  const gone = new Set(left);
+  const stayed = order.filter((id) => !gone.has(id));
+  const place = placements(Object.fromEntries(stayed.map((id) => [id, totals[id]])));
+  const winners = stayed.filter((id) => place[id] === 0);
   const pot = fee * order.length;
-  const share = Math.floor(pot / winners.length);
+  const share = winners.length ? Math.floor(pot / winners.length) : 0;
   const extra = pot - share * winners.length;
-  return Object.fromEntries(order.map((id) => [id, {
-    place: place[id],
-    xp: XP_BY_PLACE[place[id]] ?? 0,
-    chips: (place[id] === 0 ? share + (id === winners[0] ? extra : 0) : 0) - fee, // ganancia neta de la partida
-  }]));
+  return Object.fromEntries(order.map((id) => [id, gone.has(id)
+    ? { place: null, xp: 0, chips: -fee, left: true }
+    : {
+      place: place[id],
+      xp: XP_BY_PLACE[place[id]] ?? 0,
+      chips: (place[id] === 0 ? share + (id === winners[0] ? extra : 0) : 0) - fee, // ganancia neta de la partida
+    }]));
 }
 
 // ¿Puede reclamar las fichas gratis? lastClaimAt/now en milisegundos (los decide el SERVIDOR).

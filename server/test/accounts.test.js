@@ -151,6 +151,25 @@ describe("Cuentas: API y salas", () => {
     assert.equal(a.account.level, 2);
   });
 
+  it("abandonar a media partida: pierdes la cuota y el XP; el que se queda gana el pozo", async () => {
+    const [{ account: a1, token: ta }, { account: b1, token: tb }] = [await store.create("Ana"), await store.create("Luis")];
+    await store.claim(a1.id); await store.claim(b1.id);
+    const room = await colyseus.createRoom("push_gin", { entryFee: 100 });
+    const a = await join(room, { token: ta });
+    const b = await join(room, { token: tb });
+    await tick();
+    a.send("start"); await tick(150);
+    assert.equal((await store.byId(b1.id)).chips, 200);  // a los dos se les cobró
+    await b.leave(); await tick(150);                    // Luis abandona en la ronda 1
+    await room.rewardsSaved; await tick();
+    assert.equal(a.view.phase, "finished");
+    assert.deepEqual(a.view.gameWinners, [a.sessionId]);
+    assert.deepEqual(a.view.rewards[b.sessionId], { place: null, xp: 0, chips: -100, left: true });
+    const [ana, luis] = [await store.byId(a1.id), await store.byId(b1.id)];
+    assert.deepEqual([ana.xp, ana.chips], [100, 400]);   // 300 − 100 + 200 del pozo
+    assert.deepEqual([luis.xp, luis.chips], [0, 200]);   // perdió la cuota y no ganó XP
+  });
+
   it("API: canjear códigos tiene límite de intentos por IP (no se puede adivinar a la fuerza)", async () => {
     let last;
     for (let i = 0; i < 12; i++) last = await api("/sync/redeem", { body: { code: "AAAA-AAAA" } });

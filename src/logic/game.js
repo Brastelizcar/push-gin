@@ -26,6 +26,7 @@ export class Round {
     this.recentCardIds = []; // cartas bajadas por el último jugador que jugó (para resaltarlas)
     this._freshTurn = true;
     this.winner = null;
+    this.finalTurnsLeft = null; // mazo agotado: turnos que quedan de la última vuelta (null = todavía hay mazo)
   }
 
   get currentPlayer() { return this.players[this.turnIndex]; }
@@ -150,11 +151,16 @@ export class Round {
       this.winner = pid;
       return ok({ roundOver: true, scores: this.scores() });
     }
-    // Mazo agotado (no alcanza para otro push): la ronda termina sin ganador y todos cuentan su mano.
-    if (this.deck.length < 2) {
-      this.phase = 'ended';
-      this.winner = null;
-      return ok({ roundOver: true, exhausted: true, scores: this.scores() });
+    // Mazo agotado (no alcanza para otro push): se juega UNA vuelta más (cada jugador un turno, solo tomando el
+    // descarte) y, si nadie se queda sin cartas, la ronda termina sin ganador y todos cuentan su mano.
+    if (this.finalTurnsLeft !== null) {
+      if (--this.finalTurnsLeft <= 0) {
+        this.phase = 'ended';
+        this.winner = null;
+        return ok({ roundOver: true, exhausted: true, scores: this.scores() });
+      }
+    } else if (this.deck.length < 2) {
+      this.finalTurnsLeft = this.players.length;
     }
     this.turnIndex = (this.turnIndex + 1) % this.players.length;
     this.phase = 'start';

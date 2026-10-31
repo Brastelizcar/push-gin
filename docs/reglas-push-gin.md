@@ -117,6 +117,7 @@ Mecánica exclusiva de tu variante, aplicable en tu turno:
 3. **Jugar (si corresponde):**
    - Si es tu primera vez y tienes la combinación exacta de la ronda → te plantas.
    - Si ya estás plantado → puedes bajar nuevas combinaciones o enganchar cartas en plantes existentes (sin dividirlos).
+   - En el turno en que te plantas **no puedes enganchar**: primero te plantas y enganchas desde tu próximo turno.
 4. **Descartar** una carta de tu mano — obligatorio en todos los casos.
 
 ---
@@ -135,4 +136,5 @@ Mecánica exclusiva de tu variante, aplicable en tu turno:
 - Al terminar la quinta ronda, se suman los puntos acumulados de cada jugador a lo largo de todas las rondas.
 - **Gana la partida el jugador con menor puntaje total.**
 - El jugador que gana una ronda (se queda sin cartas) suma **0 puntos** en esa ronda, ya que no le queda ninguna carta en mano para contar.
-- El mazo, en la práctica, nunca se agota durante una ronda: al haber solo 1 carta en el pozo de descarte en todo momento y usarse 3 barajas completas, siempre hay cartas suficientes para completar la ronda.
+- **Si se acaba el mazo** (no quedan cartas para hacer push), se juega **una vuelta más**: cada jugador juega un turno tomando el descarte. Si nadie se queda sin cartas, la ronda termina y todos suman los puntos de lo que tienen en la mano.
+- **Si abandonas a media partida**, pierdes la cuota de entrada y no ganas XP.

@@ -79,10 +79,11 @@ export class PushGinRoom extends Room {
     this.#broadcastViews();
   }
 
+  // A media partida, salir es abandonar: pierdes la cuota y el XP (Match.leave).
   onLeave(client) {
-    this.match.leave(client.sessionId);
+    const ev = this.match.leave(client.sessionId);
     if (this.match.phase === "lobby") this.accounts.delete(client.sessionId);
-    this.#broadcastViews();
+    this.#afterChange(ev);
   }
 
   onDispose() { this.turnTimer?.clear(); }
@@ -139,7 +140,7 @@ export class PushGinRoom extends Room {
   // jugador con cuenta le llega su cuenta actualizada (mensaje "account").
   #giveRewards() {
     const order = this.match.order;
-    this.rewards = gameRewards(order, this.match.totals, this.entryFee);
+    this.rewards = gameRewards(order, this.match.totals, this.entryFee, [...this.match.left]);
     const list = order.filter((sid) => this.accounts.has(sid))
       .map((sid) => ({ sid, id: this.accounts.get(sid), xp: this.rewards[sid].xp, chips: this.rewards[sid].chips + this.entryFee }));
     this.rewardsSaved = (async () => {

@@ -71,7 +71,7 @@ test('roba un 2 de un jugador plantado con la carta exacta', () => {
   assert.equal(findSteal(view), null);                                       // de no plantados no se roba
 });
 
-test('planTurn: se planta, engancha en la mesa y descarta en una jugada válida', () => {
+test('planTurn: se planta y descarta, pero NO engancha en el turno en que se planta', () => {
   const hand = cs('5♥', '5♠', '5♦', '7♥', '7♠', '7♦', '9♥', '9♠', '9♦', '8♣', 'K♦');
   const view = {
     you: 'A', round: 1, requirement: ROUND_REQUIREMENTS[0], hand, stoleThisTurn: false,
@@ -80,9 +80,31 @@ test('planTurn: se planta, engancha en la mesa y descarta en una jugada válida'
   };
   const t = planTurn(view);
   assert.equal(t.plant.length, 3);
-  assert.deepEqual(t.hooks.map((h) => h.cardId), [hand[9].id]);             // el 8♣ va al 5-6-7♣
-  assert.equal(t.discard, hand[10].id);
+  assert.deepEqual(t.hooks, []);
+  assert.equal(t.discard, hand[10].id);                                      // la K♦ (más puntos)
   assert.equal(botMove({ ...view, turnPhase: 'main' }).type, 'playTurn');
+});
+
+test('planTurn: ya plantado de antes, sí engancha en la mesa', () => {
+  const hand = cs('8♣', 'K♦');
+  const view = {
+    you: 'A', round: 1, requirement: ROUND_REQUIREMENTS[0], hand, stoleThisTurn: false,
+    players: [{ id: 'A', planted: true }, { id: 'B', planted: true }],
+    melds: [{ id: 3, owner: 'B', meld: buildRun(cs('5♣', '6♣', '7♣')) }],
+  };
+  const t = planTurn(view);
+  assert.deepEqual(t.hooks.map((h) => h.cardId), [hand[0].id]);             // el 8♣ va al 5-6-7♣
+  assert.equal(t.discard, hand[1].id);
+});
+
+test('botMove: con el mazo agotado toma el descarte (no hay push)', () => {
+  const view = {
+    you: 'A', round: 1, requirement: ROUND_REQUIREMENTS[0], turnPhase: 'start', deckCount: 1,
+    hand: cs('3♣', '8♦', 'K♠'), discardTop: c('5♥'), stoleThisTurn: false,
+    players: [{ id: 'A', planted: false }, { id: 'B', planted: false }], melds: [],
+  };
+  assert.equal(botMove(view).type, 'takeDiscard');
+  assert.equal(botMove({ ...view, deckCount: 40 }).type, 'push');
 });
 
 // Partidas completas solo con bots: deben terminar las 5 rondas sin una sola jugada rechazada.

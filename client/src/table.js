@@ -316,6 +316,7 @@ function stageHooks(entry, cards, prefer) {
     const end = (prefer === "low" ? ["low", "high"] : ["high", "low"]).find((e) => extendMeld(meld, cards[0], e));
     plan = end ? [{ card: cards[0], end }] : null;
   }
+  if (!amPlanted()) return toast("Primero te plantas. Podrás enganchar desde tu próximo turno");
   if (!plan) return toast("Esas cartas no encajan en ese plante");
   if (keptAfter(cards.length) < 1) return toast("Debes quedarte con una carta para descartar");
   ui.stage.hooks.push(...plan.map(({ card, end }) => ({ meldId: entry.id, card, end })));
@@ -639,7 +640,9 @@ export function renderTable(app, { view, room, rerender }) {
     ? `Turno de ${byId[view.current]?.name ?? "…"}`
     : canTake ? "Tu turno: toma el descarte o haz push" : pendingCard ? "Termina con ✓" : "Arma tu jugada y descarta";
   const topbar = h("div", { class: "topbar" },
-    h("div", { class: "r-title" }, `Ronda ${view.round} de ${view.totalRounds}`),
+    h("div", { class: "r-title" }, `Ronda ${view.round} de ${view.totalRounds}`,
+      view.finalTurnsLeft != null ? h("span", { class: "last-lap", title: "Se acabó el mazo: cada jugador juega un turno más y se cuentan las manos" },
+        ` · Última vuelta (${view.finalTurnsLeft})`) : null),
     goalInline(view, byId[me]),
     h("div", { class: "scoreboard" },
       view.players.map((p) =>
@@ -655,7 +658,7 @@ export function renderTable(app, { view, room, rerender }) {
         h("div", { class: "avatar" }, (p.name || "?")[0].toUpperCase()),
         h("div", { class: "p-chip-meta" },
           h("div", { class: "p-name" }, p.name),
-          h("span", { class: "status-chip" + (p.planted ? "" : " off") }, p.planted ? "Plantado" : p.connected ? "Sin plantar" : "Desconectado")),
+          h("span", { class: "status-chip" + (p.planted ? "" : " off") }, p.left ? "Abandonó" : p.planted ? "Plantado" : p.connected ? "Sin plantar" : "Desconectado")),
         h("div", { class: "card-count" }, h("span", { class: "icon" }, ""), p.cards))));
 
   // --- plantes en mesa, agrupados por dueño (con tus enganches sin confirmar ya colocados, en punteado) ---
@@ -752,7 +755,11 @@ export function renderTable(app, { view, room, rerender }) {
     h("div", { class: "rail-center-group" },
       h("div", { class: "sort-btn", "aria-label": "Ordenar por consecutivos", onclick: () => sortHand("runs") }, h("div", { class: "val" }, "789")),
       h("div", { class: "sort-btn", "aria-label": "Ordenar por tríos", onclick: () => sortHand("sets") }, h("div", { class: "val" }, "777")),
-      h("button", { class: "push-btn" + (canTake ? "" : " disabled"), onclick: () => canTake && actions.push(room) },
+      h("button", {
+        class: "push-btn" + (canTake && view.deckCount >= 2 ? "" : " disabled"),
+        title: view.deckCount < 2 ? "Se acabó el mazo: solo puedes tomar el descarte" : "",
+        onclick: () => canTake && (view.deckCount < 2 ? toast("Se acabó el mazo: solo puedes tomar el descarte") : actions.push(room)),
+      },
         h("span", { class: "p-badge" }, "P"), h("span", { class: "p-text" }, "Push")),
       slotEl,
       h("div", { class: "slot-label" }, slotLabel),
@@ -808,8 +815,8 @@ function overlay(view, room) {
     .sort((a, b) => (finished ? a.total - b.total : 0))
     .map((p) =>
       h("div", { class: "score-row" + (p.id === view.winner ? " win" : "") },
-        h("div", { class: "p-name" }, p.name, p.id === view.winner ? " 🏆" : ""),
-        h("div", { class: "pts" }, `+${view.roundScores[p.id]}`),
+        h("div", { class: "p-name" }, p.name, p.id === view.winner ? " 🏆" : "", p.left ? " (abandonó)" : ""),
+        h("div", { class: "pts" }, `+${view.roundScores?.[p.id] ?? 0}`),
         h("div", { class: "tot" }, p.total)));
   const title = finished
     ? `Ganó ${view.gameWinners.map((id) => byId[id].name).join(" y ")}`
@@ -831,6 +838,7 @@ function overlay(view, room) {
 function rewardsBox(view) {
   const r = view.rewards?.[view.you];
   if (!r) return null;
+  if (r.left) return h("div", { class: "rewards" }, h("div", { class: "rewards-row" }, h("span", {}, "Abandonaste: sin XP y sin la cuota")));
   const place = ["1.º", "2.º", "3.º", "4.º"][r.place] ?? "";
   return h("div", { class: "rewards" },
     h("div", { class: "rewards-row" },
