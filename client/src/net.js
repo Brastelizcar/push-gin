@@ -49,14 +49,56 @@ export async function connect({ mode, name, roomCode, token, entryFee = 0, turnT
       await sleep(6000);
     }
   }
+  return wire(room, handlers);
+}
+
+// ---------- reconexión ----------
+// Si se cae la conexión a media partida, el servidor te guarda el asiento RECONNECT_SECONDS. La librería reintenta
+// sola (con espera creciente, hasta 5 s entre intentos: 17 intentos ≈ 61 s). Si recargas o cierras la página, al
+// volver a abrirla se usa el token guardado aquí para volver a la misma partida.
+export const RECONNECT_SECONDS = 60;
+const RECONNECT_KEY = "pushgin:reconnect";
+const saveReconnect = (room) => {
+  try { localStorage.setItem(RECONNECT_KEY, JSON.stringify({ token: room.reconnectionToken, at: Date.now() })); } catch {}
+};
+const clearReconnect = () => { try { localStorage.removeItem(RECONNECT_KEY); } catch {} };
+export function savedReconnect() {
+  try {
+    const r = JSON.parse(localStorage.getItem(RECONNECT_KEY));
+    if (r?.token && Date.now() - r.at < RECONNECT_SECONDS * 1000) return r.token;
+  } catch {}
+  clearReconnect();
+  return null;
+}
+
+// Vuelve a la partida de la que te desconectaste (recargaste o se cerró la página). Devuelve la room o null.
+export async function resume(handlers) {
+  const token = savedReconnect();
+  if (!token) return null;
+  try { return wire(await client.reconnect(token), handlers); }
+  catch { clearReconnect(); return null; }
+}
+
+// handlers: además de los de connect, onDrop() (se perdió la conexión) y onReconnect() (volvió).
+function wire(room, handlers) {
+  room.reconnection.maxRetries = 17;
   startKeepAlive();
-  room.onLeave(stopKeepAlive);
+  saveReconnect(room);
+  // Mientras sigas en la sala se renueva la marca de tiempo: si cierras la página, cuentan los 60 s desde ese momento.
+  const touch = setInterval(() => saveReconnect(room), 5000);
+  const onHide = () => saveReconnect(room);
+  window.addEventListener("pagehide", onHide);
+  room.onLeave(() => {
+    stopKeepAlive(); clearInterval(touch); window.removeEventListener("pagehide", onHide); clearReconnect();
+    handlers.onLeave();
+  });
+  room.onDrop(() => handlers.onDrop?.());
+  room.onReconnect(() => { saveReconnect(room); room.send("requestState"); handlers.onReconnect?.(); });
 
   room.onMessage("state", (view) => handlers.onState(view));
   room.onMessage("event", (ev) => handlers.onEvent?.(ev));
   room.onMessage("account", (acc) => handlers.onAccount?.(acc));
   room.onMessage("rejected", ({ error }) => handlers.onRejected(error));
-  room.onLeave(() => handlers.onLeave());
 
   // Importante: el mensaje de bienvenida llega antes de registrar los listeners,
   // así que se pide la vista explícitamente.

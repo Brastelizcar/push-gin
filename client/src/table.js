@@ -658,7 +658,9 @@ export function renderTable(app, { view, room, rerender }) {
         h("div", { class: "avatar" }, (p.name || "?")[0].toUpperCase()),
         h("div", { class: "p-chip-meta" },
           h("div", { class: "p-name" }, p.name),
-          h("span", { class: "status-chip" + (p.planted ? "" : " off") }, p.left ? "Abandonó" : p.planted ? "Plantado" : p.connected ? "Sin plantar" : "Desconectado")),
+          p.reconnectMsLeft != null && !p.left
+            ? h("span", { class: "status-chip off reconnecting", "data-reconnect": reconnectEnds(view, p), title: "Se desconectó: si no vuelve a tiempo, abandona" }, reconnectText(reconnectEnds(view, p)))
+            : h("span", { class: "status-chip" + (p.planted ? "" : " off") }, p.left ? "Abandonó" : p.planted ? "Plantado" : p.connected ? "Sin plantar" : "Desconectado")),
         h("div", { class: "card-count" }, h("span", { class: "icon" }, ""), p.cards))));
 
   // --- plantes en mesa, agrupados por dueño (con tus enganches sin confirmar ya colocados, en punteado) ---
@@ -798,7 +800,17 @@ const clockText = (endsAt) => {
   const s = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
   return ` · ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
+// Jugador desconectado: cuánto le queda para volver (el servidor manda los ms; aquí se cuenta hacia atrás).
+const reconnectAt = new WeakMap(); // vista → { id: hora local en que vence }
+function reconnectEnds(view, p) {
+  if (!reconnectAt.has(view)) reconnectAt.set(view, {});
+  const m = reconnectAt.get(view);
+  return (m[p.id] ??= Date.now() + p.reconnectMsLeft);
+}
+const reconnectText = (endsAt) => `Reconectando… ${Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))} s`;
+
 setInterval(() => {
+  for (const el of document.querySelectorAll(".status-chip[data-reconnect]")) el.textContent = reconnectText(Number(el.dataset.reconnect));
   for (const el of document.querySelectorAll(".turn-clock[data-ends]")) {
     const ends = Number(el.dataset.ends);
     el.textContent = clockText(ends);

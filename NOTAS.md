@@ -31,7 +31,10 @@
 - Cuotas permitidas: 0, 100, 200, 300, 500, 1000. El ganador se lleva el pozo (empate: se reparte).
   **Abandonar** (salir a media partida, decidido 30-oct-2026): pierdes la cuota (queda en el pozo) y no ganas XP ni
   puesto. Tu asiento se queda y tus turnos se juegan solos al instante. Si queda un solo jugador, la partida termina y
-  él gana el pozo. Ojo: hoy perder la conexión también cuenta como abandonar (no hay reconexión).
+  él gana el pozo.
+- **Reconexión** (decidido 30-oct-2026): si se cae la conexión a media partida, el asiento se guarda 60 s (los demás ven
+  "Reconectando… N s" y la partida espera). Si vuelve (sola, o al recargar la página), sigue con su mano. Si no,
+  cuenta como abandonar. Salir a propósito es abandonar de inmediato.
 - XP solo en partidas con cuenta. Los empatados comparten el mejor puesto (y su XP).
 - Menú de juego privado: en lugar de la lista de amigos de la referencia, un panel "Unirse con código"
   (no hay sistema de amigos). Ajustes: sin "Asistencia" (no hay canal de soporte).

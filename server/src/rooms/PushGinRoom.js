@@ -3,6 +3,9 @@ import { Match, seededRng, ENTRY_FEES, gameRewards, levelInfo } from "../../../s
 import { initStore, publicAccount } from "../accounts/store.js";
 import { PushGinState } from "./schema/PushGinState.js";
 
+// Segundos que se guarda el asiento a quien se le cae la conexión a media partida.
+export const RECONNECT_SECONDS = 60;
+
 // Código de sala de 4 dígitos (1000–9999), fácil de dictar. Se reintenta si ya existe.
 async function generateRoomCode() {
   for (let i = 0; i < 50; i++) {
@@ -24,6 +27,7 @@ export class PushGinRoom extends Room {
   rewardsSaved = null;  // promesa del guardado de premios (pruebas)
   starting = false;
   turnTimer = null;
+  reconnectSeconds = RECONNECT_SECONDS; // (las pruebas lo acortan)
 
   get game() { return this.match.game; } // la ronda actual (las pruebas la usan)
 
@@ -79,7 +83,21 @@ export class PushGinRoom extends Room {
     this.#broadcastViews();
   }
 
-  // A media partida, salir es abandonar: pierdes la cuota y el XP (Match.leave).
+  // Se cayó la conexión (sin salir a propósito): en partida se guarda el asiento RECONNECT_SECONDS.
+  // Si vuelve, onReconnect; si no, Colyseus llama a onLeave y cuenta como abandonar. En la sala de espera no se guarda.
+  onDrop(client) {
+    if (this.match.phase === "lobby" || this.match.phase === "finished" || this.match.left.has(client.sessionId)) return;
+    this.match.drop(client.sessionId, Date.now() + this.reconnectSeconds * 1000);
+    this.allowReconnection(client, this.reconnectSeconds);
+    this.#broadcastViews();
+  }
+
+  onReconnect(client) {
+    this.match.rejoin(client.sessionId);
+    this.#broadcastViews();
+  }
+
+  // Salir a propósito, o no volver a tiempo. A media partida es abandonar: pierdes la cuota y el XP (Match.leave).
   onLeave(client) {
     const ev = this.match.leave(client.sessionId);
     if (this.match.phase === "lobby") this.accounts.delete(client.sessionId);

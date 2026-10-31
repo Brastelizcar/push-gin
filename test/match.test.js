@@ -28,6 +28,31 @@ test('lobby: solo el anfitrión empieza, con 2+ jugadores; quien sale libera el 
   assert.equal(m.connected.has('C'), false);
 });
 
+test('conexión caída: se guarda el asiento con cuenta regresiva; al volver sigue igual', () => {
+  const { m, clock } = started();
+  m.drop('B', clock.now() + 60_000);
+  clock.advance(15_000);
+  let b = m.viewFor('A').players.find((p) => p.id === 'B');
+  assert.deepEqual([b.connected, b.left, b.reconnectMsLeft], [false, false, 45_000]);
+  m.handle('A', 'takeDiscard');
+  m.handle('A', 'playTurn', { discard: m.lastDrawn });
+  assert.equal(m.game.currentPlayer, 'B');             // la partida lo espera (su turno NO se juega solo)
+  m.rejoin('B');
+  b = m.viewFor('A').players.find((p) => p.id === 'B');
+  assert.deepEqual([b.connected, b.left, b.reconnectMsLeft], [true, false, null]);
+  assert.equal(m.handle('B', 'takeDiscard').ok, true);
+});
+
+test('conexión caída y no vuelve: la sala llama a leave y cuenta como abandonar', () => {
+  const { m, clock } = started();
+  m.drop('C', clock.now() + 60_000);
+  m.leave('C');
+  const c = m.viewFor('A').players.find((p) => p.id === 'C');
+  assert.deepEqual([c.left, c.reconnectMsLeft], [true, null]);
+  m.rejoin('C');                                       // aunque llegara tarde, sigue fuera
+  assert.equal(m.connected.has('C'), false);
+});
+
 test('abandonar a media partida: sus turnos se juegan solos y ya no puede actuar', () => {
   const { m } = started();                             // A, B, C; empieza A
   const ev = m.leave('B');

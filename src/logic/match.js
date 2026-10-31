@@ -50,6 +50,7 @@ export class Match {
     this.turnStartedAt = null;
     this.lastDrawn = null;    // carta que tomó el jugador en turno (la descarta si se le acaba el tiempo)
     this.left = new Set();    // abandonaron a media partida: pierden la cuota y el XP; sus turnos se juegan solos
+    this.dropped = new Map(); // se les cayó la conexión: id → hasta cuándo (ms) se les guarda el asiento
   }
 
   // Anfitrión: el primero en llegar que sigue en la partida.
@@ -68,6 +69,7 @@ export class Match {
   // Si queda un solo jugador, la partida termina y él gana. Devuelve el evento para todos (o null).
   leave(id) {
     this.connected.delete(id);
+    this.dropped.delete(id);
     if (this.phase === 'lobby') {
       this.order = this.order.filter((x) => x !== id);
       this.names.delete(id);
@@ -83,6 +85,16 @@ export class Match {
       this.#autoPlay();
     }
     return { type: 'left', by: id };
+  }
+
+  // Se le cayó la conexión: conserva todo hasta `until` (si no vuelve, la sala llama a leave). La partida espera.
+  drop(id, until) {
+    this.connected.delete(id);
+    this.dropped.set(id, until);
+  }
+  rejoin(id) {
+    this.dropped.delete(id);
+    if (!this.left.has(id)) this.connected.add(id);
   }
 
   // ¿Puede `pid` empezar ahora? (la sala del servidor lo pregunta antes de cobrar la cuota)
@@ -209,6 +221,7 @@ export class Match {
       name: this.names.get(id),
       connected: this.connected.has(id),
       left: this.left.has(id),
+      reconnectMsLeft: this.dropped.has(id) ? Math.max(0, this.dropped.get(id) - this.now()) : null,
       level: this.levels.get(id) ?? null,
       total: this.totals[id] ?? 0,
       ...(this.game && { cards: this.game.hands[id].length, planted: this.game.planted[id] }),

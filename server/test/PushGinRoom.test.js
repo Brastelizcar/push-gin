@@ -12,7 +12,7 @@ async function join(colyseus, room, name) {
   c.send("requestState"); // el mensaje de bienvenida llega antes de registrar listeners: se pide de nuevo
   return c;
 }
-const tick = (ms = 60) => new Promise((r) => setTimeout(r, ms));
+const tick = (ms = 100) => new Promise((r) => setTimeout(r, ms));
 
 describe("PushGinRoom", () => {
   let colyseus;
@@ -269,5 +269,46 @@ describe("PushGinRoom", () => {
     await cs[0].leave(); await tick();
     assert.equal(cs[1].view.host, cs[1].sessionId);
     assert.equal(cs[1].view.players.length, 2);
+  });
+
+  // Simula que a un jugador se le cae el internet (cierre NO consentido). La librería no reintenta sola en la prueba.
+  const dropConnection = (c) => { c.reconnection.enabled = false; c.connection.close(4010, "sin red"); };
+
+  it("reconexión: si se cae la conexión a media partida, vuelve a su asiento con su mano", async () => {
+    const { room, cs } = await setup(3);
+    cs[0].send("start"); await tick();
+    const B = cs[1].sessionId;
+    const hand = room.game.hands[B].map((x) => x.id);
+    const token = cs[1].reconnectionToken;
+    dropConnection(cs[1]); await tick(150);
+    const seen = cs[0].view.players.find((p) => p.id === B);
+    assert.equal(seen.connected, false);
+    assert.ok(seen.reconnectMsLeft > 55_000 && seen.reconnectMsLeft <= 60_000);
+    assert.equal(seen.left, false);
+    const back = await colyseus.sdk.reconnect(token);
+    back.onMessage("state", (v) => (back.view = v));
+    back.send("requestState"); await tick(150);
+    assert.equal(back.sessionId, B);                                     // el mismo asiento
+    assert.deepEqual(back.view.hand.map((x) => x.id), hand);             // la misma mano
+    const again = cs[0].view.players.find((p) => p.id === B);
+    assert.deepEqual([again.connected, again.reconnectMsLeft, again.left], [true, null, false]);
+  });
+
+  it("reconexión: si no vuelve a tiempo, abandona (y sus turnos se juegan solos)", async () => {
+    const { room, cs } = await setup(3);
+    room.reconnectSeconds = 1;
+    cs[0].send("start"); await tick();
+    dropConnection(cs[0]); await tick(150);                              // A estaba en turno
+    assert.equal(room.game.currentPlayer, cs[0].sessionId);              // la partida lo espera…
+    await tick(1300);
+    assert.equal(cs[1].view.players[0].left, true);                      // …hasta que vence el plazo
+    assert.equal(room.game.currentPlayer, cs[1].sessionId);
+    assert.equal(cs[1].view.host, cs[1].sessionId);
+  });
+
+  it("reconexión: en la sala de espera no se guarda el cupo", async () => {
+    const { cs } = await setup(3);
+    dropConnection(cs[2]); await tick(150);
+    assert.equal(cs[0].view.players.length, 2);
   });
 });

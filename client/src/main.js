@@ -1,5 +1,5 @@
 import "./style.css";
-import { connect, actions, wakeServer, IS_REMOTE, SERVER_CONFIGURED } from "./net.js";
+import { connect, resume, savedReconnect, actions, wakeServer, IS_REMOTE, SERVER_CONFIGURED, RECONNECT_SECONDS } from "./net.js";
 import { h, toast } from "./dom.js";
 import { renderTable, handleRejected, playPushAnimation, notePush, notePlay, setTableHooks } from "./table.js";
 import { loadAccount, createAccount, requestSyncCode, redeemSyncCode, claimChips, accountFromServer, savedToken } from "./account.js";
@@ -95,7 +95,19 @@ function roomHandlers() {
       if (!leaving) toast("Te desconectaste de la sala");
       room = null; view = null; screen = "menu"; render();
     },
+    onDrop: () => toast(`Se perdió la conexión: reconectando… (tienes ${RECONNECT_SECONDS} s)`),
+    onReconnect: () => { toast("¡Conectado de nuevo!"); play("ok"); },
   };
+}
+
+// Al abrir la página: si te desconectaste de una partida hace menos de 60 s, vuelves a ella.
+async function tryResume() {
+  if (!savedReconnect()) return;
+  status = "Volviendo a tu partida…"; render();
+  const r = await resume(roomHandlers());
+  status = null;
+  if (r) { room = r; leaving = false; toast("¡Volviste a tu partida!"); }
+  render();
 }
 
 // Práctica: la partida corre en este navegador contra bots (no hace falta servidor ni cuenta).
@@ -191,6 +203,6 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modal) {
 // Contador de fichas gratis: se actualiza cada segundo; al llegar a cero aparece el botón de reclamar.
 setInterval(() => tickCountdowns(() => { if (!room) render(); }), 1000);
 
-if (IS_REMOTE) { status = "Despertando el servidor…"; wakeServer().then(() => { status = null; refreshAccount(); }); }
-else refreshAccount();
+if (IS_REMOTE) { status = "Despertando el servidor…"; wakeServer().then(() => { status = null; refreshAccount().then(tryResume); }); }
+else refreshAccount().then(tryResume);
 render();

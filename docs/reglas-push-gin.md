@@ -137,4 +137,4 @@ Mecánica exclusiva de tu variante, aplicable en tu turno:
 - **Gana la partida el jugador con menor puntaje total.**
 - El jugador que gana una ronda (se queda sin cartas) suma **0 puntos** en esa ronda, ya que no le queda ninguna carta en mano para contar.
 - **Si se acaba el mazo** (no quedan cartas para hacer push), se juega **una vuelta más**: cada jugador juega un turno tomando el descarte. Si nadie se queda sin cartas, la ronda termina y todos suman los puntos de lo que tienen en la mano.
-- **Si abandonas a media partida**, pierdes la cuota de entrada y no ganas XP.
+- **Si abandonas a media partida**, pierdes la cuota de entrada y no ganas XP. Si solo se te cayó el internet, tienes 60 segundos para volver a tu asiento antes de que cuente como abandono.

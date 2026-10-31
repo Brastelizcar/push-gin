@@ -33,6 +33,9 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
   cuentan su mano (si alguien se queda sin cartas en esa vuelta, gana la ronda).
 - Abandonar a media partida: pierdes la cuota y el XP (`Match.left`, `gameRewards(..., left)`); tus turnos se juegan
   solos. Si queda un solo jugador, la partida termina y él gana.
+- Conexión caída a media partida: se guarda el asiento **60 s** (`onDrop` + `allowReconnection`, `Match.drop/rejoin`).
+  La librería reintenta sola y, si recargas la página, `net.resume()` vuelve con el token guardado. La partida espera;
+  si no vuelve a tiempo, cuenta como abandonar. En la sala de espera no se guarda el cupo.
 - Temporizador (opcional, 30–120 s): si se acaba, el turno se juega solo (toma el descarte y lo devuelve, o descarta
   la carta que tomó).
 

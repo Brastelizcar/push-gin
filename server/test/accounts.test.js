@@ -4,7 +4,7 @@ import { MemoryStore, setStore } from "../src/accounts/store.js";
 
 const PORT = 2568; // boot() siempre usa 2568 cuando la configuración ya es un Server (defineServer)
 const API = `http://127.0.0.1:${PORT}/api`;
-const tick = (ms = 60) => new Promise((r) => setTimeout(r, ms));
+const tick = (ms = 100) => new Promise((r) => setTimeout(r, ms));
 const api = (path, { token, body, method } = {}) =>
   fetch(API + path, {
     method: method ?? (body ? "POST" : "GET"),
