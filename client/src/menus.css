@@ -41,6 +41,12 @@ body:has(#app.menu){ padding:6px; align-items:stretch; }
 .m-avatar.with-img{ background:none; border:0; box-shadow:0 4px 10px rgba(0,0,0,.45); padding:0; }
 .m-avatar.with-img{ width:56px; height:56px; } .m-avatar.small.with-img{ width:38px; height:38px; }
 .avatar-img{ width:100%; height:100%; border-radius:50%; display:block; object-fit:cover; user-select:none; -webkit-user-drag:none; }
+/* Perfil del menú de inicio: avatar grande */
+.m-who{ gap:14px; }
+.m-who .m-avatar.with-img{ width:clamp(96px, 16vh, 130px); height:clamp(96px, 16vh, 130px); }
+.m-who .m-level{ width:40px; height:40px; font-size:15px; right:-12px; bottom:-8px; }
+.m-who .m-name{ font-size:clamp(20px, 3.2vh, 28px); }
+.m-who{ gap:20px; }
 .m-avatar.pickable{ cursor:pointer; transition:transform .12s ease; } .m-avatar.pickable:hover{ transform:scale(1.07); }
 .m-rivals{ display:flex; justify-content:center; gap:22px; margin-top:6px; }
 .m-rival{ display:flex; flex-direction:column; align-items:center; gap:6px; color:var(--ivory); font-weight:700; }
