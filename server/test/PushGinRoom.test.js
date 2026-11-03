@@ -13,6 +13,11 @@ async function join(colyseus, room, name) {
   return c;
 }
 const tick = (ms = 100) => new Promise((r) => setTimeout(r, ms));
+// Espera a que se cumpla una condición (la respuesta del servidor puede tardar más si la máquina está ocupada).
+async function until(cond, ms = 3000) {
+  const end = Date.now() + ms;
+  while (!cond() && Date.now() < end) await tick(20);
+}
 
 describe("PushGinRoom", () => {
   let colyseus;
@@ -142,13 +147,15 @@ describe("PushGinRoom", () => {
       g.hands[first.sessionId] = [{ id: `w${r}`, rank: "K", suit: "♣" }];
       g.hands[other.sessionId] = [{ id: `x${r}`, rank: "A", suit: "♠" }]; // 15
       g.phase = "main";
-      first.send("discard", { cardId: `w${r}` }); await tick();
+      first.send("discard", { cardId: `w${r}` });
+      await until(() => first.view.winner === first.sessionId);
       assert.equal(first.view.winner, first.sessionId);
       assert.equal(first.view.roundScores[other.sessionId], 15);
       assert.equal(first.view.hands[other.sessionId][0].rank, "A");
       if (r < 4) {
         assert.equal(first.view.phase, "roundOver");
-        a.send("nextRound"); await tick();
+        a.send("nextRound");
+        await until(() => a.view.round === r + 2 && b.view.round === r + 2);
         assert.equal(a.view.round, r + 2);
       }
     }
