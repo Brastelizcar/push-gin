@@ -1,5 +1,5 @@
 import "./table.css";
-import { h, toast, fsButton, sizeButton } from "./dom.js";
+import { h, toast, fsButton } from "./dom.js";
 import { actions } from "./net.js";
 import { suitColor } from "./format.js";
 import { groupRuns, groupSets } from "./grouping.js";
@@ -27,6 +27,8 @@ const ui = {
   dealRound: null,      // ronda para la que ya se animó el reparto
   dealPending: null,    // cartas que están por repartirse a tu mano
   remotePlay: null,     // otro jugador acaba de plantarse / bajar / enganchar: { by, at }
+  prevTurn: null,       // { current, top, round } del render anterior (para animar lo que hacen los demás con el descarte)
+  lastPushAt: 0,        // hora del último push (el descarte desaparece por el push, no porque alguien lo tomara)
   prevMesa: new Set(),  // cartas que había en la mesa en el render anterior
 };
 const LONG_PRESS_MS = 350; // mantener presionada la primera o última carta de un grupo lo toma entero
@@ -503,7 +505,10 @@ export function renderTable(app, { view, room, rerender }) {
       ui.pushWait = null;
       fresh.forEach((c) => ui.arriving.add(c.id));
       if (w.by === me) w.anim.landed.then(() => flyFromDeck(fresh[0]));          // tu carta del mazo
-      else w.anim.done.finally(() => { fresh.forEach((c) => ui.arriving.delete(c.id)); cur.rerender(); }); // las 2 que te pasaron
+      else w.anim.landed.then(() => {                                            // las 2 que te pasaron
+        const from = document.getElementById("unifiedSlot")?.getBoundingClientRect();
+        fresh.forEach((c, i) => flyFromDeck(c, i * 140, 800, from, c.id !== w.card?.id));
+      });
     }
   }
   ui.prevIds = new Set(view.hand.map((c) => c.id));
@@ -527,13 +532,16 @@ export function renderTable(app, { view, room, rerender }) {
           h("div", { class: "name" }, p.name), h("div", { class: "total" }, p.total),
           p.id === me ? h("div", { class: "hand-pts", title: "Puntos de las cartas que te quedan en la mano (los sumas si otro gana la ronda)" }, `en mano ${handPts}`) : null))),
     h("div", { class: "turn-flag" + (myTurn ? "" : " wait") }, hint, turnClock(view)),
-    h("div", { class: "top-btns" }, sizeButton(() => requestAnimationFrame(fitMesa)), fsButton(),
+    h("div", { class: "top-btns" }, fsButton(),
       h("button", { class: "fs-btn menu-btn", title: "Menú: ajustes, reglas y salir", "aria-label": "Menú", onclick: () => hooks.onMenu?.() }, "☰")));
 
   // --- tira de jugadores (dinámica: 2, 3 o 4) ---
   const strip = h("div", { class: "players-strip" },
     view.players.map((p) =>
-      h("div", { class: "p-chip" + (p.id === me ? " you" : "") + (p.id === view.current ? " turn" : ""), "data-pid": p.id },
+      h("div", {
+        class: "p-chip" + (p.id === me ? " you" : "") + (p.id === view.current && view.phase === "playing" ? " turn" : ""), "data-pid": p.id,
+        ...(p.id === view.current && view.phase === "playing" && turnFill(view)),
+      },
         h("div", { class: "avatar" }, (p.name || "?")[0].toUpperCase()),
         h("div", { class: "p-chip-meta" },
           h("div", { class: "p-name" }, p.name),
@@ -632,11 +640,10 @@ export function renderTable(app, { view, room, rerender }) {
       h("div", { class: "slot-label" }, slotLabel),
       h("div", { class: "deck-count", title: "Cartas que quedan en el mazo" },
         h("span", { class: "deck-back" }), h("span", { class: "deck-num" }, view.deckCount)),
-      h("div", {
-        class: "confirm-btn " + confirmState, title: turnCheck?.error ?? "",
+      h("button", {
+        class: "confirm-btn " + confirmState, title: turnCheck?.error ?? "", "aria-label": "Terminar turno",
         onclick: (e) => confirmTurn(e.currentTarget),
-      }, "✓"),
-      h("div", { class: "confirm-label" }, "Fin de turno")));
+      }, h("span", { class: "ck" }, "✓"), h("span", { class: "ck-lbl" }, "Terminar turno"))));
 
   const main = h("div", { class: "main-col" }, topbar, strip, mesa, handPanel);
   const felt = h("div", { class: "table-felt" }, main, rail);
@@ -644,6 +651,7 @@ export function renderTable(app, { view, room, rerender }) {
   fitMesa();
   fitHand();
   detectRemotePlay(view);
+  detectRemoteDiscard(view);
   applyFlights();
   if (ui.dealPending) {                           // reparto: las cartas salen del mazo hacia tu mano, una por una
     const list = ui.dealPending;
@@ -675,7 +683,16 @@ function reconnectEnds(view, p) {
 }
 const reconnectText = (endsAt) => `Reconectando… ${Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))} s`;
 
+// Relleno de la ficha del jugador en turno: 1 = turno recién empezado, 0 = se acabó el tiempo (sin límite: lleno).
+function turnFill(view) {
+  if (clock.endsAt == null || !view.turnTime) return { style: "--t:1" };
+  const total = view.turnTime * 1000;
+  return { "data-ends": clock.endsAt, "data-total": total, style: `--t:${Math.max(0, (clock.endsAt - Date.now()) / total).toFixed(3)}` };
+}
+
 setInterval(() => {
+  for (const el of document.querySelectorAll(".p-chip.turn[data-ends]"))
+    el.style.setProperty("--t", Math.max(0, (Number(el.dataset.ends) - Date.now()) / Number(el.dataset.total)).toFixed(3));
   for (const el of document.querySelectorAll(".status-chip[data-reconnect]")) el.textContent = reconnectText(Number(el.dataset.reconnect));
   for (const el of document.querySelectorAll(".turn-clock[data-ends]")) {
     const ends = Number(el.dataset.ends);
@@ -768,6 +785,7 @@ function infoButton() {
 
 // ---------- animación del push (spec sección 5: dos tiempos) ----------
 // 1) la carta boca abajo cae sobre el descarte y lo tapa. 2) ambas viajan al jugador que las recibe.
+// Si las recibes TÚ, la animación termina al cubrir el descarte: desde ahí cada carta vuela a su casilla de tu mano.
 async function runPushAnimation({ card, toPid, me }, onLanded) {
   const slot = document.getElementById("unifiedSlot");
   const target = toPid === me ? document.querySelector(".hand-panel") : document.querySelector(`[data-pid="${toPid}"]`);
@@ -795,6 +813,7 @@ async function runPushAnimation({ card, toPid, me }, onLanded) {
     ).finished;
     await new Promise((r) => setTimeout(r, 300)); // pausa para que se vea que quedó cubierta
     onLanded();
+    if (toPid === me) return;
     // Tiempo 2: el par se desliza hacia el siguiente jugador
     const dx = t.left + t.width / 2 - (s.left + s.width / 2);
     const dy = t.top + t.height / 2 - (s.top + s.height / 2);
@@ -820,15 +839,16 @@ export function playPushAnimation(args) {
   done.finally(() => resolveLanded());
   return { landed, done };
 }
-export function notePush(info) { ui.pushWait = info; }
+export function notePush(info) { ui.pushWait = info; ui.lastPushAt = performance.now(); }
 
-// Tu carta del mazo tras un push: sale del contador del mazo, vuela a tu mano y se da vuelta.
-function flyFromDeck(card, delay = 0, T = 1000) {
+// Una carta vuela a su casilla de tu mano: desde el mazo (reparto, tu carta tras un push) o desde `fromRect`
+// (las que te pasan con un push). Si `flip`, viaja boca abajo y se da vuelta al llegar.
+function flyFromDeck(card, delay = 0, T = 1000, fromRect = null, flip = true) {
   const finish = () => { if (ui.arriving.delete(card.id)) cur.rerender(); };
   const deck = document.querySelector(".deck-back");
   const dest = document.querySelector(`#handLine [data-id="${card.id}"]`)?.getBoundingClientRect();
-  if (!deck || !dest || reduceMotion()) return finish();
-  const from = deck.getBoundingClientRect();
+  if ((!deck && !fromRect) || !dest || reduceMotion()) return finish();
+  const from = fromRect ?? deck.getBoundingClientRect();
   const face = cardEl(card);
   const back = h("div", { class: "card fly-draw-back" });
   const wrap = h("div", { class: "fly-draw", style: `left:${dest.left}px;top:${dest.top}px;width:${dest.width}px;height:${dest.height}px` }, face, back);
@@ -842,8 +862,8 @@ function flyFromDeck(card, delay = 0, T = 1000) {
     { transform: `translate(${dx * 0.45}px,${dy * 0.45 - 60}px) scale(${((k + 1) / 2) * 1.1})`, offset: 0.55 },
     { transform: "none", offset: 1 },
   ], { duration: T, delay, easing: "ease-in-out", fill: "both" });
-  back.animate([{ opacity: 1 }, { opacity: 1, offset: 0.62 }, { opacity: 0 }], { duration: T, delay, fill: "both" });
-  face.animate([{ opacity: 0 }, { opacity: 0, offset: 0.62 }, { opacity: 1 }], { duration: T, delay, fill: "both" })
+  back.animate(flip ? [{ opacity: 1 }, { opacity: 1, offset: 0.62 }, { opacity: 0 }] : [{ opacity: 0 }, { opacity: 0 }], { duration: T, delay, fill: "both" });
+  face.animate(flip ? [{ opacity: 0 }, { opacity: 0, offset: 0.62 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 1 }], { duration: T, delay, fill: "both" })
     .finished.catch(() => {}).finally(() => { layer.remove(); finish(); });
 }
 
@@ -868,10 +888,51 @@ window.addEventListener("resize", () => { if (cur) fitMesa(); });
 function fitHand() {
   const line = document.getElementById("handLine");
   if (!line) return;
+  const panel = document.querySelector(".hand-panel").getBoundingClientRect();
+  document.documentElement.style.setProperty("--toast-bottom", `${Math.round(innerHeight - panel.top + 8)}px`); // avisos sobre tu mano
   const w = line.clientWidth;
   if (Math.abs(w - ui.handW) > 2) { ui.handW = w; cur.rerender(); }
 }
 window.addEventListener("resize", () => requestAnimationFrame(() => cur && cur.rerender()));
+
+// Lo que hacen los DEMÁS con el descarte: si lo toman, la carta vuela del descarte a su ficha; si descartan, vuela
+// de su ficha al descarte (mientras tanto el descarte se ve vacío).
+function detectRemoteDiscard(view) {
+  const prev = ui.prevTurn;
+  ui.prevTurn = { current: view.current, top: view.discardTop, round: view.round };
+  if (!prev || prev.round !== view.round || view.phase !== "playing" || reduceMotion()) return;
+  const slot = document.getElementById("unifiedSlot");
+  const chipOf = (pid) => document.querySelector(`.p-chip[data-pid="${pid}"]`);
+  if (!slot) return;
+  const recentPush = performance.now() - ui.lastPushAt < 2500;
+  // Otro jugador TOMÓ el descarte (no fue un push)
+  if (prev.top && !view.discardTop && prev.current === view.current && view.current !== view.you && !recentPush) {
+    const chip = chipOf(view.current);
+    const sr = slot.getBoundingClientRect();
+    if (chip) flyBetween(prev.top, sr, chip.getBoundingClientRect(), 650, sr);
+    return;
+  }
+  // Otro jugador DESCARTÓ: hay una carta nueva en el descarte y el turno pasó
+  if (view.discardTop && view.discardTop.id !== prev.top?.id && prev.current !== view.you && prev.current !== view.current) {
+    const chip = chipOf(prev.current);
+    if (!chip) return;
+    slot.classList.add("landing");                    // el descarte espera a que la carta llegue
+    const sr = slot.getBoundingClientRect();
+    flyBetween(view.discardTop, chip.getBoundingClientRect(), sr, 650, sr)
+      .finally(() => document.getElementById("unifiedSlot")?.classList.remove("landing"));
+  }
+}
+// Una carta boca arriba (del tamaño `size`, el del descarte) vuela de un rectángulo a otro. Junto a la ficha de un
+// jugador se ve más pequeña y transparente.
+function flyBetween(card, from, to, T, size) {
+  const w = size.width, hgt = size.height;
+  const el = h("div", { class: "fly-face fly-between", style: `width:${w}px;height:${hgt}px` }, faceEl(card));
+  const layer = h("div", { class: "fly-layer" }, el);
+  document.body.append(layer);
+  const at = (r) => `translate(${r.left + r.width / 2 - w / 2}px,${r.top + r.height / 2 - hgt / 2}px) scale(${r === size ? 1 : 0.55})`;
+  return el.animate([{ transform: at(from), opacity: from === size ? 1 : 0.5 }, { transform: at(to), opacity: to === size ? 1 : 0.3 }],
+    { duration: T, easing: "cubic-bezier(.3,.7,.3,1)", fill: "forwards" }).finished.catch(() => {}).finally(() => layer.remove());
+}
 
 export function notePlay(by) { ui.remotePlay = { by, at: performance.now() }; }
 function detectRemotePlay(view) {

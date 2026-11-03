@@ -125,8 +125,9 @@ function onEvent(ev) {
   if (played && ev.by !== view.you) notePlay(ev.by); // anima sus cartas hacia la mesa
   if (played && ev.by === view.you) play("ok");
   if (ev.type === "push") {
-    toast(`${name(ev.by)} hizo push: ${ev.to === view.you ? "recibes" : name(ev.to) + " recibe"} 2 cartas`);
-    notePush({ by: ev.by, to: ev.to, anim: playPushAnimation({ card: view.discardTop, toPid: ev.to, me: view.you }) });
+    toast(ev.by === view.you ? `Hiciste push: ${name(ev.to)} recibe 2 cartas`
+      : `${name(ev.by)} hizo push: ${ev.to === view.you ? "recibes" : name(ev.to) + " recibe"} 2 cartas`);
+    notePush({ by: ev.by, to: ev.to, card: view.discardTop, anim: playPushAnimation({ card: view.discardTop, toPid: ev.to, me: view.you }) });
   } else if (ev.type === "turn" && ev.planted) toast(ev.by === view.you ? "¡Te plantaste!" : `${name(ev.by)} se plantó`);
   else if (played && ev.by !== view.you) toast(`${name(ev.by)} ${ev.laid ? "bajó una combinación" : "enganchó en la mesa"}`);
   if (ev.cleared?.length) {                      // cuarteto o consecutivo de A a K: sale de la mesa

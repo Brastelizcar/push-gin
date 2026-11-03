@@ -67,6 +67,7 @@ button:disabled{ opacity:.4; cursor:not-allowed; }
   opacity:0; pointer-events:none; transition:opacity .25s ease; max-width:90vw; text-align:center;
 }
 .toast.show{ opacity:1; }
+body:has(#app.wide) .toast{ bottom:var(--toast-bottom, 20px); z-index:60; }  /* en la mesa: justo encima de tu mano */
 .dev-box{ font-size:12px; background:rgba(0,0,0,.25); border-radius:10px; padding:12px; color:var(--ivory-shade); }
 
 .hint.wake{ color:var(--gold-light); opacity:.95; font-weight:600; }

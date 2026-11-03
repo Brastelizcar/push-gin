@@ -41,21 +41,3 @@ document.addEventListener("fullscreenchange", () => {
   document.querySelectorAll(".fs-btn").forEach((b) => (b.textContent = on ? "🗗" : "⛶"));
 });
 
-// ---------- tamaño de las cartas (S / M / L), se recuerda en el navegador ----------
-const SIZES = { S: 0.85, M: 1, L: 1.18 };
-let sizeKey = "M";
-try { const k = localStorage.getItem("pushgin:size"); if (k in SIZES) sizeKey = k; } catch {}
-const applySize = () => document.documentElement.style.setProperty("--ui-scale", SIZES[sizeKey]);
-applySize();
-export function sizeButton(onChange) {
-  const btn = h("button", { class: "fs-btn size-btn", "aria-label": "Tamaño de las cartas" }, "Aa");
-  const label = () => (btn.title = `Tamaño de las cartas: ${sizeKey === "S" ? "pequeño" : sizeKey === "M" ? "mediano" : "grande"} (toca para cambiar)`);
-  label();
-  btn.addEventListener("click", () => {
-    sizeKey = sizeKey === "S" ? "M" : sizeKey === "M" ? "L" : "S";
-    try { localStorage.setItem("pushgin:size", sizeKey); } catch {}
-    applySize(); label(); toast(`Cartas ${sizeKey === "S" ? "pequeñas" : sizeKey === "M" ? "medianas" : "grandes"}`);
-    onChange?.();
-  });
-  return btn;
-}

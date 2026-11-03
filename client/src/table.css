@@ -28,8 +28,14 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 
 .players-strip{ display:flex; gap:8px; }
 .p-chip{ flex:1; display:flex; align-items:center; gap:7px; background:rgba(0,0,0,.14); border:1px solid rgba(255,255,255,.07); border-radius:10px; padding:6px 10px; min-width:0; }
-.p-chip.turn{ box-shadow:0 0 0 2px rgba(230,198,90,.45); }
-.p-chip.you{ border:1.5px solid var(--gold); background:rgba(0,0,0,.2); }
+/* Solo el jugador en turno lleva el borde dorado; el relleno dorado es su reloj y se corre a la izquierda (--t: 1 → 0) */
+@property --t{ syntax:"<number>"; inherits:false; initial-value:1; }
+.p-chip.turn{ border:1.5px solid var(--gold); box-shadow:0 0 0 2px rgba(230,198,90,.25);
+  background:linear-gradient(90deg, rgba(201,162,39,.62) calc(var(--t) * 100%), rgba(0,0,0,.14) calc(var(--t) * 100%));
+  transition:--t .5s linear; }
+.p-chip.turn .p-name, .p-chip.turn.you .p-name, .p-chip.turn .card-count{ color:var(--ivory); text-shadow:0 1px 2px rgba(0,0,0,.6); }
+.fly-between{ position:fixed; left:0; top:0; border-radius:9px; transform-origin:center; }
+.unified-slot.landing > *{ visibility:hidden; }
 .p-chip .avatar{ width:clamp(24px,2vw,32px); height:clamp(24px,2vw,32px); font-size:clamp(10.5px,.9vw,14px); }
 .p-chip-meta{ display:flex; flex-direction:column; gap:2px; min-width:0; }
 .p-chip .p-name{ color:var(--ivory-shade); font-size:clamp(11.5px,1vw,15px); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -120,10 +126,15 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .push-btn .p-text{ font-size:clamp(9.5px,.85vw,13px); color:var(--gold-light); font-weight:700; }
 .push-btn.disabled{ opacity:.35; pointer-events:none; }
 
-.confirm-btn{ width:clamp(46px,4.2vw,64px); height:clamp(46px,4.2vw,64px); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:clamp(22px,2vw,30px); font-weight:800; box-shadow:0 5px 12px rgba(0,0,0,.4); transition:all .2s ease; }
-.confirm-btn.disabled{ background:rgba(255,255,255,.06); color:rgba(232,223,198,.25); box-shadow:none; cursor:not-allowed; }
-.confirm-btn.active{ background:radial-gradient(circle at 35% 30%, var(--confirm-light), var(--confirm) 80%); color:#0e2f1f; cursor:pointer; }
-.confirm-label{ font-size:clamp(8.5px,.7vw,11px); color:var(--ivory-shade); opacity:.7; text-align:center; }
+/* Terminar turno: botón dorado como el resto de la mesa (apagado, listo o con una jugada que aún no vale) */
+.confirm-btn{ width:100%; display:flex; flex-direction:column; align-items:center; gap:2px; padding:clamp(7px,1.1vh,11px) 4px; border-radius:14px;
+  font-family:'Fraunces',serif; font-weight:800; line-height:1.05; text-align:center; transition:all .2s ease; }
+.confirm-btn .ck{ font-size:clamp(18px,1.7vw,26px); line-height:1; }
+.confirm-btn .ck-lbl{ font-size:clamp(10px,.85vw,13px); letter-spacing:.02em; }
+.confirm-btn.disabled{ background:rgba(0,0,0,.28); border:1px solid rgba(201,162,39,.25); color:rgba(232,223,198,.35); box-shadow:none; cursor:not-allowed; }
+.confirm-btn.active{ background:linear-gradient(180deg, var(--gold-light), var(--gold)); color:var(--wood-dark); border:1.5px solid var(--gold-light);
+  box-shadow:0 0 0 3px rgba(230,198,90,.22), 0 5px 12px rgba(0,0,0,.4); cursor:pointer; animation:tap-pulse 2s ease-in-out infinite; }
+.confirm-btn.active:hover{ filter:brightness(1.08); }
 
 /* ---------- fin de ronda ---------- */
 .overlay{ position:fixed; inset:0; background:rgba(0,0,0,.65); display:flex; align-items:center; justify-content:center; padding:20px; z-index:50; }
@@ -218,7 +229,7 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 
 /* ---------- botones de la barra superior ---------- */
 .top-btns{ display:flex; gap:6px; flex-shrink:0; }
-.size-btn{ font-family:'Fraunces',serif; font-weight:800; font-size:13px; }
+
 
 /* ---------- carta que llega del mazo tras un push ---------- */
 .fly-draw{ position:fixed; }
@@ -254,7 +265,7 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .mesa-panel.droppable.drop-over{ outline:2.5px dashed var(--confirm-light); outline-offset:-4px; }
 
 /* ✓ con una jugada que aún no vale: se puede pulsar (explica el motivo) pero no la envía */
-.confirm-btn.invalid{ background:rgba(201,162,39,.18); color:var(--gold-light); border:1.5px dashed var(--gold); cursor:pointer; box-shadow:none; }
+.confirm-btn.invalid{ background:rgba(201,162,39,.12); color:var(--gold-light); border:1.5px dashed var(--gold); cursor:pointer; box-shadow:none; }
 
 /* ---------- Lote 4: temporizador de turno ---------- */
 .turn-clock{ font-variant-numeric:tabular-nums; }
