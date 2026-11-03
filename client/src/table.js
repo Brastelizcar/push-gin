@@ -27,6 +27,7 @@ const ui = {
   dealRound: null,      // ronda para la que ya se animó el reparto
   dealPending: null,    // cartas que están por repartirse a tu mano
   remotePlay: null,     // otro jugador acaba de plantarse / bajar / enganchar: { by, at }
+  clearing: new Map(),  // plantes completos que están saliendo de la mesa: id → { cards, index, started }
   prevTurn: null,       // { current, top, round } del render anterior (para animar lo que hacen los demás con el descarte)
   lastPushAt: 0,        // hora del último push (el descarte desaparece por el push, no porque alguien lo tomara)
   prevMesa: new Set(),  // cartas que había en la mesa en el render anterior
@@ -526,29 +527,31 @@ export function renderTable(app, { view, room, rerender }) {
       view.finalTurnsLeft != null ? h("span", { class: "last-lap", title: "Se acabó el mazo: cada jugador juega un turno más y se cuentan las manos" },
         ` · Última vuelta (${view.finalTurnsLeft})`) : null),
     goalInline(view, byId[me]),
-    h("div", { class: "scoreboard" },
-      view.players.map((p) =>
-        h("div", { class: "sc-item" + (p.id === me ? " you" : "") },
-          h("div", { class: "name" }, p.name), h("div", { class: "total" }, p.total),
-          p.id === me ? h("div", { class: "hand-pts", title: "Puntos de las cartas que te quedan en la mano (los sumas si otro gana la ronda)" }, `en mano ${handPts}`) : null))),
     h("div", { class: "turn-flag" + (myTurn ? "" : " wait") }, hint, turnClock(view)),
     h("div", { class: "top-btns" }, fsButton(),
       h("button", { class: "fs-btn menu-btn", title: "Menú: ajustes, reglas y salir", "aria-label": "Menú", onclick: () => hooks.onMenu?.() }, "☰")));
 
-  // --- tira de jugadores (dinámica: 2, 3 o 4) ---
-  const strip = h("div", { class: "players-strip" },
-    view.players.map((p) =>
-      h("div", {
-        class: "p-chip" + (p.id === me ? " you" : "") + (p.id === view.current && view.phase === "playing" ? " turn" : ""), "data-pid": p.id,
-        ...(p.id === view.current && view.phase === "playing" && turnFill(view)),
-      },
-        p.avatar ? h("div", { class: "avatar with-img" }, avatarImg(p.avatar, p.name)) : h("div", { class: "avatar" }, (p.name || "?")[0].toUpperCase()),
-        h("div", { class: "p-chip-meta" },
-          h("div", { class: "p-name" }, p.name),
-          p.reconnectMsLeft != null && !p.left
-            ? h("span", { class: "status-chip off reconnecting", "data-reconnect": reconnectEnds(view, p), title: "Se desconectó: si no vuelve a tiempo, abandona" }, reconnectText(reconnectEnds(view, p)))
-            : h("span", { class: "status-chip" + (p.planted ? "" : " off") }, p.left ? "Abandonó" : p.planted ? "Plantado" : p.connected ? "Sin plantar" : "Desconectado")),
-        h("div", { class: "card-count" }, h("span", { class: "icon" }, ""), p.cards))));
+  // --- columna de jugadores (izquierda): los demás en orden de turno y tú abajo. El que tiene el turno lleva el aro
+  //     dorado alrededor del avatar: es su reloj (se va vaciando). ---
+  const myIdx = view.players.findIndex((p) => p.id === me);
+  const seated = [...view.players.slice(myIdx + 1), ...view.players.slice(0, myIdx), view.players[myIdx]].filter(Boolean);
+  const seat = (p) => {
+    const turn = p.id === view.current && view.phase === "playing";
+    const status = p.reconnectMsLeft != null && !p.left
+      ? h("span", { class: "status-chip off reconnecting", "data-reconnect": reconnectEnds(view, p), title: "Se desconectó: si no vuelve a tiempo, abandona" }, reconnectText(reconnectEnds(view, p)))
+      : h("span", { class: "status-chip" + (p.planted ? "" : " off") }, p.left ? "Abandonó" : p.planted ? "Plantado" : p.connected ? "Sin plantar" : "Desconectado");
+    return h("div", { class: "p-chip seat" + (p.id === me ? " you" : "") + (turn ? " turn" : ""), "data-pid": p.id, ...(turn && turnFill(view)) },
+      h("div", { class: "seat-av" },
+        p.avatar ? avatarImg(p.avatar, p.name) : h("div", { class: "avatar" }, (p.name || "?")[0].toUpperCase()),
+        p.level ? h("span", { class: "seat-level", title: `Nivel ${p.level}` }, p.level) : null),
+      h("div", { class: "seat-name" }, p.name),
+      h("div", { class: "seat-meta" },
+        h("span", { class: "card-count", title: "Cartas en la mano" }, h("span", { class: "icon" }, ""), p.cards),
+        h("span", { class: "seat-total", title: "Puntos acumulados en la partida" }, p.total)),
+      status,
+      p.id === me ? h("div", { class: "hand-pts", title: "Puntos de las cartas que te quedan en la mano (los sumas si otro gana la ronda)" }, `en mano ${handPts}`) : null);
+  };
+  const playersCol = h("div", { class: "players-col" }, seated.map(seat));
 
   // --- plantes en mesa: de todos (sin nombres). Primero tu jugada sin confirmar, luego los plantes con tus enganches
   //     sin confirmar ya colocados (en punteado). ---
@@ -565,6 +568,10 @@ export function renderTable(app, { view, room, rerender }) {
       cards.map((c, i) => cardEl(c, (stagedHookIds.has(c.id) ? "staged-card " : recent.has(c.id) ? "recent " : "") +
         (isWild(c) ? "wild " : "") + (ui.flying.has(c.id) ? "arriving" : ""), i)));
   });
+  for (const [id, c] of ui.clearing) {
+    const ph = h("div", { class: "meld clearing", "data-clearing": id }, c.cards.map((card) => cardEl(card, "ph-hidden")));
+    tableMelds.splice(Math.min(Math.max(c.index, 0), tableMelds.length), 0, ph);
+  }
   const mesa = h("div", { class: "mesa-panel" + (mustDiscard ? " droppable" : "") },
     h("div", { class: "mesa-title" }, "Plantes en mesa"),
     stagedMelds.length || tableMelds.length
@@ -645,11 +652,12 @@ export function renderTable(app, { view, room, rerender }) {
         onclick: (e) => confirmTurn(e.currentTarget),
       }, h("span", { class: "ck" }, "✓"), h("span", { class: "ck-lbl" }, "Terminar turno"))));
 
-  const main = h("div", { class: "main-col" }, topbar, strip, mesa, handPanel);
-  const felt = h("div", { class: "table-felt" }, main, rail);
+  const main = h("div", { class: "main-col" }, topbar, mesa, h("div", { class: "hand-rack" }, handPanel));
+  const felt = h("div", { class: "table-felt" }, playersCol, main, rail);
   app.replaceChildren(h("div", { class: "table-frame wide-frame" }, felt));
   fitMesa();
   fitHand();
+  startClearing();
   detectRemotePlay(view);
   detectRemoteDiscard(view);
   applyFlights();
@@ -691,7 +699,7 @@ function turnFill(view) {
 }
 
 setInterval(() => {
-  for (const el of document.querySelectorAll(".p-chip.turn[data-ends]"))
+  for (const el of document.querySelectorAll(".seat.turn[data-ends]"))
     el.style.setProperty("--t", Math.max(0, (Number(el.dataset.ends) - Date.now()) / Number(el.dataset.total)).toFixed(3));
   for (const el of document.querySelectorAll(".status-chip[data-reconnect]")) el.textContent = reconnectText(Number(el.dataset.reconnect));
   for (const el of document.querySelectorAll(".turn-clock[data-ends]")) {
@@ -871,7 +879,7 @@ function flyFromDeck(card, delay = 0, T = 1000, fromRect = null, flip = true) {
 function fitMesa() {
   const panel = document.querySelector(".mesa-panel");
   if (!panel) return;
-  let s = 1.1;                                       // si hay pocos plantes, pueden verse un poco más grandes
+  let s = 1.6;                                       // con pocos plantes, las cartas de la mesa se ven más grandes
   panel.classList.add("scroll");                     // mientras se mide, el panel recorta (así scrollHeight es fiable)
   panel.style.setProperty("--mscale", s);
   const overflows = () => panel.scrollHeight > panel.clientHeight + 1 || panel.scrollWidth > panel.clientWidth + 1;
@@ -935,28 +943,42 @@ function flyBetween(card, from, to, T, size) {
 }
 
 // Un plante COMPLETO (cuarteto, o consecutivo de A a K) sale de la mesa: sus cartas se dan vuelta una por una (quedan
-// boca abajo) y luego el grupo se desvanece. Se dibuja sobre el plante (antes de que el estado nuevo lo quite) o, si
-// no estaba en la mesa, al centro.
+// boca abajo) y luego el grupo se desvanece. Mientras tanto la mesa le guarda su lugar (un hueco invisible del mismo
+// tamaño): los demás plantes se reacomodan solo cuando desaparece.
 export function noteCleared(list) {
-  const mesa = document.querySelector(".mesa-panel");
-  if (!mesa || reduceMotion()) return;
-  const mw = document.querySelector(".mesa-panel .card")?.getBoundingClientRect().width ?? 44;
-  list.forEach((m, k) => {
-    const anchor = (document.querySelector(`.mesa-panel .meld[data-meld="${m.id}"]`) ?? mesa).getBoundingClientRect();
-    const slots = m.cards.map((c) => h("div", { class: "clear-slot" }, cardEl(c, "clear-face"), h("div", { class: "card fly-draw-back clear-back" })));
-    const row = h("div", { class: "clear-row", style: `--mw:${mw}px;left:${anchor.left + anchor.width / 2}px;top:${anchor.top + anchor.height / 2}px` }, slots);
+  const shown = [...document.querySelectorAll(".mesa-panel .meld[data-meld], .mesa-panel .meld[data-clearing]")];
+  for (const m of list) {
+    const index = shown.findIndex((e) => Number(e.dataset.meld) === m.id);
+    ui.clearing.set(m.id, { cards: m.cards, index: index < 0 ? Infinity : index, started: false });
+  }
+}
+function startClearing() {
+  let k = 0;
+  for (const [id, c] of ui.clearing) {
+    if (c.started) continue;
+    c.started = true;
+    const ph = document.querySelector(`.mesa-panel .meld[data-clearing="${id}"]`);
+    if (!ph || reduceMotion()) { ui.clearing.delete(id); requestAnimationFrame(() => cur.rerender()); continue; }
+    const r = ph.getBoundingClientRect();
+    const mw = ph.querySelector(".card")?.getBoundingClientRect().width ?? 44;
+    const slots = c.cards.map((card) => h("div", { class: "clear-slot" }, cardEl(card, "clear-face"), h("div", { class: "card clear-back" })));
+    const row = h("div", { class: "clear-row", style: `--mw:${mw}px;left:${r.left + r.width / 2}px;top:${r.top + r.height / 2}px` }, slots);
     const layer = h("div", { class: "fly-layer" }, row);
     document.body.append(layer);
-    const start = k * 400, step = Math.min(190, 1400 / m.cards.length), half = 200;
+    const start = k++ * 400, step = Math.min(190, 1400 / c.cards.length), half = 200;
     slots.forEach((slot, i) => {
       const t = start + i * step;
       slot.firstChild.animate([{ transform: "rotateY(0deg)" }, { transform: "rotateY(90deg)" }], { duration: half, delay: t, easing: "ease-in", fill: "both" });
       slot.lastChild.animate([{ transform: "rotateY(-90deg)" }, { transform: "rotateY(0deg)" }], { duration: half, delay: t + half, easing: "ease-out", fill: "both" });
     });
-    const flipped = start + (m.cards.length - 1) * step + 2 * half;   // todas boca abajo: un momento quietas y se apagan
+    const flipped = start + (c.cards.length - 1) * step + 2 * half;   // todas boca abajo: un momento quietas y se apagan
     row.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 800, delay: flipped + 450, easing: "ease-in", fill: "both" })
-      .finished.catch(() => {}).finally(() => layer.remove());
-  });
+      .finished.catch(() => {}).finally(() => {
+        layer.remove();
+        ui.clearing.delete(id);
+        cur.rerender();                                // recién ahora los demás plantes ocupan su lugar
+      });
+  }
 }
 
 export function notePlay(by) { ui.remotePlay = { by, at: performance.now() }; }

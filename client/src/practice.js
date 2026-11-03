@@ -14,7 +14,8 @@ const BOT_DELAY = [1500, 2400]; // ms que "piensa" cada bot antes de cada movimi
  * handlers: los mismos que net.connect ({ onState, onEvent, onRejected, onLeave }).
  * Devuelve la sala local: { roomId, send(type, msg), leave() }.
  */
-export function startPractice({ name, level = null, avatar = null, bots = 2, turnTime = 0, rng }, handlers) {
+// botDelay: [mín, máx] ms que piensa cada bot (las pruebas lo acortan).
+export function startPractice({ name, level = null, avatar = null, bots = 2, turnTime = 0, rng, botDelay = BOT_DELAY }, handlers) {
   const match = new Match({ turnTime, rng });
   match.addPlayer(ME, name, level, avatar);
   BOT_NAMES.slice(0, Math.max(1, Math.min(3, bots))).forEach((n, i) => match.addPlayer(`bot${i + 1}`, n, null, BOT_AVATARS[i]));
@@ -36,7 +37,7 @@ export function startPractice({ name, level = null, avatar = null, bots = 2, tur
     if (match.phase !== "playing") return;
     const pid = match.game.currentPlayer;
     if (pid !== ME) {
-      const wait = BOT_DELAY[0] + Math.random() * (BOT_DELAY[1] - BOT_DELAY[0]);
+      const wait = botDelay[0] + Math.random() * (botDelay[1] - botDelay[0]);
       botTimer = setTimeout(() => {
         const mv = botMove(match.viewFor(pid));
         const res = match.handle(pid, mv.type, mv.msg);

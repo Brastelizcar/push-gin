@@ -7,7 +7,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function practice(opts = {}) {
   const log = { views: [], events: [], rejected: [], left: false };
-  const room = startPractice({ name: "Ana", bots: 2, rng: seededRng(3), ...opts }, {
+  const room = startPractice({ name: "Ana", bots: 2, rng: seededRng(3), botDelay: [20, 40], ...opts }, {
     onState: (v) => log.views.push(v),
     onEvent: (e) => log.events.push(e),
     onRejected: (e) => log.rejected.push(e),

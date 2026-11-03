@@ -125,14 +125,16 @@ describe("PushGinRoom", () => {
 
   it("mensajes malformados no tumban el servidor", async () => {
     const { cs } = await setup(2);
-    cs[0].send("start"); await tick();
+    cs[0].send("start");
+    await until(() => cs[0].view?.phase === "playing");
     cs[0].send("playTurn", { plant: "x", discard: "a" });
     cs[0].send("playTurn", { hooks: [{}], discard: "a" });
     cs[0].send("playTurn", {});
     cs[0].send("discard", { cardId: 5 });
-    await tick();
+    await until(() => cs[0].rejected === "Mensaje inválido");
     assert.equal(cs[0].rejected, "Mensaje inválido");
-    cs[0].send("takeDiscard"); await tick();
+    cs[0].send("takeDiscard");
+    await until(() => cs[0].view.hand.length === 11);
     assert.equal(cs[0].view.hand.length, 11);
   });
 

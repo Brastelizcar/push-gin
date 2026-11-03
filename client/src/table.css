@@ -29,7 +29,6 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .players-strip{ display:flex; gap:8px; }
 .p-chip{ flex:1; display:flex; align-items:center; gap:7px; background:rgba(0,0,0,.14); border:1px solid rgba(255,255,255,.07); border-radius:10px; padding:6px 10px; min-width:0; }
 /* Solo el jugador en turno lleva el borde dorado; el relleno dorado es su reloj y se corre a la izquierda (--t: 1 → 0) */
-@property --t{ syntax:"<number>"; inherits:false; initial-value:1; }
 .p-chip.turn{ border:1.5px solid var(--gold); box-shadow:0 0 0 2px rgba(230,198,90,.25);
   background:linear-gradient(90deg, rgba(201,162,39,.62) calc(var(--t) * 100%), rgba(0,0,0,.14) calc(var(--t) * 100%));
   transition:--t .5s linear; }
@@ -280,3 +279,42 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .turn-clock.urgent{ color:var(--red); animation:clock-blink 1s steps(2) infinite; }
 .turn-flag.wait .turn-clock.urgent{ color:#ff8f86; }
 @keyframes clock-blink{ 50%{ opacity:.45; } }
+
+/* ============ Disposición de la mesa: jugadores a la izquierda, mesa grande, tu mano en un atril de madera ============ */
+.table-felt{ display:grid; grid-template-columns:clamp(96px, 9vw, 130px) minmax(0, 1fr) auto; }
+.players-col{ display:flex; flex-direction:column; align-items:stretch; gap:clamp(6px, 1.4vh, 14px); min-height:0; overflow:hidden; padding:2px 0; }
+.players-col .seat.you{ margin-top:auto; }
+.seat{ flex:none; display:flex; flex-direction:column; align-items:center; gap:2px; padding:4px 2px; text-align:center;
+  background:none; border:0; box-shadow:none; border-radius:12px; min-width:0; }
+.seat-av{ position:relative; width:clamp(50px, min(5.6vw, 10vh), 78px); aspect-ratio:1; border-radius:50%; flex-shrink:0; }
+.seat-av .avatar-img, .seat-av .avatar{ width:100%; height:100%; border-radius:50%; font-size:22px; box-shadow:0 3px 8px rgba(0,0,0,.45); }
+.seat-level{ position:absolute; right:-6px; top:-4px; width:24px; height:24px; display:flex; align-items:center; justify-content:center;
+  font-size:10px; font-weight:800; color:var(--wood-dark); background:var(--gold-light);
+  clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%); }
+.seat-name{ font-weight:700; font-size:clamp(11px, .95vw, 14px); color:var(--ivory-shade); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.seat.you .seat-name{ color:var(--gold-light); }
+.seat-meta{ display:flex; align-items:center; gap:8px; font-size:clamp(11px, .9vw, 13px); }
+.seat .card-count{ margin:0; font-size:inherit; }
+.seat-total{ font-family:'Fraunces',serif; font-weight:700; color:var(--ivory); }
+.seat-total::before{ content:"pts "; font-family:'Manrope',sans-serif; font-weight:600; font-size:.8em; opacity:.6; }
+.seat .status-chip{ font-size:clamp(8px, .65vw, 10px); }
+.seat .hand-pts{ font-size:clamp(9px, .75vw, 11px); color:var(--ivory-shade); opacity:.75; }
+/* El jugador en turno: aro dorado alrededor del avatar que se va vaciando (su reloj) */
+.seat.turn{ background:rgba(201,162,39,.10); border:0; box-shadow:inset 0 0 0 1.5px rgba(230,198,90,.55); text-shadow:none; }
+.seat.turn .seat-name{ color:var(--gold-light); }
+.seat.turn .seat-av::before{ content:""; position:absolute; inset:-6px; border-radius:50%;
+  background:conic-gradient(var(--gold-light) calc(var(--t) * 360deg), rgba(255,255,255,.12) 0);
+  -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 4.5px), #000 calc(100% - 4px));
+          mask:radial-gradient(farthest-side, transparent calc(100% - 4.5px), #000 calc(100% - 4px)); }
+@property --t{ syntax:"<number>"; inherits:true; initial-value:1; }
+/* La mesa: los plantes en filas y sus cartas lado a lado (sin encimarse) */
+.melds-line{ gap:clamp(14px, 1.8vw, 30px) clamp(16px, 2vw, 34px); align-content:flex-start; }
+.meld .card{ margin-left:calc(var(--mw) * .04); }
+.meld .card:first-child{ margin-left:0; }
+.meld.clearing .card{ visibility:hidden; }
+/* Tu mano en un atril de madera */
+.hand-rack{ padding:clamp(6px, 1vh, 10px) clamp(8px, 1vw, 14px) clamp(10px, 1.6vh, 16px); border-radius:14px;
+  background:linear-gradient(180deg, #8a5a33 0%, var(--wood) 45%, var(--wood-dark) 100%);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.18), inset 0 -3px 0 rgba(0,0,0,.35), 0 6px 14px rgba(0,0,0,.45); }
+.hand-rack .hand-panel{ background:rgba(0,0,0,.28); border:1px solid rgba(0,0,0,.35); box-shadow:inset 0 2px 6px rgba(0,0,0,.45); }
+@media (max-width:900px) and (orientation:landscape){ .table-felt{ grid-template-columns:78px minmax(0, 1fr) auto; } }

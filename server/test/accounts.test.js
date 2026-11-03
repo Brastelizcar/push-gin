@@ -5,6 +5,11 @@ import { MemoryStore, setStore } from "../src/accounts/store.js";
 const PORT = 2568; // boot() siempre usa 2568 cuando la configuración ya es un Server (defineServer)
 const API = `http://127.0.0.1:${PORT}/api`;
 const tick = (ms = 100) => new Promise((r) => setTimeout(r, ms));
+// Espera a que se cumpla una condición (la respuesta del servidor tarda más si la máquina está ocupada).
+async function until(cond, ms = 4000) {
+  const end = Date.now() + ms;
+  while (!cond() && Date.now() < end) await tick(20);
+}
 const api = (path, { token, body, method } = {}) =>
   fetch(API + path, {
     method: method ?? (body ? "POST" : "GET"),
@@ -127,12 +132,12 @@ describe("Cuentas: API y salas", () => {
     const b = await join(room, { token: tb });
     await tick();
     assert.equal(a.view.entryFee, 100);
-    a.send("start"); await tick();
+    a.send("start"); await until(() => a.rejected);
     assert.match(a.rejected, /fichas suficientes.*Luis/);
     assert.equal(a.view.phase, "lobby");
     assert.equal((await store.byId(a1.id)).chips, 300);                 // a nadie se le cobró
     await store.claim(b1.id);
-    a.send("start"); await tick(150);
+    a.send("start"); await until(() => a.view.phase === "playing");
     assert.equal(a.view.phase, "playing");
     assert.equal((await store.byId(a1.id)).chips, 200);
     assert.equal((await store.byId(b1.id)).chips, 200);
@@ -150,17 +155,18 @@ describe("Cuentas: API y salas", () => {
     const a = await join(room, { token: ta });
     const b = await join(room, { token: tb });
     await tick();
-    a.send("start"); await tick(150);
+    a.send("start"); await until(() => a.view.phase === "playing");
     for (let r = 0; r < 5; r++) {                // Ana gana todas las rondas
       const g = room.game;
       g.turnIndex = g.players.indexOf(a.sessionId);
       g.hands[a.sessionId] = [{ id: `w${r}`, rank: "K", suit: "♣" }];
       g.hands[b.sessionId] = [{ id: `x${r}`, rank: "A", suit: "♠" }];
       g.phase = "main";
-      a.send("discard", { cardId: `w${r}` }); await tick();
-      if (r < 4) { a.send("nextRound"); await tick(); }
+      a.send("discard", { cardId: `w${r}` });
+      await until(() => a.view.phase === (r < 4 ? "roundOver" : "finished"));
+      if (r < 4) { a.send("nextRound"); await until(() => a.view.round === r + 2 && a.view.phase === "playing"); }
     }
-    await room.rewardsSaved; await tick();
+    await room.rewardsSaved; await until(() => a.account);
     assert.equal(a.view.phase, "finished");
     assert.deepEqual(a.view.rewards[a.sessionId], { place: 0, xp: 100, chips: 100 });
     assert.deepEqual(a.view.rewards[b.sessionId], { place: 1, xp: 50, chips: -100 });
@@ -178,10 +184,10 @@ describe("Cuentas: API y salas", () => {
     const a = await join(room, { token: ta });
     const b = await join(room, { token: tb });
     await tick();
-    a.send("start"); await tick(150);
+    a.send("start"); await until(() => a.view.phase === "playing");
     assert.equal((await store.byId(b1.id)).chips, 200);  // a los dos se les cobró
-    await b.leave(); await tick(150);                    // Luis abandona en la ronda 1
-    await room.rewardsSaved; await tick();
+    await b.leave(); await until(() => a.view.phase === "finished");   // Luis abandona en la ronda 1
+    await room.rewardsSaved; await until(() => a.account);
     assert.equal(a.view.phase, "finished");
     assert.deepEqual(a.view.gameWinners, [a.sessionId]);
     assert.deepEqual(a.view.rewards[b.sessionId], { place: null, xp: 0, chips: -100, left: true });
@@ -200,8 +206,10 @@ describe("Cuentas: API y salas", () => {
     assert.equal(a.view.practice, true);
     assert.deepEqual(a.view.players.map((p) => p.name), ["Ana", "Rosa", "Tomás"]);
     await assert.rejects(colyseus.connectTo(room, { name: "Intruso" }));  // nadie más entra
-    a.send("takeDiscard"); await tick();
-    a.send("discard", { cardId: a.view.drawn }); await tick(300);
+    a.send("takeDiscard"); await until(() => a.view.drawn);
+    a.send("discard", { cardId: a.view.drawn });
+    await until(() => a.view.current !== a.sessionId);
+    await until(() => a.view.current === a.sessionId);
     assert.equal(a.view.current, a.sessionId);                             // los 2 bots ya jugaron
     assert.equal(a.view.turnPhase, "start");
   });
@@ -219,10 +227,11 @@ describe("Cuentas: API y salas", () => {
       g.turnIndex = g.players.indexOf(a.sessionId);
       g.hands[a.sessionId] = [{ id: `w${r}`, rank: "K", suit: "♣" }];
       g.phase = "main";
-      a.send("discard", { cardId: `w${r}` }); await tick();
-      if (r < 4) { a.send("nextRound"); await tick(); }
+      a.send("discard", { cardId: `w${r}` });
+      await until(() => a.view.phase === (r < 4 ? "roundOver" : "finished"));
+      if (r < 4) { a.send("nextRound"); await until(() => a.view.round === r + 2 && a.view.phase === "playing"); }
     }
-    await room.rewardsSaved; await tick();
+    await room.rewardsSaved; await until(() => a.account);
     assert.equal(a.view.phase, "finished");
     assert.deepEqual(a.view.rewards[a.sessionId], { place: 0, xp: 50, chips: 0 });
     const ana = await store.byId(a1.id);

@@ -71,12 +71,15 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
   pequeño en la esquina (también la del descarte). Marcador: tus puntos de la ronda y «en mano». Riel: «Pozo»
   (cuota × jugadores, solo con cuota).
   Botón ☰: menú de la partida (ajustes de sonido, reglas, ayuda, salir al menú de inicio = abandonar).
-  Solo la ficha del jugador EN TURNO lleva borde dorado; su relleno dorado es el reloj (`--t` 1→0, se corre a la
-  izquierda). Botón «Terminar turno» dorado. Avisos (toast) justo encima de la mano. Sin botón de tamaño de cartas.
+  Disposición (ref. `docs/referencias/diposicion del tablero.png`, solo disposición): columna de jugadores a la izquierda
+  (avatar, nombre, cartas, puntos; tú abajo), mesa grande con las cartas de cada plante lado a lado, tu mano en un
+  atril de madera y el riel a la derecha. El jugador EN TURNO lleva un aro dorado alrededor del avatar que se va
+  vaciando: es su reloj (`--t` 1→0). Botón «Terminar turno» dorado. Avisos (toast) justo encima de la mano. Sin botón de tamaño de cartas.
 - Animaciones: reparto y tu carta tras un push (`flyFromDeck`), tomar el descarte (`flyCard`), push en dos tiempos
   (si te lo hacen a ti, las 2 cartas vuelan del descarte a tus casillas), jugadas a la mesa (`applyFlights`,
   `detectRemotePlay`), lo que hacen los demás con el descarte (`detectRemoteDiscard` + `flyBetween`) y el plante
-  completo que sale de la mesa (`noteCleared`: las cartas se voltean una a una y el grupo se apaga). Bots: 1,5–2,4 s por movimiento.
+  completo que sale de la mesa (`noteCleared`/`startClearing`: se voltean una a una y se apagan; la mesa le guarda
+  el lugar con un hueco hasta que desaparecen). Bots: 1,5–2,4 s por movimiento.
 - Lote 3 (cuentas y menús): hecho. Ver "Cuentas" abajo.
 - Lote 4 (práctica con bots, temporizador): hecho. **Con cuenta**, la práctica se juega en el SERVIDOR (sala con la
   opción `practice: nBots`; los bots juegan en `PushGinRoom`) y da la **mitad del XP** (`PRACTICE_XP_FACTOR`), sin fichas.
