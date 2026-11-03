@@ -1,6 +1,7 @@
 import "./table.css";
 import { h, toast, fsButton, sizeButton } from "./dom.js";
 import { actions } from "./net.js";
+import { suitColor } from "./format.js";
 import { groupRuns, groupSets } from "./grouping.js";
 import { extendMeld, stealTwo } from "../../src/logic/melds.js";
 import { planHooks } from "../../src/logic/plan.js";
@@ -49,14 +50,13 @@ export function handleRejected() {
   else resetPending();
 }
 
-const isRed = (c) => c.suit === "♥" || c.suit === "♦";
 const points = (c) => (c.rank === "A" ? 15 : c.rank === "2" ? 20 : ["10", "J", "Q", "K"].includes(c.rank) ? 10 : 5);
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isGapId = (id) => typeof id === "string" && id.startsWith("gap:");
 const newGapId = () => `gap:${ui.gapSeq++}`;
 
 function cardEl(c, extra = "", idx) {
-  return h("div", { class: `card ${isRed(c) ? "red" : "black"} ${extra}`, "data-id": c.id, ...(idx !== undefined ? { "data-idx": idx } : {}) },
+  return h("div", { class: `card ${suitColor(c.suit)} ${extra}`, "data-id": c.id, ...(idx !== undefined ? { "data-idx": idx } : {}) },
     h("div", { class: "corner" }, c.rank, h("small", {}, c.suit)),
     h("div", { class: "pip" }, c.suit));
 }
@@ -65,8 +65,8 @@ function gapEl(id) {
 }
 function faceEl(c) {
   return h("div", { class: "face" },
-    h("div", { class: "corner " + (isRed(c) ? "red" : "black") }, c.rank),
-    h("div", { class: "suit " + (isRed(c) ? "red" : "black") }, c.suit));
+    h("div", { class: "corner " + suitColor(c.suit) }, c.rank),
+    h("div", { class: "suit " + suitColor(c.suit) }, c.suit));
 }
 
 // ---------- diseño de la mano ----------
@@ -820,7 +820,7 @@ function goalInline(view, mePlayer) {
     g ? g.count++ : groups.push({ ...r, count: 1 });
   }
   const mini = (rank, suit) =>
-    h("span", { class: "mini-card " + (suit === "♥" || suit === "♦" ? "red" : "black") }, rank, h("small", {}, suit));
+    h("span", { class: "mini-card " + suitColor(suit) }, rank, h("small", {}, suit));
   const pills = groups.map((g) => {
     let samples, label;
     if (g.kind === "set") {

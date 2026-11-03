@@ -8,3 +8,7 @@ export function formatCountdown(ms, { short = false } = {}) {
   const hh = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
   return short && !hh ? `${pad(mm)}:${pad(ss)}` : `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
 }
+
+// Baraja de cuatro colores: corazones rojo, picas negro, diamantes azul y tréboles verde.
+const SUIT_COLORS = { "♥": "red", "♠": "black", "♦": "blue", "♣": "green" };
+export const suitColor = (suit) => SUIT_COLORS[suit] ?? "black";

@@ -77,7 +77,7 @@
   font-family:'Fraunces',serif; font-weight:700; font-size:24px; box-shadow:0 6px 12px rgba(0,0,0,.4);
 }
 .m-card small{ font-size:18px; }
-.m-card.red{ color:var(--red); } .m-card.black{ color:var(--black); }
+.m-card.red{ color:var(--red); } .m-card.black{ color:var(--black); } .m-card.blue{ color:var(--blue); } .m-card.green{ color:var(--green); }
 .m-card.tilt-l{ transform:rotate(-10deg) translateY(6px); } .m-card.tilt-r{ transform:rotate(10deg) translateY(6px); }
 .m-friends{ display:flex; gap:10px; }
 .m-face{

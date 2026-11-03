@@ -2,7 +2,7 @@
 // Estilo de la mesa (fieltro, madera y dorado); la disposición sigue las referencias de docs/referencias/.
 import "./menus.css";
 import { h, toast, fsButton } from "./dom.js";
-import { formatCountdown, normalizeSyncCode, formatSyncCode } from "./format.js";
+import { formatCountdown, normalizeSyncCode, formatSyncCode, suitColor } from "./format.js";
 import { settings, setSetting } from "./settings.js";
 import { ENTRY_FEES, DAILY_CHIPS } from "../../src/logic/progress.js";
 import { TURN_TIMES } from "../../src/logic/match.js";
@@ -71,7 +71,7 @@ export function mainMenu({ account, offline, onRetry, onPrivate, onPractice, onS
   const mode = (cls, title, art, onclick) =>
     h("button", { class: `m-mode ${cls}`, onclick }, h("div", { class: "m-mode-art" }, art), h("div", { class: "m-mode-title" }, title));
   const mini = (rank, suit, extra = "") =>
-    h("div", { class: `m-card ${suit === "♥" || suit === "♦" ? "red" : "black"} ${extra}` }, h("span", {}, rank), h("small", {}, suit));
+    h("div", { class: `m-card ${suitColor(suit)} ${extra}` }, h("span", {}, rank), h("small", {}, suit));
   const privArt = [h("div", { class: "m-friends" }, h("span", { class: "m-face a" }), h("span", { class: "m-face b" })), h("div", { class: "m-stack" }, coin(), coin(), coin())];
   const practArt = [mini("7", "♣", "tilt-l"), mini("7", "♥"), mini("7", "♠", "tilt-r")];
 

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { formatCountdown, normalizeSyncCode, formatSyncCode } from "../src/format.js";
+import { suitColor } from "../src/format.js";
 
 test("cuenta regresiva de las fichas gratis", () => {
   assert.equal(formatCountdown(0), "00:00:00");
@@ -20,4 +21,8 @@ test("el código de sincronización se acepta escrito como sea", () => {
   assert.equal(normalizeSyncCode("abcd-efgh"), "ABCDEFGH");
   assert.equal(normalizeSyncCode("x3UqFcGuT9x68vQGLPxB"), null);   // el formato largo anterior ya no sirve
   assert.equal(formatSyncCode("ABCDEFGH"), "ABCD-EFGH");
+});
+
+test("baraja de 4 colores: ♥ rojo, ♠ negro, ♦ azul, ♣ verde", () => {
+  assert.deepEqual(["♥", "♠", "♦", "♣"].map(suitColor), ["red", "black", "blue", "green"]);
 });

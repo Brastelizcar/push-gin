@@ -56,7 +56,7 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
   box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 3px 6px rgba(0,0,0,.35);
   padding:calc(var(--cw) * .08) calc(var(--cw) * .1); font-family:'Fraunces',serif; user-select:none; -webkit-user-select:none;
 }
-.card.red{ color:var(--red); } .card.black{ color:var(--black); }
+.card.red{ color:var(--red); } .card.black{ color:var(--black); } .card.blue{ color:var(--blue); } .card.green{ color:var(--green); }
 .card .corner{ font-size:calc(var(--cw) * .29); font-weight:700; line-height:1; }
 .card .corner small{ display:block; font-size:calc(var(--cw) * .23); margin-top:1px; }
 .card .pip{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(var(--cw) * .42); opacity:.9; }
@@ -100,6 +100,7 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .unified-slot .corner, .fly-face .corner{ font-size:calc(var(--sw) * .36); font-weight:700; }
 .unified-slot .suit, .fly-face .suit{ font-size:calc(var(--sw) * .25); opacity:.85; }
 .unified-slot .red, .fly-face .red{ color:var(--red); } .unified-slot .black, .fly-face .black{ color:var(--black); }
+.unified-slot .blue, .fly-face .blue{ color:var(--blue); } .unified-slot .green, .fly-face .green{ color:var(--green); }
 .unified-slot.empty-wait{ background:repeating-linear-gradient(135deg, var(--felt-mid) 0 6px, var(--wood) 6px 12px); border:2.5px dashed var(--gold-light); }
 .unified-slot.empty-wait.idle{ opacity:.45; border-color:rgba(230,198,90,.4); }
 .unified-slot.empty-wait.drag-over{ border-color:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.25); }
@@ -139,7 +140,7 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .mini-card{ width:17px; height:24px; background:linear-gradient(160deg,var(--ivory),var(--ivory-shade)); border:1px solid var(--card-border); border-radius:3px; margin-left:-5px; font:700 10px/1 'Fraunces',serif; padding:2px 0 0 2px; box-shadow:0 1px 2px rgba(0,0,0,.35); }
 .mini-card:first-child{ margin-left:0; }
 .mini-card small{ display:block; font-size:8px; margin-top:1px; }
-.mini-card.red{ color:var(--red); } .mini-card.black{ color:var(--black); }
+.mini-card.red{ color:var(--red); } .mini-card.black{ color:var(--black); } .mini-card.blue{ color:var(--blue); } .mini-card.green{ color:var(--green); }
 .mini-dots{ color:var(--ivory-shade); opacity:.7; font-weight:800; margin-left:4px; align-self:center; }
 @media (max-height:560px){ .goal-bar{ padding:4px 10px; } }
 
