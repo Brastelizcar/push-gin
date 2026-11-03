@@ -45,7 +45,7 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .empty-mesa{ font-size:clamp(12.5px,1.1vw,16px); color:var(--ivory-shade); opacity:.5; text-align:center; padding:clamp(10px,4vh,50px) 0; }
 .melds-line{ flex:1; display:flex; gap:clamp(12px,1.6vw,26px); row-gap:6px; flex-wrap:wrap; }
 .meld{ display:flex; }
-.meld .card{ margin-left:calc(var(--mw) * -.34); transition:transform .14s ease-out; } .meld .card:first-child{ margin-left:0; }
+.meld .card{ margin-left:calc(var(--mw) * -.22); transition:transform .14s ease-out; } .meld .card:first-child{ margin-left:0; }
 
 /* ---------- carta ---------- */
 .card{
@@ -57,20 +57,21 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
   padding:calc(var(--cw) * .08) calc(var(--cw) * .1); font-family:'Fraunces',serif; user-select:none; -webkit-user-select:none;
 }
 .card.red{ color:var(--red); } .card.black{ color:var(--black); } .card.blue{ color:var(--blue); } .card.green{ color:var(--green); }
-.card .corner{ font-size:calc(var(--cw) * .29); font-weight:700; line-height:1; }
-.card .corner small{ display:block; font-size:calc(var(--cw) * .23); margin-top:1px; }
-.card .pip{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:calc(var(--cw) * .42); opacity:.9; }
+.card .corner{ font-size:calc(var(--cw) * .27); line-height:1; }                       /* palo, pequeño */
+.card .pip{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding-top:calc(var(--cw) * .1);
+  font-size:calc(var(--cw) * .56); font-weight:800; letter-spacing:-.06em; line-height:1; }   /* número, grande */
 .card.recent{ box-shadow:0 0 0 2px var(--recent), 0 3px 6px rgba(0,0,0,.35); }  /* sin z-index: no debe tapar la esquina de la carta vecina */
 
 /* ---------- mano ---------- */
 .hand-panel{ position:relative; background:rgba(0,0,0,.2); border:1.5px solid var(--gold); box-shadow:0 0 0 1px rgba(201,162,39,.25); border-radius:14px; padding:clamp(10px,1.4vh,18px) clamp(12px,1.4vw,22px); }
-/* Siempre UNA fila: con muchas cartas se enciman más (fitHand ajusta --hov y, si hace falta, --hw) */
-.hand-line{ display:flex; align-items:flex-end; flex-wrap:nowrap; padding-top:calc(var(--hw) * .38); min-height:calc(var(--hw) * 1.43 + var(--hw) * .38); }
+/* Hasta dos filas: al llenarse el ancho, las cartas bajan a la fila de abajo (fitHand encima más si no caben).
+   Todas las cartas llevan el margen negativo y la fila lo compensa con padding: así CADA fila empieza en el borde. */
+.hand-line{ --hov:calc(var(--hw) * -.24); display:flex; align-items:flex-end; flex-wrap:wrap; row-gap:calc(var(--hw) * .12);
+  padding-top:calc(var(--hw) * .34); padding-left:calc(var(--hov) * -1); min-height:calc(var(--hw) * 1.43 + var(--hw) * .34); }
 /* La fila nunca ensancha la mesa: su ancho lo pone el cajón (contain) y fitHand acomoda las cartas dentro */
 .hand-panel{ min-width:0; } .hand-line{ min-width:0; contain:inline-size; }
 .hand-line .card, .card.ghost, .card.fly-take{ --cw:var(--hw); }
-.hand-line .card{ margin-left:var(--hov, calc(var(--hw) * -.39)); touch-action:none; cursor:grab; transition:transform .15s ease-out; }
-.hand-line .card:first-child, .hand-line .hand-gap + .card{ margin-left:0; }
+.hand-line .card{ margin-left:var(--hov); touch-action:none; cursor:grab; transition:transform .15s ease-out; }
 .hand-line .card:hover{ transform:translateY(calc(var(--hw) * -.2)) scale(1.15); z-index:5; }
 .hand-line .card.dragging{ opacity:.3; transform:none !important; }
 .hand-line .card.arriving{ visibility:hidden; }
@@ -198,9 +199,15 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 
 /* ---------- barra de acciones sobre la mano ---------- */
 .hand-panel{ display:flex; flex-direction:column; gap:2px; }
-.hand-top{ display:flex; align-items:center; gap:12px; min-height:clamp(28px,2.6vw,36px); }
-.hand-top .gap-tool{ position:static; margin-left:auto; flex-shrink:0; }
-.hand-actions{ display:flex; align-items:center; gap:10px; min-width:0; flex-wrap:wrap; }
+.hand-actions{ position:absolute; top:clamp(4px,.7vh,8px); left:clamp(12px,1.4vw,22px); right:clamp(12px,1.4vw,22px); z-index:3;
+  display:flex; align-items:center; gap:10px; min-width:0; pointer-events:none; }
+.hand-actions > *{ pointer-events:auto; }
+.hand-actions .act-text{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.hand-panel{ padding-top:clamp(4px,.7vh,8px); }
+.gap-btn{ touch-action:none; cursor:grab; }
+.gap-btn .val{ font-size:clamp(15px,1.4vw,21px); line-height:1; }
+.rail-pill.pot .val{ color:var(--gold-light); }
+.menu-btn{ font-size:18px; }
 .act-btn{ padding:clamp(5px,.6vw,8px) clamp(14px,1.5vw,22px); font-size:clamp(12px,1.05vw,15px); border-radius:20px; color:#0e2f1f; border:0; background:radial-gradient(circle at 35% 30%, var(--confirm-light), var(--confirm) 80%); box-shadow:0 3px 8px rgba(0,0,0,.4); }
 .act-btn:disabled{ background:rgba(255,255,255,.08); color:rgba(232,223,198,.45); box-shadow:none; cursor:not-allowed; }
 .act-btn:hover:not(:disabled){ filter:brightness(1.08); background:radial-gradient(circle at 35% 30%, var(--confirm-light), var(--confirm) 80%); }
@@ -225,9 +232,8 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 
 /* ---------- cartas de la mesa: menos pegadas, símbolos grandes y zoom al pasar el cursor ---------- */
 .mesa-panel.scroll{ overflow:auto; }
-.meld .card .corner{ font-size:calc(var(--cw) * .30); }
-.meld .card .corner small{ font-size:calc(var(--cw) * .42); margin-top:0; line-height:1; }
-.meld .card .pip{ font-size:calc(var(--cw) * .66); }
+.meld .card .corner{ font-size:calc(var(--cw) * .3); }
+.meld .card .pip{ font-size:calc(var(--cw) * .6); }
 .meld .card:hover{ transform:translateY(-14%) scale(1.75); z-index:40; box-shadow:0 16px 32px rgba(0,0,0,.65); }
 
 /* ---------- objetivo de la ronda dentro de la barra superior ---------- */
@@ -244,7 +250,7 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .hand-line .card.lifted{ display:none; }
 .card.placeholder.group-ph{ margin-left:0; }
 .ghost-group{ position:fixed; z-index:100; pointer-events:none; display:flex; transform:translate(-50%,-60%) scale(1.05); filter:drop-shadow(0 10px 18px rgba(0,0,0,.5)); }
-.ghost-group .card{ --cw:var(--hw); margin-left:calc(var(--hw) * -.39); }
+.ghost-group .card{ --cw:var(--hw); margin-left:calc(var(--hw) * -.24); }
 .ghost-group .card:first-child{ margin-left:0; }
 
 /* Cartas en la mesa que todavía no confirmaste con ✓ */

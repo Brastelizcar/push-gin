@@ -151,14 +151,19 @@ function leaveRoom() {
 }
 
 // La mesa avisa cuando el jugador quiere volver al menú al terminar la partida.
-setTableHooks({ onExit: leaveRoom, play });
+setTableHooks({ onExit: leaveRoom, play, onMenu: () => { modal = "game"; render(); } });
 
 // ---------- render ----------
 function render() {
   const inTable = room && view && view.phase !== "lobby";
   app.classList.toggle("wide", !!inTable);
   app.classList.toggle("menu", !inTable && screen !== "welcome");
-  if (inTable) return renderTable(app, { view, room, rerender: render });
+  if (inTable) {
+    renderTable(app, { view, room, rerender: render });
+    const over = modalOverlay();
+    if (over) app.append(over);
+    return;
+  }
   if (room && view) return app.replaceChildren(waitingRoom({ view, onStart: () => actions.start(room), onLeave: leaveRoom }));
 
   let page;
@@ -193,15 +198,25 @@ function render() {
       onClaim,
     });
   }
-  const close = () => { modal = null; render(); };
-  const overlay = modal && renderModal(modal, {
-    account, sync, busy, onClose: close, onRedeem, onRequestCode,
-    onSync: () => { modal = "sync"; render(); },
-    onRules: () => { modal = "rules"; render(); },
-    onHelp: () => { modal = "help"; render(); },
-  });
+  const overlay = modalOverlay();
   app.replaceChildren(page, ...(overlay ? [overlay] : []));
   if (status && screen !== "welcome" && screen !== "private") app.append(h("div", { class: "hint wake" }, status));
+}
+
+// Ventana abierta (ajustes, sincronización, reglas, ayuda o el menú de la partida), o null.
+function modalOverlay() {
+  if (!modal) return null;
+  const close = () => { modal = null; render(); };
+  return renderModal(modal, {
+    account, sync, busy, onClose: close, onRedeem, onRequestCode,
+    onSync: () => { modal = "sync"; render(); },
+    onSettings: () => { modal = "settings"; render(); },
+    onRules: () => { modal = "rules"; render(); },
+    onHelp: () => { modal = "help"; render(); },
+    inGame: !!view && (view.phase === "playing" || view.phase === "roundOver"),
+    practiceLocal: !!room?.practice,
+    onExit: () => { modal = null; leaveRoom(); },
+  });
 }
 
 // Escape cierra la ventana abierta (ajustes, sincronización, reglas…).

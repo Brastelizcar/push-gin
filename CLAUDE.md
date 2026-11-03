@@ -62,7 +62,11 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
 - Lote 2 (jugada validada): hecho. Todo se juega ARRASTRANDO (no hay selección de cartas ni botón «A la mesa»).
   Mantener presionada la 1.ª o última carta de un grupo de cartas JUNTAS (`groupAt` en client/src/staging.js) lo toma
   entero; al soltarlo en la mano quedan juntas pero sueltas (sin agrupación fija). La mano va en una sola fila
-  (`fitHand` encima/achica). La mesa muestra los plantes sin nombres. ✓ valida con `buildTurn` antes de enviar.
+  (hasta 2 filas; `fitHand` encima/achica si no caben). La mesa muestra los plantes sin nombres. ✓ valida con
+  `buildTurn` antes de enviar.
+- Mesa (UI): cartas de 4 colores (`suitColor`: ♥ rojo, ♠ negro, ♦ azul, ♣ verde), número grande al centro y palo
+  pequeño en la esquina. Riel: «Tus puntos» (puntos de tu mano) y «Pozo» (cuota × jugadores, solo con cuota).
+  Botón ☰: menú de la partida (ajustes de sonido, reglas, ayuda, salir al menú de inicio = abandonar).
 - Lote 3 (cuentas y menús): hecho. Ver "Cuentas" abajo.
 - Lote 4 (práctica con bots, temporizador): hecho. **Con cuenta**, la práctica se juega en el SERVIDOR (sala con la
   opción `practice: nBots`; los bots juegan en `PushGinRoom`) y da la **mitad del XP** (`PRACTICE_XP_FACTOR`), sin fichas.

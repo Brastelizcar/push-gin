@@ -77,6 +77,9 @@
   font-family:'Fraunces',serif; font-weight:700; font-size:24px; box-shadow:0 6px 12px rgba(0,0,0,.4);
 }
 .m-card small{ font-size:18px; }
+.m-game-menu{ display:flex; flex-direction:column; align-items:stretch; gap:10px; min-width:min(320px, 80vw); }
+.m-game-menu .wide{ width:100%; }
+.m-warn{ color:#f0b3ad; text-align:center; margin:4px 0 0; }
 .m-card.red{ color:var(--red); } .m-card.black{ color:var(--black); } .m-card.blue{ color:var(--blue); } .m-card.green{ color:var(--green); }
 .m-card.tilt-l{ transform:rotate(-10deg) translateY(6px); } .m-card.tilt-r{ transform:rotate(10deg) translateY(6px); }
 .m-friends{ display:flex; gap:10px; }

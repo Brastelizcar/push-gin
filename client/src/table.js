@@ -29,7 +29,8 @@ const ui = {
   prevMesa: new Set(),  // cartas que había en la mesa en el render anterior
 };
 const MAX_GAPS = 10;
-const LONG_PRESS_MS = 350; // mantener presionada la primera o última carta de un grupo lo toma entero
+const LONG_PRESS_MS = 350;
+const HAND_STEP = 0.76;   // parte visible de cada carta de la mano (en anchos de carta): deja ver el número // mantener presionada la primera o última carta de un grupo lo toma entero
 let cur = null; // contexto del último render { view, room, rerender, canTake, mustDiscard }
 let hooks = { onExit: () => location.reload(), play: () => {} };
 // main.js conecta aquí la salida al menú y los sonidos.
@@ -57,8 +58,8 @@ const newGapId = () => `gap:${ui.gapSeq++}`;
 
 function cardEl(c, extra = "", idx) {
   return h("div", { class: `card ${suitColor(c.suit)} ${extra}`, "data-id": c.id, ...(idx !== undefined ? { "data-idx": idx } : {}) },
-    h("div", { class: "corner" }, c.rank, h("small", {}, c.suit)),
-    h("div", { class: "pip" }, c.suit));
+    h("div", { class: "corner" }, c.suit),            // palo pequeño arriba a la izquierda
+    h("div", { class: "pip" }, c.rank));              // número grande al centro
 }
 function gapEl(id) {
   return h("div", { class: "hand-gap", "data-id": id, title: "Arrastra para mover · toca para quitar" }, h("span", { class: "gap-line" }));
@@ -185,7 +186,7 @@ function endOfHandRect() {
   const r = last.getBoundingClientRect();
   const w = line.querySelector(".card")?.getBoundingClientRect() ?? r;
   return last.classList.contains("card")
-    ? new DOMRect(r.left + r.width * 0.61, r.top, r.width, r.height)
+    ? new DOMRect(r.left + r.width * HAND_STEP, r.top, r.width, r.height)
     : new DOMRect(r.right, r.bottom - w.height, w.width, w.height);
 }
 
@@ -467,7 +468,7 @@ function beginDrag(e, { kind, mode, card, el, onTap, gapId, group, findGroup }) 
       if (kind === "hand" && cur.mustDiscard) slot().classList.toggle("drag-over", inRect(slot().getBoundingClientRect(), ev.clientX, ev.clientY, 14));
     } else if (overHand) {
       placeholder ??= kind === "gaptool" ? gapEl(newGapId())
-        : kind === "group" ? h("div", { class: "card placeholder group-ph", style: `width:calc(var(--hw) * ${0.61 * group.length + 0.39})` })
+        : kind === "group" ? h("div", { class: "card placeholder group-ph", style: `width:calc(var(--hw) * ${HAND_STEP * group.length + 1 - HAND_STEP})` })
         : h("div", { class: "card placeholder" });
       placeAt(placeholder, ev.clientX, ev.clientY);
     } else if (placeholder) {
@@ -613,7 +614,8 @@ export function renderTable(app, { view, room, rerender }) {
         h("div", { class: "sc-item" + (p.id === me ? " you" : "") },
           h("div", { class: "name" }, p.name), h("div", { class: "total" }, p.total)))),
     h("div", { class: "turn-flag" + (myTurn ? "" : " wait") }, hint, turnClock(view)),
-    h("div", { class: "top-btns" }, sizeButton(() => requestAnimationFrame(fitMesa)), fsButton()));
+    h("div", { class: "top-btns" }, sizeButton(() => requestAnimationFrame(fitMesa)), fsButton(),
+      h("button", { class: "fs-btn menu-btn", title: "Menú: ajustes, reglas y salir", "aria-label": "Menú", onclick: () => hooks.onMenu?.() }, "☰")));
 
   // --- tira de jugadores (dinámica: 2, 3 o 4) ---
   const strip = h("div", { class: "players-strip" },
@@ -665,10 +667,10 @@ export function renderTable(app, { view, room, rerender }) {
       return el;
     }));
   const gapTool = h("div", {
-    class: "gap-tool", title: "Arrastra un espacio entre tus cartas para separarlas",
+    class: "sort-btn gap-btn", title: "Arrastra un espacio entre tus cartas para separarlas",
     onpointerdown: (e) => beginDrag(e, { kind: "gaptool", el: gapTool, onTap: () => toast("Arrastra el espacio hasta el lugar de tu mano donde quieras separar") }),
-  }, h("span", { class: "gap-tool-icon" }, "⇿"), "Espacio");
-  const handPanel = h("div", { class: "hand-panel" }, h("div", { class: "hand-top" }, actionBar(view, planted), gapTool), handLine);
+  }, h("div", { class: "val" }, "⇿"), h("div", { class: "sub" }, "Espacio"));
+  const handPanel = h("div", { class: "hand-panel" }, actionBar(view, planted), handLine);
 
   // --- riel de acciones ---
   let slotClass = "unified-slot", slotBody, slotLabel, dragSlot = null;
@@ -701,13 +703,18 @@ export function renderTable(app, { view, room, rerender }) {
   const turnCheck = mustDiscard ? buildTurn(view, ui.stage, ui.pending, planted) : null;
   const confirmState = !mustDiscard ? "disabled" : turnCheck.turn ? "active" : pendingCard || hasStage() ? "invalid" : "disabled";
   const stagedPoints = [...ui.stage.groups.flatMap((g) => g.cards), ...ui.stage.hooks.map((x) => x.card)].reduce((s, c) => s + points(c), 0);
+  const pot = (view.entryFee ?? 0) * view.players.length;   // lo que se lleva el ganador de la partida
   const rail = h("div", { class: "action-rail" },
-    h("div", { class: "rail-pill" },
-      h("div", { class: "val" }, h("span", { class: "coin" }), view.handPoints - (pendingCard ? points(pendingCard) : 0) - stagedPoints),
-      h("div", { class: "sub" }, "En juego")),
+    h("div", { class: "rail-pill", title: "Puntos de las cartas que te quedan en la mano (los sumas si otro gana la ronda)" },
+      h("div", { class: "val" }, view.handPoints - (pendingCard ? points(pendingCard) : 0) - stagedPoints),
+      h("div", { class: "sub" }, "Tus puntos")),
+    pot ? h("div", { class: "rail-pill pot", title: `Cuota de ${view.entryFee} fichas × ${view.players.length} jugadores: se lo lleva el ganador de la partida` },
+      h("div", { class: "val" }, h("span", { class: "coin" }), pot.toLocaleString("es")),
+      h("div", { class: "sub" }, "Pozo")) : null,
     h("div", { class: "rail-center-group" },
       h("div", { class: "sort-btn", "aria-label": "Ordenar por consecutivos", onclick: () => sortHand("runs") }, h("div", { class: "val" }, "789")),
       h("div", { class: "sort-btn", "aria-label": "Ordenar por tríos", onclick: () => sortHand("sets") }, h("div", { class: "val" }, "777")),
+      gapTool,
       h("button", {
         class: "push-btn" + (canTake && view.deckCount >= 2 ? "" : " disabled"),
         title: view.deckCount < 2 ? "Se acabó el mazo: solo puedes tomar el descarte" : "",
@@ -950,7 +957,8 @@ function fitMesa() {
 window.addEventListener("resize", () => { if (cur) fitMesa(); });
 
 // Otro jugador acaba de plantarse / bajar / enganchar: sus cartas viajan desde su ficha hasta la mesa.
-// La mano va siempre en UNA fila: si no caben, se enciman más (y, si aun así no caben, se achican un poco).
+// La mano ocupa hasta DOS filas: cuando se llena el ancho, las cartas pasan a la fila de abajo. Si ni en dos filas
+// caben, se enciman más (y, si aun así no caben, se achican un poco).
 function fitHand() {
   const line = document.getElementById("handLine");
   if (!line) return;
@@ -958,14 +966,16 @@ function fitHand() {
   line.style.removeProperty("--hov");
   const cards = line.querySelectorAll(".card").length;
   if (cards < 2) return;
-  const W = line.clientWidth;
   const hw = line.querySelector(".card").getBoundingClientRect().width;
   const gaps = line.querySelectorAll(".hand-gap").length;
-  const STEP = 0.61, MIN_STEP = 0.24, GAP = 0.55;       // en anchos de carta
-  const step = (W - hw - gaps * GAP * hw) / (cards - 1);
-  if (step >= STEP * hw) return;                          // caben con el encimado normal
+  const MIN_STEP = 0.3, GAP = 0.7;                        // en anchos de carta
+  const W = line.clientWidth - (gaps * GAP * hw) / 2;     // los espacios se reparten entre las dos filas
+  const perRow = Math.ceil(cards / 2);
+  // En una fila de n cartas: hw + (n − 1) · paso ≤ W
+  const step = (W - hw) / (perRow - 1);
+  if (step >= HAND_STEP * hw) return;                     // en dos filas caben con la separación normal
   if (step >= MIN_STEP * hw) { line.style.setProperty("--hov", `${step - hw}px`); return; }
-  const small = Math.floor(W / (1 + MIN_STEP * (cards - 1) + GAP * gaps));
+  const small = Math.floor(W / (1 + MIN_STEP * (perRow - 1)));
   line.style.setProperty("--hw", `${small}px`);
   line.style.setProperty("--hov", `${(MIN_STEP - 1) * small}px`);
 }

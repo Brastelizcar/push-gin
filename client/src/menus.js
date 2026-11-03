@@ -283,8 +283,24 @@ export function waitingRoom({ view, onStart, onLeave }) {
           h("button", { class: "m-btn red", onclick: onLeave }, "Dejar")))));
 }
 
+// Menú dentro de la partida: ajustes (sonido), reglas, ayuda y volver al menú de inicio.
+// inGame: la partida sigue en curso (salir cuenta como abandonar).
+export function gameMenuModal({ onClose, onSettings, onRules, onHelp, onExit, inGame, practiceLocal }) {
+  const warn = inGame && !practiceLocal
+    ? h("p", { class: "m-text small m-warn" }, "Si sales con la partida en curso, la abandonas: pierdes la cuota y la experiencia.")
+    : null;
+  return modal("Menú", onClose,
+    h("div", { class: "m-game-menu" },
+      h("button", { class: "m-pill wide", onclick: onSettings }, "Ajustes de sonido"),
+      h("button", { class: "m-pill wide", onclick: onRules }, "Reglas del juego"),
+      h("button", { class: "m-pill wide", onclick: onHelp }, "Cómo se juega en la mesa"),
+      warn,
+      h("button", { class: "m-btn red wide", onclick: onExit }, inGame ? "Salir al menú de inicio" : "Volver al menú de inicio")));
+}
+
 // Ventanas que pueden abrirse sobre cualquier menú.
 export function renderModal(kind, props) {
+  if (kind === "game") return gameMenuModal(props);
   if (kind === "settings") return settingsModal(props);
   if (kind === "sync") return syncModal(props);
   if (kind === "rules") return rulesModal(props);
