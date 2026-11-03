@@ -22,14 +22,27 @@ export function handSegments(items) {
   return out.filter((s) => s.length);
 }
 
-// Para cada carta de un tramo que forma plante: { cards, first, last }. Las demás no aparecen.
-export function validGroupsById(items) {
-  const map = new Map();
+// Grupo que se toma al MANTENER PRESIONADA la carta `id`: el plante más largo formado por cartas JUNTAS de la mano
+// (sin espacios en medio) que empieza o termina en esa carta. Si hay empate, gana el que empieza en ella.
+// items: [{card}|{gap}] en el orden de la mano. Devuelve { cards, ordered } o null.
+export function groupAt(items, id) {
   for (const seg of handSegments(items)) {
-    if (!meldShape(seg)) continue;
-    seg.forEach((c, i) => map.set(c.id, { cards: seg, first: i === 0, last: i === seg.length - 1 }));
+    const i = seg.findIndex((c) => c.id === id);
+    if (i < 0) continue;
+    // El más largo de 3 a 13 cartas: hacia la derecha (empieza en la carta) o hacia la izquierda (termina en ella).
+    const longest = (maxLen, slice) => {
+      for (let len = Math.min(13, maxLen); len >= 3; len--) {
+        const cards = slice(len), shape = meldShape(cards);
+        if (shape) return { cards, ordered: shape.ordered };
+      }
+      return null;
+    };
+    const fwd = longest(seg.length - i, (len) => seg.slice(i, i + len));
+    const back = longest(i + 1, (len) => seg.slice(i + 1 - len, i + 1));
+    if (!fwd) return back;
+    return back && back.cards.length > fwd.cards.length ? back : fwd;
   }
-  return map;
+  return null;
 }
 
 export const emptyStage = () => ({ groups: [], hooks: [] });

@@ -189,6 +189,7 @@ export function rulesModal({ onClose }) {
       sec("Tu turno", "Toma el descarte, o haz «push»: la carta del mazo y el descarte van a la mano del siguiente y tú robas una.",
         "Si ya te plantaste puedes bajar combinaciones y enganchar en plantes de la mesa (en el turno en que te plantas no se engancha).",
         "Si se acaba el mazo se juega una vuelta más tomando el descarte; luego todos suman su mano.",
+        "Un cuarteto o un consecutivo de la A a la K completo sale de la mesa.",
         "Siempre terminas descartando una carta. Ganas la ronda al descartar la última."),
       sec("Robo del 2", "Antes de tomar carta, si aún no te plantaste, puedes cambiar un 2 de un plante ajeno por la carta que va en su lugar. Ese turno ya no te puedes plantar."),
       sec("Puntos en contra", "A = 15 · 2 = 20 · 10, J, Q, K = 10 · 3 a 9 = 5"),
@@ -201,7 +202,7 @@ export function helpModal({ onClose }) {
     h("div", { class: "m-rules" },
       h("ul", {},
         h("li", {}, "Ordena tu mano con 789 (consecutivos) o 777 (tríos), o arrastrando cartas. «Espacio» separa grupos."),
-        h("li", {}, "Un grupo válido se marca con una línea verde: arrástralo desde su primera o última carta hasta la mesa."),
+        h("li", {}, "Arrastra una carta para moverla. Para llevar un grupo entero (trío, cuarteto o consecutivo con las cartas juntas), mantén presionada su primera o última carta y arrástralo."),
         h("li", {}, "Suelta una carta sobre un plante para engancharla. Toca un grupo sin confirmar para devolverlo."),
         h("li", {}, "Arrastra al descarte la carta con la que terminas y pulsa ✓. Si la jugada no vale, ✓ te dice por qué y el turno no pasa."))));
 }

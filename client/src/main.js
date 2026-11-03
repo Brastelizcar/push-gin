@@ -129,6 +129,10 @@ function onEvent(ev) {
     notePush({ by: ev.by, to: ev.to, anim: playPushAnimation({ card: view.discardTop, toPid: ev.to, me: view.you }) });
   } else if (ev.type === "turn" && ev.planted) toast(ev.by === view.you ? "¡Te plantaste!" : `${name(ev.by)} se plantó`);
   else if (played && ev.by !== view.you) toast(`${name(ev.by)} ${ev.laid ? "bajó una combinación" : "enganchó en la mesa"}`);
+  if (ev.cleared?.length) {                      // cuarteto o consecutivo de A a K: sale de la mesa
+    const what = ev.cleared.map((k) => (k === "set" ? "un cuarteto" : "un consecutivo de A a K")).join(" y ");
+    setTimeout(() => toast(`¡Se completó ${what}: sale de la mesa!`), 900);
+  }
   else if (ev.type === "timeout") toast(ev.by === view.you ? "Se acabó tu tiempo: el turno pasó" : `A ${name(ev.by)} se le acabó el tiempo`);
   else if (ev.type === "steal") {
     toast(ev.by === view.you ? "Robaste un 2: este turno no puedes plantarte"

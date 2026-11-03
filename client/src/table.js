@@ -3,8 +3,8 @@ import { h, toast, fsButton, sizeButton } from "./dom.js";
 import { actions } from "./net.js";
 import { groupRuns, groupSets } from "./grouping.js";
 import { extendMeld, stealTwo } from "../../src/logic/melds.js";
-import { findPlantGroups, findFreeMelds, planHooks } from "../../src/logic/plan.js";
-import { meldShape, validGroupsById, previewMelds, addToGroup, buildTurn, emptyStage, stagedIds } from "./staging.js";
+import { planHooks } from "../../src/logic/plan.js";
+import { meldShape, groupAt, previewMelds, addToGroup, buildTurn, emptyStage, stagedIds } from "./staging.js";
 
 // ---------- estado SOLO de interfaz (cosmético/local, no se sincroniza: spec sección 0) ----------
 // ui.order es el diseño de TU mano: ids de cartas y "espacios" ("gap:1", "gap:2"…) en el orden que elegiste.
@@ -16,7 +16,6 @@ const ui = {
   arriving: new Set(),  // cartas que están "volando" hacia tu mano (ocultas hasta que lleguen)
   fly: null,            // capa de la animación en curso
   round: null,
-  selected: new Set(),  // cartas que tocaste para plantarte / bajar / enganchar
   stage: emptyStage(),  // jugada sin confirmar: { groups:[{cards, ordered}], hooks:[{meldId, card, end}] }
   flights: new Map(),   // id de carta → { from: rect, at: ms } para animar mano → mesa cuando llegue el estado
   flying: new Set(),    // cartas de la mesa que están llegando volando (ocultas hasta que aterricen)
@@ -29,6 +28,7 @@ const ui = {
   prevMesa: new Set(),  // cartas que había en la mesa en el render anterior
 };
 const MAX_GAPS = 10;
+const LONG_PRESS_MS = 350; // mantener presionada la primera o última carta de un grupo lo toma entero
 let cur = null; // contexto del último render { view, room, rerender, canTake, mustDiscard }
 let hooks = { onExit: () => location.reload(), play: () => {} };
 // main.js conecta aquí la salida al menú y los sonidos.
@@ -226,18 +226,11 @@ function swapWithPending(card) {
   cur.rerender();
 }
 
-// ---------- selección y jugadas de mesa: plantarse, bajar, enganchar, robar un 2 ----------
+// ---------- jugadas de mesa: plantarse, bajar, enganchar, robar un 2 (todo arrastrando) ----------
 const isWild = (c) => c.rank === "2";
 const meldCardsOf = (m) => (m.kind === "set" ? m.cards : m.slots.map((s) => s.card));
 const amPlanted = () => !!cur.view.players.find((p) => p.id === cur.view.you)?.planted;
-const selectedCards = () => layoutItems(cur.view).filter((i) => i.card && ui.selected.has(i.card.id)).map((i) => i.card);
-const toGroups = (groups) => groups.map((g) => ({ cardIds: g.cards.map((c) => c.id), ordered: g.ordered }));
 const send = (fn) => { ui.gameAct = true; fn(); };
-
-function toggleSelect(id) {
-  ui.selected.has(id) ? ui.selected.delete(id) : ui.selected.add(id);
-  cur.rerender();
-}
 
 // Guarda desde dónde sale cada carta (tu mano o tu jugada sin confirmar); cuando el servidor confirme,
 // vuela de ahí a su lugar definitivo en la mesa.
@@ -278,22 +271,6 @@ function applyFlights() {
   }
 }
 
-function plantStatus(sel) {
-  const v = cur.view, total = v.requirement.reduce((s, r) => s + r.size, 0);
-  if (v.stoleThisTurn) return { why: "Robaste un 2: no puedes plantarte este turno" };
-  if (sel.length !== total) return { why: `Selecciona ${total} cartas (llevas ${sel.length})` };
-  const groups = findPlantGroups(sel, v.requirement);
-  if (!groups) return { why: "Esas cartas no forman lo que pide la ronda" };
-  if (keptAfter(total) < 1) return { why: "Debes quedarte con una carta para descartar" };
-  return { groups };
-}
-function layStatus(sel) {
-  const groups = findFreeMelds(sel);
-  if (!groups) return { why: "Esas cartas no forman un trío ni un consecutivo" };
-  if (keptAfter(sel.length) < 1) return { why: "Debes quedarte con una carta para descartar" };
-  return { groups };
-}
-
 // ---------- jugada en preparación: nada se envía hasta pulsar ✓ (todo junto, con playTurn) ----------
 // Cartas que te quedarían (incluida la del descarte) si además apartas `n`.
 const keptAfter = (n) => cur.view.hand.length - stagedIds(ui.stage).size - n;
@@ -304,7 +281,6 @@ function stageGroups(groups) {
   if (keptAfter(groups.reduce((s, g) => s + g.cards.length, 0)) < 1) return toast("Debes quedarte con una carta para descartar");
   ui.stage.groups.push(...groups.map((g) => ({ cards: [...g.cards], ordered: g.ordered === true })));
   hooks.play("card");
-  groups.forEach((g) => g.cards.forEach((c) => ui.selected.delete(c.id)));
   cur.rerender();
 }
 // Enganchar una o varias cartas a un plante de la mesa (propio o ajeno), en el orden que encaje.
@@ -321,7 +297,6 @@ function stageHooks(entry, cards, prefer) {
   if (keptAfter(cards.length) < 1) return toast("Debes quedarte con una carta para descartar");
   ui.stage.hooks.push(...plan.map(({ card, end }) => ({ meldId: entry.id, card, end })));
   hooks.play("card");
-  cards.forEach((c) => ui.selected.delete(c.id));
   cur.rerender();
 }
 function stageIntoGroup(i, cards) {
@@ -330,7 +305,6 @@ function stageIntoGroup(i, cards) {
   if (!g) return toast("No encaja en ese grupo");
   if (keptAfter(cards.length) < 1) return toast("Debes quedarte con una carta para descartar");
   ui.stage.groups[i] = g;
-  cards.forEach((c) => ui.selected.delete(c.id));
   cur.rerender();
 }
 function unstageGroup(i) { ui.stage.groups.splice(i, 1); cur.rerender(); }
@@ -361,32 +335,16 @@ function stealWith(entry, idx, card) {
   send(() => actions.steal2(cur.room, entry.id, idx, card.id));
 }
 
-// Clic en un plante de la mesa: engancha las cartas seleccionadas, quita tus enganches sin confirmar, o roba un 2.
+// Clic en un plante de la mesa: quita tus enganches sin confirmar de ese plante (todo lo demás se hace arrastrando).
 function onMeldClick(e, entry) {
-  const cardEl_ = e.target.closest(".card");
-  const idx = cardEl_ ? Number(cardEl_.dataset.idx) : -1;
-  const sel = selectedCards();
-  if (cur.canTake && !amPlanted()) {
-    if (idx < 0 || !isWild(meldCardsOf(entry.meld)[idx])) return toast("Para robar, toca el 2 que quieres");
-    if (sel.length !== 1) return toast("Selecciona la carta de tu mano que ocupará el lugar del 2");
-    return stealWith(entry, idx, sel[0]);
-  }
-  if (!cur.mustDiscard) {
-    if (cur.canTake && amPlanted()) toast("Primero toma una carta (el descarte o push). Después podrás enganchar");
-    return;
-  }
-  if (!sel.length) {
-    if (ui.stage.hooks.some((x) => x.meldId === entry.id)) return unstageHooks(entry.id);
-    return toast("Arrastra una carta sobre el plante, o selecciónala y toca el plante");
-  }
-  stageHooks(entry, sel);
+  if (!cur.mustDiscard && !cur.canTake) return;
+  if (ui.stage.hooks.some((x) => x.meldId === entry.id)) return unstageHooks(entry.id);
+  toast(cur.canTake && !amPlanted()
+    ? "Para robar un 2, arrastra la carta de tu mano que va en su lugar y suéltala sobre el 2"
+    : "Arrastra una carta de tu mano sobre el plante para engancharla");
 }
-// Clic en un grupo sin confirmar: engancha ahí lo seleccionado, o lo devuelve a tu mano.
-function onStagedClick(i) {
-  const sel = selectedCards();
-  if (sel.length) return stageIntoGroup(i, sel);
-  unstageGroup(i);
-}
+// Clic en un grupo sin confirmar: lo devuelve a tu mano.
+function onStagedClick(i) { unstageGroup(i); }
 
 // ¿Qué hay bajo el puntero? Un plante de la mesa o un grupo sin confirmar (stage = su índice).
 function meldAt(x, y) {
@@ -435,30 +393,23 @@ function dropGroup(cards, x, y) {
 
 // Barra sobre tu mano: qué puedes hacer y cómo va tu jugada.
 function actionBar(view, planted) {
-  const sel = selectedCards();
   const kids = [];
-  const btn = (label, ok, fn) => h("button", { class: "act-btn", disabled: !ok, onclick: fn }, label);
   const text = (t, cls = "") => h("span", { class: "act-text " + cls }, t);
   if (cur.mustDiscard) {
-    if (sel.length) {
-      const st = !planted && !ui.stage.groups.length ? plantStatus(sel) : layStatus(sel);
-      kids.push(btn("A la mesa", !!st.groups, () => stageGroups(st.groups)),
-        text(st.groups ? "Pulsa «A la mesa», o toca un plante para enganchar" : `${st.why} · o toca un plante para enganchar`, st.groups ? "good" : ""));
-    } else if (hasStage()) {
+    if (hasStage()) {
       const res = buildTurn(view, ui.stage, ui.pending, planted);
       kids.push(text(res.turn ? "Jugada lista: pulsa ✓ para terminar el turno" : res.error, res.turn ? "good" : ""));
+      kids.push(h("button", { class: "act-clear", title: "Devolver a tu mano todo lo que pusiste en la mesa", onclick: clearStage }, "↶ Deshacer"));
     } else {
       kids.push(text(planted
-        ? "Arrastra un grupo a la mesa o una carta sobre un plante · termina con ✓"
-        : "Arrastra a la mesa los grupos con los que te plantas (desde su primera o última carta) · termina con ✓"));
+        ? "Arrastra cartas a la mesa · mantén presionada la 1.ª o última carta de un grupo para llevarlo entero · termina con ✓"
+        : "Para plantarte, mantén presionada la 1.ª o última carta de cada grupo y arrástralo a la mesa · termina con ✓"));
     }
-    if (hasStage()) kids.push(h("button", { class: "act-clear", title: "Devolver a tu mano todo lo que pusiste en la mesa", onclick: clearStage }, "↶ Deshacer"));
   } else if (cur.canTake && !planted && view.melds.some((m) => meldCardsOf(m.meld).some(isWild))) {
     kids.push(text("Puedes robar un 2 antes de tomar carta: arrastra una carta que encaje sobre un 2 de la mesa"));
   } else if (cur.canTake && planted) {
     kids.push(text("Toma una carta (descarte o push) para poder bajar o enganchar"));
   }
-  if (sel.length) kids.push(h("button", { class: "act-clear", title: "Quitar selección", onclick: () => { ui.selected.clear(); cur.rerender(); } }, `✕ ${sel.length}`));
   return h("div", { class: "hand-actions" }, kids);
 }
 
@@ -467,30 +418,42 @@ function actionBar(view, planted) {
 // 'gap'     : mover un espacio de tu mano; si lo sueltas fuera de la mano, se quita.
 // 'gaptool' : sacar un espacio nuevo del botón "Espacio" y colocarlo entre tus cartas.
 // 'slot'    : mode 'take' → traer el descarte a tu mano;  mode 'undo' → devolver tu carta pendiente.
-// 'group'   : un grupo válido de tu mano (tomado de su primera o última carta): a la mesa entero, o moverlo en tu mano.
+// 'group'   : un grupo válido de tu mano: se toma MANTENIENDO PRESIONADA su primera o última carta. Va entero a la
+//             mesa, o se mueve en tu mano (las cartas quedan juntas, pero sueltas: no queda agrupado).
 const inRect = (r, x, y, pad = 0) => x > r.left - pad && x < r.right + pad && y > r.top - pad && y < r.bottom + pad;
 
-function beginDrag(e, { kind, mode, card, el, onTap, gapId, group }) {
+function beginDrag(e, { kind, mode, card, el, onTap, gapId, group, findGroup }) {
   if (e.button > 0) return;
   if (e.pointerType === "mouse") e.preventDefault();
   const sx = e.clientX, sy = e.clientY;
-  let ghost = null, placeholder = null;
+  let ghost = null, placeholder = null, pressTimer = null, longPressed = false;
   const panel = () => document.querySelector(".hand-panel");
   const slot = () => document.getElementById("unifiedSlot");
   const gapDrag = kind === "gap" || kind === "gaptool";
-  const inHandKinds = kind === "hand" || kind === "gap";
+  const inHandKinds = () => kind === "hand" || kind === "gap"; // (kind cambia a "group" al mantener presionado)
   const groupEls = () => group.map((c) => document.querySelector(`#handLine [data-id="${c.id}"]`)).filter(Boolean);
   const makeGhost = () => {
     if (gapDrag) return h("div", { class: "ghost-gap" }, h("span", { class: "gap-line" }));
     if (kind === "group") return h("div", { class: "ghost-group" }, group.map((c) => cardEl(c)));
     return cardEl(card, "ghost");
   };
+  // Carta de la mano: si la mantienes presionada sin moverla y es la 1.ª o última de un grupo válido, tomas el grupo.
+  if (kind === "hand" && findGroup) {
+    pressTimer = setTimeout(() => {
+      const g = !ghost && findGroup();
+      if (!g) return;
+      kind = "group"; group = g.cards; longPressed = true;
+      groupEls().forEach((x) => x.classList.add("grp-pick"));
+      hooks.play("card");
+    }, LONG_PRESS_MS);
+  }
 
   const move = (ev) => {
     if (!ghost && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 6) {
+      clearTimeout(pressTimer);
       ghost = makeGhost();
       document.body.append(ghost);
-      if (kind === "group") groupEls().forEach((x) => x.classList.add("lifted"));
+      if (kind === "group") groupEls().forEach((x) => { x.classList.remove("grp-pick"); x.classList.add("lifted"); });
       else if (kind !== "gaptool") el.classList.add("dragging");
     }
     if (!ghost) return;
@@ -499,7 +462,7 @@ function beginDrag(e, { kind, mode, card, el, onTap, gapId, group }) {
     const overHand = inRect(panel().getBoundingClientRect(), ev.clientX, ev.clientY, 12);
     if (kind === "hand" || kind === "group") markMeldHover(ev.clientX, ev.clientY);
     if (kind === "group" && cur.mustDiscard) slot().classList.toggle("drag-over", inRect(slot().getBoundingClientRect(), ev.clientX, ev.clientY, 14));
-    if (inHandKinds) {
+    if (inHandKinds()) {
       if (overHand) placeAt(el, ev.clientX, ev.clientY);
       if (kind === "hand" && cur.mustDiscard) slot().classList.toggle("drag-over", inRect(slot().getBoundingClientRect(), ev.clientX, ev.clientY, 14));
     } else if (overHand) {
@@ -518,7 +481,11 @@ function beginDrag(e, { kind, mode, card, el, onTap, gapId, group }) {
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", end);
     window.removeEventListener("pointercancel", end);
-    if (!ghost) return ev.type === "pointerup" ? onTap?.() : undefined;
+    clearTimeout(pressTimer);
+    if (!ghost) {
+      if (longPressed) { groupEls().forEach((x) => x.classList.remove("grp-pick")); return; }
+      return ev.type === "pointerup" ? onTap?.() : undefined;
+    }
     const ghostRect = ghost.getBoundingClientRect();
     ghost.remove();
     el.classList.remove("dragging");
@@ -532,7 +499,6 @@ function beginDrag(e, { kind, mode, card, el, onTap, gapId, group }) {
         placeholder?.remove();                       // al descarte va solo la carta que tomaste, no el grupo
         if (ui.pending && ui.pending !== card.id) return swapWithPending(card);
         ui.pending = card.id;
-        ui.selected.delete(card.id);
         return cur.rerender();
       }
       if (ok && !overHandNow && (overMesa(ev.clientX, ev.clientY) || meldAt(ev.clientX, ev.clientY))) {
@@ -556,7 +522,6 @@ function beginDrag(e, { kind, mode, card, el, onTap, gapId, group }) {
         if (ui.pending && ui.pending !== card.id) return swapWithPending(card); // intercambio animado
         ui.pending = card.id;                       // descartar (se confirma con ✓)
         hooks.play("card");
-        ui.selected.delete(card.id);
       } else if (overHand) {
         commitDomOrder();                           // reordenar (los espacios no se tocan)
       }
@@ -586,12 +551,12 @@ function beginDrag(e, { kind, mode, card, el, onTap, gapId, group }) {
   window.addEventListener("pointercancel", end);
 }
 
-// El grupo arrastrado queda donde está el hueco, separado por espacios a ambos lados.
+// El grupo arrastrado queda donde está el hueco: sus cartas juntas, pero sueltas (sin espacios ni agrupación fija).
 function moveGroupTo(placeholder, group) {
   const ids = new Set(group.map((c) => c.id));
   const order = [];
   for (const child of document.getElementById("handLine").children) {
-    if (child === placeholder) order.push(newGapId(), ...ids, newGapId());
+    if (child === placeholder) order.push(...ids);
     else if (child.dataset.id && !ids.has(child.dataset.id)) order.push(child.dataset.id);
   }
   ui.order = ui.pending ? [...order, ui.pending] : order;
@@ -606,7 +571,7 @@ export function renderTable(app, { view, room, rerender }) {
   const mustDiscard = myTurn && view.turnPhase === "main";
   cur = { view, room, rerender, canTake, mustDiscard };
 
-  if (ui.round !== view.round) { ui.round = view.round; ui.order = []; ui.selected.clear(); ui.stage = emptyStage(); resetPending(); }
+  if (ui.round !== view.round) { ui.round = view.round; ui.order = []; ui.stage = emptyStage(); resetPending(); }
   if (!mustDiscard || !view.hand.some((c) => c.id === ui.pending)) ui.pending = null;
   // La jugada sin confirmar solo vive durante tu fase 'main'; si alguna carta ya no está en tu mano, se descarta entera.
   const inHand = new Set(view.hand.map((c) => c.id));
@@ -631,7 +596,6 @@ export function renderTable(app, { view, room, rerender }) {
     }
   }
   ui.prevIds = new Set(view.hand.map((c) => c.id));
-  for (const id of [...ui.selected]) if (!view.hand.some((c) => c.id === id) || id === ui.pending) ui.selected.delete(id);
   const planted = !!byId[me]?.planted;
   const canMeldAct = mustDiscard || (canTake && !planted); // los plantes responden al toque / al arrastre
 
@@ -663,39 +627,29 @@ export function renderTable(app, { view, room, rerender }) {
             : h("span", { class: "status-chip" + (p.planted ? "" : " off") }, p.left ? "Abandonó" : p.planted ? "Plantado" : p.connected ? "Sin plantar" : "Desconectado")),
         h("div", { class: "card-count" }, h("span", { class: "icon" }, ""), p.cards))));
 
-  // --- plantes en mesa, agrupados por dueño (con tus enganches sin confirmar ya colocados, en punteado) ---
+  // --- plantes en mesa: de todos (sin nombres). Primero tu jugada sin confirmar, luego los plantes con tus enganches
+  //     sin confirmar ya colocados (en punteado). ---
   const shownMelds = previewMelds(view.melds, ui.stage.hooks);
-  const owners = view.players.filter((p) => shownMelds.some((m) => m.owner === p.id));
   const recent = new Set(view.recentCardIds);
   const stagedHookIds = new Set(ui.stage.hooks.map((x) => x.card.id));
-  const stagedRow = ui.stage.groups.length
-    ? h("div", { class: "owner-row staged-row" },
-        h("div", { class: "owner-label" }, h("span", { class: "dot" }), h("span", { class: "name", title: "Sin confirmar: toca un grupo para devolverlo a tu mano" }, "Tu jugada")),
-        h("div", { class: "melds-line" },
-          ui.stage.groups.map((g, gi) =>
-            h("div", { class: "meld staged-meld tappable", "data-stage": gi, onclick: () => onStagedClick(gi) },
-              g.cards.map((c, i) => cardEl(c, "staged-card " + (isWild(c) ? "wild" : ""), i))))))
-    : null;
+  const stagedMelds = ui.stage.groups.map((g, gi) =>
+    h("div", { class: "meld staged-meld tappable", "data-stage": gi, title: "Sin confirmar: toca para devolverlo a tu mano", onclick: () => onStagedClick(gi) },
+      g.cards.map((c, i) => cardEl(c, "staged-card " + (isWild(c) ? "wild" : ""), i))));
+  const tableMelds = shownMelds.map((m) => {
+    const cards = m.meld.kind === "set" ? m.meld.cards : m.meld.slots.map((s) => s.card);
+    const original = view.melds.find((x) => x.id === m.id);
+    return h("div", { class: "meld" + (canMeldAct ? " tappable" : ""), "data-meld": m.id, onclick: (e) => onMeldClick(e, original) },
+      cards.map((c, i) => cardEl(c, (stagedHookIds.has(c.id) ? "staged-card " : recent.has(c.id) ? "recent " : "") +
+        (isWild(c) ? "wild " : "") + (ui.flying.has(c.id) ? "arriving" : ""), i)));
+  });
   const mesa = h("div", { class: "mesa-panel" + (mustDiscard ? " droppable" : "") },
     h("div", { class: "mesa-title" }, "Plantes en mesa"),
-    stagedRow,
-    owners.length
-      ? owners.map((p) =>
-          h("div", { class: "owner-row" },
-            h("div", { class: "owner-label" }, h("span", { class: "dot" }), h("span", { class: "name" }, p.id === me ? `${p.name} (tú)` : p.name)),
-            h("div", { class: "melds-line" },
-              shownMelds.filter((m) => m.owner === p.id).map((m) => {
-                const cards = m.meld.kind === "set" ? m.meld.cards : m.meld.slots.map((s) => s.card);
-                const original = view.melds.find((x) => x.id === m.id);
-                return h("div", { class: "meld" + (canMeldAct ? " tappable" : ""), "data-meld": m.id, onclick: (e) => onMeldClick(e, original) },
-                  cards.map((c, i) => cardEl(c, (stagedHookIds.has(c.id) ? "staged-card " : recent.has(c.id) ? "recent " : "") +
-                    (isWild(c) ? "wild " : "") + (ui.flying.has(c.id) ? "arriving" : ""), i)));
-              }))))
-      : stagedRow ? null : h("div", { class: "empty-mesa" }, mustDiscard ? "Arrastra aquí tus grupos para plantarte" : "Nadie se ha plantado todavía"));
+    stagedMelds.length || tableMelds.length
+      ? h("div", { class: "melds-line" }, stagedMelds, tableMelds)
+      : h("div", { class: "empty-mesa" }, mustDiscard ? "Arrastra aquí tus grupos para plantarte" : "Nadie se ha plantado todavía"));
 
-  // --- mano: tú decides el orden y los espacios. Los tramos que forman plante se marcan y se arrastran enteros ---
+  // --- mano: tú decides el orden y los espacios. Mantener presionada la 1.ª o última carta de un grupo lo toma entero ---
   const items = layoutItems(view);
-  const groupsById = validGroupsById(items);
   const handLine = h("div", { class: "hand-line", id: "handLine" },
     items.map((it) => {
       if (it.gap) {
@@ -703,14 +657,11 @@ export function renderTable(app, { view, room, rerender }) {
         g.addEventListener("pointerdown", (e) => beginDrag(e, { kind: "gap", el: g, gapId: it.gap, onTap: () => removeGap(it.gap) }));
         return g;
       }
-      const c = it.card, grp = groupsById.get(c.id);
-      const handle = grp && (grp.first || grp.last);
-      const el = cardEl(c, (ui.arriving.has(c.id) ? "arriving " : "") + (ui.selected.has(c.id) ? "selected " : "") +
-        (grp ? "in-grp " : "") + (grp?.first ? "grp-first " : "") + (grp?.last ? "grp-last " : ""));
-      if (handle) el.title = "Arrastra desde aquí para mover el grupo entero";
-      el.addEventListener("pointerdown", (e) => beginDrag(e, handle
-        ? { kind: "group", group: grp.cards, card: c, el, onTap: () => toggleSelect(c.id) }
-        : { kind: "hand", card: c, el, onTap: () => toggleSelect(c.id) }));
+      const c = it.card;
+      const el = cardEl(c, ui.arriving.has(c.id) ? "arriving" : "");
+      el.addEventListener("pointerdown", (e) => beginDrag(e, {
+        kind: "hand", card: c, el, findGroup: () => groupAt(layoutItems(cur.view), c.id),
+      }));
       return el;
     }));
   const gapTool = h("div", {
@@ -777,6 +728,7 @@ export function renderTable(app, { view, room, rerender }) {
   const felt = h("div", { class: "table-felt" }, main, rail);
   app.replaceChildren(h("div", { class: "table-frame wide-frame" }, felt));
   fitMesa();
+  fitHand();
   detectRemotePlay(view);
   applyFlights();
   if (ui.dealPending) {                           // reparto: las cartas salen del mazo hacia tu mano, una por una
@@ -998,6 +950,27 @@ function fitMesa() {
 window.addEventListener("resize", () => { if (cur) fitMesa(); });
 
 // Otro jugador acaba de plantarse / bajar / enganchar: sus cartas viajan desde su ficha hasta la mesa.
+// La mano va siempre en UNA fila: si no caben, se enciman más (y, si aun así no caben, se achican un poco).
+function fitHand() {
+  const line = document.getElementById("handLine");
+  if (!line) return;
+  line.style.removeProperty("--hw");
+  line.style.removeProperty("--hov");
+  const cards = line.querySelectorAll(".card").length;
+  if (cards < 2) return;
+  const W = line.clientWidth;
+  const hw = line.querySelector(".card").getBoundingClientRect().width;
+  const gaps = line.querySelectorAll(".hand-gap").length;
+  const STEP = 0.61, MIN_STEP = 0.24, GAP = 0.55;       // en anchos de carta
+  const step = (W - hw - gaps * GAP * hw) / (cards - 1);
+  if (step >= STEP * hw) return;                          // caben con el encimado normal
+  if (step >= MIN_STEP * hw) { line.style.setProperty("--hov", `${step - hw}px`); return; }
+  const small = Math.floor(W / (1 + MIN_STEP * (cards - 1) + GAP * gaps));
+  line.style.setProperty("--hw", `${small}px`);
+  line.style.setProperty("--hov", `${(MIN_STEP - 1) * small}px`);
+}
+window.addEventListener("resize", () => requestAnimationFrame(fitHand));
+
 export function notePlay(by) { ui.remotePlay = { by, at: performance.now() }; }
 function detectRemotePlay(view) {
   const ids = [...document.querySelectorAll(".mesa-panel .card[data-id]")].map((e) => e.dataset.id);

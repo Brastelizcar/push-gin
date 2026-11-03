@@ -43,10 +43,6 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .mesa-panel{ --mw:calc(var(--hw) * .7 * var(--mscale, 1)); flex:1; min-height:0; overflow:visible; background:rgba(0,0,0,.14); border:1px solid rgba(255,255,255,.07); border-radius:14px; padding:clamp(10px,1.2vw,18px); }
 .mesa-title{ font-size:clamp(10px,.8vw,12px); letter-spacing:.08em; text-transform:uppercase; color:var(--ivory-shade); opacity:.55; margin-bottom:6px; }
 .empty-mesa{ font-size:clamp(12.5px,1.1vw,16px); color:var(--ivory-shade); opacity:.5; text-align:center; padding:clamp(10px,4vh,50px) 0; }
-.owner-row{ display:flex; align-items:center; gap:clamp(8px,1vw,16px); margin-bottom:clamp(4px,1vh,10px); } .owner-row:last-child{ margin-bottom:0; }
-.owner-label{ display:flex; align-items:center; gap:6px; width:clamp(64px,8vw,120px); flex-shrink:0; }
-.owner-label .dot{ width:6px; height:6px; border-radius:50%; background:var(--gold); }
-.owner-label .name{ font-size:clamp(11px,1vw,15px); color:var(--gold-light); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .melds-line{ flex:1; display:flex; gap:clamp(12px,1.6vw,26px); row-gap:6px; flex-wrap:wrap; }
 .meld{ display:flex; }
 .meld .card{ margin-left:calc(var(--mw) * -.34); transition:transform .14s ease-out; } .meld .card:first-child{ margin-left:0; }
@@ -68,9 +64,12 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 
 /* ---------- mano ---------- */
 .hand-panel{ position:relative; background:rgba(0,0,0,.2); border:1.5px solid var(--gold); box-shadow:0 0 0 1px rgba(201,162,39,.25); border-radius:14px; padding:clamp(10px,1.4vh,18px) clamp(12px,1.4vw,22px); }
-.hand-line{ display:flex; align-items:flex-end; flex-wrap:wrap; row-gap:8px; padding-top:calc(var(--hw) * .38); min-height:calc(var(--hw) * 1.43 + var(--hw) * .38); }
+/* Siempre UNA fila: con muchas cartas se enciman más (fitHand ajusta --hov y, si hace falta, --hw) */
+.hand-line{ display:flex; align-items:flex-end; flex-wrap:nowrap; padding-top:calc(var(--hw) * .38); min-height:calc(var(--hw) * 1.43 + var(--hw) * .38); }
+/* La fila nunca ensancha la mesa: su ancho lo pone el cajón (contain) y fitHand acomoda las cartas dentro */
+.hand-panel{ min-width:0; } .hand-line{ min-width:0; contain:inline-size; }
 .hand-line .card, .card.ghost, .card.fly-take{ --cw:var(--hw); }
-.hand-line .card{ margin-left:calc(var(--hw) * -.39); touch-action:none; cursor:grab; transition:transform .15s ease-out; }
+.hand-line .card{ margin-left:var(--hov, calc(var(--hw) * -.39)); touch-action:none; cursor:grab; transition:transform .15s ease-out; }
 .hand-line .card:first-child, .hand-line .hand-gap + .card{ margin-left:0; }
 .hand-line .card:hover{ transform:translateY(calc(var(--hw) * -.2)) scale(1.15); z-index:5; }
 .hand-line .card.dragging{ opacity:.3; transform:none !important; }
@@ -194,9 +193,6 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .deck-back{ width:clamp(12px,1vw,16px); height:clamp(17px,1.4vw,23px); border-radius:3px; border:1.5px solid var(--ivory); background:repeating-linear-gradient(45deg,#7a1f1b 0 3px,#5e1714 3px 6px); box-shadow:0 1px 3px rgba(0,0,0,.5); }
 .deck-num{ font-family:'Fraunces',serif; font-weight:700; font-size:clamp(12px,1.05vw,16px); color:var(--ivory); }
 
-/* ---------- selección de cartas ---------- */
-.hand-line .card.selected{ transform:translateY(calc(var(--hw) * -.26)); outline:2.5px solid var(--gold-light); outline-offset:-1px; box-shadow:0 0 0 3px rgba(230,198,90,.3), 0 8px 14px rgba(0,0,0,.45); z-index:4; }
-.hand-line .card.selected:hover{ transform:translateY(calc(var(--hw) * -.3)) scale(1.08); }
 .card.arriving{ visibility:hidden; }
 
 /* ---------- barra de acciones sobre la mano ---------- */
@@ -242,13 +238,8 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .goal-inline .req-count{ font-size:clamp(13px,1.1vw,17px); }
 
 /* ---------- Lote 2: grupos de la mano y jugada sin confirmar ---------- */
-/* Un tramo de la mano (entre espacios) que forma plante: se separa un poco y lleva una barra verde debajo. */
-.hand-line .card.in-grp::after{ content:""; position:absolute; left:-2px; right:-2px; bottom:calc(var(--hw) * -.14); height:3px; border-radius:2px; background:var(--confirm-light); opacity:.85; }
-.hand-line .card.grp-first{ margin-left:calc(var(--hw) * .12); }
-.hand-line .hand-gap + .card.grp-first{ margin-left:calc(var(--hw) * .12); }
-.hand-line .card.grp-last{ margin-right:calc(var(--hw) * .12); }
-.hand-line .card.grp-first, .hand-line .card.grp-last{ cursor:move; }
-.hand-line .card.grp-first::before, .hand-line .card.grp-last::before{ content:"⠿"; position:absolute; top:2px; right:3px; font-family:'Manrope',sans-serif; font-size:calc(var(--hw) * .2); color:var(--confirm); opacity:.7; }
+/* Mantener presionada la 1.ª o última carta de un grupo: el grupo se levanta un poco (ya lo tomaste) */
+.hand-line .card.grp-pick{ transform:translateY(calc(var(--hw) * -.22)); box-shadow:0 0 0 2.5px var(--confirm-light), 0 8px 14px rgba(0,0,0,.45); z-index:4; }
 .hand-line .card.lifted{ display:none; }
 .card.placeholder.group-ph{ margin-left:0; }
 .ghost-group{ position:fixed; z-index:100; pointer-events:none; display:flex; transform:translate(-50%,-60%) scale(1.05); filter:drop-shadow(0 10px 18px rgba(0,0,0,.5)); }
@@ -257,8 +248,6 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 
 /* Cartas en la mesa que todavía no confirmaste con ✓ */
 .card.staged-card{ outline:2px dashed var(--confirm-light); outline-offset:-1px; opacity:.92; }
-.staged-row .owner-label .dot{ background:var(--confirm-light); }
-.staged-row .owner-label span.name{ color:var(--confirm-light); }
 .meld.staged-meld{ padding:3px; border-radius:8px; background:rgba(127,208,160,.10); }
 .mesa-panel.droppable.drop-over{ outline:2.5px dashed var(--confirm-light); outline-offset:-4px; }
 

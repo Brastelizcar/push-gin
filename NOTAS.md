@@ -15,6 +15,9 @@
 8. **Jugada validada:** plantarse, bajar y enganchar se arman en local y se envían junto con el descarte (`playTurn`).
    **No se puede plantar y enganchar en el mismo turno** (decidido con el usuario, 30-oct-2026): primero te plantas y
    enganchas desde tu próximo turno. Al plantarte sí puedes bajar combinaciones extra en ese mismo turno.
+10. **Plantes completos salen de la mesa** (decidido 2-nov-2026): un cuarteto o un consecutivo de A a K desaparece en
+    cuanto se completa (también si te plantas con un cuarteto), para que la mesa no se llene. La mesa ya no muestra
+    de quién es cada plante (sirven para todos).
 9. Quién empieza la ronda: jugador `roundIndex % nJugadores` (provisional).
 
 ## Pendientes decididos con el usuario (lotes siguientes)

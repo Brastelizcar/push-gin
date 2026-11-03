@@ -118,6 +118,7 @@ Mecánica exclusiva de tu variante, aplicable en tu turno:
    - Si es tu primera vez y tienes la combinación exacta de la ronda → te plantas.
    - Si ya estás plantado → puedes bajar nuevas combinaciones o enganchar cartas en plantes existentes (sin dividirlos).
    - En el turno en que te plantas **no puedes enganchar**: primero te plantas y enganchas desde tu próximo turno.
+   - Cuando un plante se **completa** (un cuarteto, o un consecutivo de la A a la K), **sale de la mesa**.
 4. **Descartar** una carta de tu mano — obligatorio en todos los casos.
 
 ---

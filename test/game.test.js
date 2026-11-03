@@ -102,8 +102,10 @@ test('enganche requiere estar plantado y extender', () => {
   r.phase = 'main';
   assert.equal(r.hook('A', 1, five.id).ok, false); // no plantado
   r.planted.A = true;
-  assert.equal(r.hook('A', 1, five.id).ok, true);  // trío → cuarteto
-  assert.equal(r.melds[0].meld.cards.length, 4);
+  const res = r.hook('A', 1, five.id);
+  assert.equal(res.ok, true);                       // trío → cuarteto…
+  assert.equal(res.cleared.length, 1);              // …completo: sale de la mesa
+  assert.equal(r.melds.some((m) => m.id === 1), false);
 });
 test('ganar descartando la última carta; puntaje del resto', () => {
   const r = mk();
@@ -159,4 +161,50 @@ test('mazo agotado: en la última vuelta todavía se puede ganar la ronda', () =
   assert.equal(win.roundOver, true);
   assert.equal(r.winner, 'B');
   assert.equal(win.exhausted, undefined);
+});
+
+test('mesa: un trío que se completa a cuarteto sale de la mesa', () => {
+  const r = mk();
+  r.planted.A = true; r.phase = 'main';
+  r.melds = [{ id: 1, owner: 'B', meld: { kind: 'set', rank: '8', cards: cs('8♥', '8♠', '8♦') } }];
+  const eight = c('8♣'), extra = c('K♦');
+  r.hands.A = [eight, extra, c('3♥')];
+  const res = r.playTurn('A', { hooks: [{ meldId: 1, cardId: eight.id }], discard: extra.id });
+  assert.equal(res.ok, true);
+  assert.deepEqual(res.cleared.map((x) => x.kind), ['set']);
+  assert.equal(r.melds.length, 0);
+  assert.deepEqual(ids(r.hands.A), ids([r.hands.A[0]]));
+});
+
+test('mesa: un consecutivo de la A a la K sale de la mesa; uno incompleto se queda', () => {
+  const r = mk();
+  r.planted.A = true; r.phase = 'main';
+  const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q'];
+  const slots = ranks.map((rk, i) => ({ card: c(`${rk}♥`), value: i + 1 }));
+  r.melds = [
+    { id: 1, owner: 'B', meld: { kind: 'run', suit: '♥', slots } },
+    { id: 2, owner: 'C', meld: { kind: 'run', suit: '♠', slots: [5, 6, 7].map((v) => ({ card: c(`${v}♠`), value: v })) } },
+  ];
+  const king = c('K♥'), eight = c('8♠'), extra = c('Q♣');
+  r.hands.A = [king, eight, extra, c('3♦')];
+  const res = r.playTurn('A', { hooks: [{ meldId: 1, cardId: king.id }, { meldId: 2, cardId: eight.id }], discard: extra.id });
+  assert.equal(res.ok, true);
+  assert.deepEqual(r.melds.map((m) => m.id), [2]);                    // el 5-8♠ sigue
+  assert.equal(r.melds[0].meld.slots.length, 4);
+});
+
+test('mesa: plantarse con un cuarteto (ronda 5) lo saca de la mesa al instante', () => {
+  const r = mk(4);
+  r.phase = 'main';
+  const quad = cs('9♥', '9♠', '9♦', '9♣'), run = cs('3♣', '4♣', '5♣', '6♣', '7♣', '8♣', '10♣', 'J♣');
+  run.splice(6, 0, c('2♦'));                                            // el 2 hace de 9♣
+  run.pop();                                                             // 3…10♣ con comodín: 8 cartas
+  const extra = c('K♦');
+  r.hands.A = [...quad, ...run, extra, c('Q♠')];
+  const res = r.playTurn('A', {
+    plant: [{ cardIds: ids(quad) }, { cardIds: ids(run), ordered: true }], discard: extra.id,
+  });
+  assert.equal(res.ok, true, res.error);
+  assert.equal(r.planted.A, true);
+  assert.deepEqual(r.melds.map((m) => m.meld.kind), ['run']);
 });

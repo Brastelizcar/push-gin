@@ -81,6 +81,9 @@ export function buildRun(cards, { start, ordered } = {}) {
 
 export const meldCards = (m) => (m.kind === 'set' ? m.cards : m.slots.map((s) => s.card));
 
+// Plante COMPLETO: un cuarteto, o un consecutivo de la A a la K (13 cartas). Al completarse sale de la mesa.
+export const isCompleteMeld = (m) => (m.kind === 'set' ? m.cards.length === 4 : m.slots.length === MAX_RUN_LENGTH);
+
 // Enganche: solo EXTIENDE. Set → hasta cuarteto. Run → por cualquiera de los extremos.
 export function extendMeld(meld, card, end) {
   if (meld.kind === 'set') {

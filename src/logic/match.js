@@ -140,7 +140,8 @@ export class Match {
         const turn = cleanTurn(m);
         if (!turn) return fail('Mensaje inválido');
         return this.#act((g) => g.playTurn(pid, turn),
-          (res) => ({ type: 'turn', by: pid, planted: res.plantedNow, laid: res.laid, hooked: res.hooked }));
+          (res) => ({ type: 'turn', by: pid, planted: res.plantedNow, laid: res.laid, hooked: res.hooked,
+            ...(res.cleared?.length && { cleared: res.cleared.map((c) => c.kind) }) }));
       }
       case 'discard':
         if (typeof m?.cardId !== 'string') return fail('Mensaje inválido');

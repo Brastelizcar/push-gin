@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { meldShape, handSegments, validGroupsById, previewMelds, addToGroup, buildTurn, emptyStage, stagedIds } from "../src/staging.js";
+import { meldShape, handSegments, groupAt, previewMelds, addToGroup, buildTurn, emptyStage, stagedIds } from "../src/staging.js";
 
 let n = 0;
 const c = (s) => ({ id: `s${n++}`, rank: s.slice(0, -1), suit: s.slice(-1) });
@@ -16,17 +16,24 @@ test("meldShape: trío, consecutivo en orden (el 2 por posición) y nada", () =>
   assert.equal(meldShape(cs("5♥", "6♠", "7♥")), null);
 });
 
-test("tramos de la mano: los espacios separan grupos y solo los válidos se marcan", () => {
+test("tramos de la mano: los espacios los separan", () => {
   const a = cs("7♠", "7♥", "7♦"), b = cs("K♣", "3♦"), d = cs("4♣", "5♣", "6♣", "7♣");
-  const it = items(a, b, d);
-  assert.deepEqual(handSegments(it).map((s) => s.length), [3, 2, 4]);
-  const map = validGroupsById(it);
-  assert.equal(map.size, 7);
-  assert.equal(map.get(a[0].id).first, true);
-  assert.equal(map.get(a[2].id).last, true);
-  assert.equal(map.get(d[1].id).first, false);
-  assert.equal(map.has(b[0].id), false);
-  assert.equal(validGroupsById(items([...a, ...b])).size, 0);   // sin espacio, el tramo entero no es plante
+  assert.deepEqual(handSegments(items(a, b, d)).map((s) => s.length), [3, 2, 4]);
+});
+
+test("groupAt: mantener presionada la 1.ª o última carta de un grupo de cartas juntas lo toma entero", () => {
+  const h = cs("K♣", "8♥", "8♠", "8♦", "3♦", "4♣", "5♣", "6♣", "7♣", "Q♥");
+  const it = items(h);
+  const ids = (g) => g?.cards.map((x) => x.id);
+  assert.deepEqual(ids(groupAt(it, h[1].id)), ids({ cards: h.slice(1, 4) }));   // 1.er ocho → el trío
+  assert.deepEqual(ids(groupAt(it, h[3].id)), ids({ cards: h.slice(1, 4) }));   // último ocho → el trío
+  assert.deepEqual(ids(groupAt(it, h[5].id)), ids({ cards: h.slice(5, 9) }));   // 4♣ → 4-5-6-7♣ (el más largo)
+  assert.deepEqual(ids(groupAt(it, h[8].id)), ids({ cards: h.slice(5, 9) }));   // 7♣ → el mismo, desde el final
+  assert.equal(groupAt(it, h[0].id), null);                                     // la K sola no forma nada
+  assert.equal(groupAt(it, h[9].id), null);
+  // Un espacio en medio corta el grupo: 8♥ 8♠ | 8♦ ya no es trío.
+  const split = items(h.slice(1, 3), h.slice(3, 4));
+  assert.equal(groupAt(split, h[1].id), null);
 });
 
 test("previewMelds aplica los enganches sin tocar la mesa real", () => {

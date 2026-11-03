@@ -25,6 +25,8 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
   viejo van a la MANO del siguiente; tú robas una) → plantarte / bajar / enganchar → **descartar** (obligatorio).
 - Enganchar y bajar solo **después de tomar carta**. Robar 2s solo **antes** de tomar carta; si robas, no te plantas ese turno.
 - **No se planta y engancha en el mismo turno:** primero te plantas; enganchas desde tu próximo turno (bajar extra sí).
+- **Plante completo sale de la mesa:** un cuarteto, o un consecutivo de A a K (13 cartas), desaparece al completarse
+  (`isCompleteMeld`, `Round._commit`; evento `turn` con `cleared`). Incluye plantarse con un cuarteto (ronda 5).
 - Plantarse exige EXACTAMENTE el requisito de la ronda. Tras jugar debes conservar ≥1 carta para descartar:
   se gana descartando la última carta. Puntos de lo que queda en mano: A=15, 2=20, 10/J/Q/K=10, 3–9=5. Gana el menor total.
 - Quién empieza la ronda: jugador `roundIndex % nJugadores` (provisional).
@@ -57,8 +59,10 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
 
 ## Estado
 - Lote 1 (juego completo multijugador): hecho.
-- Lote 2 (jugada validada): hecho. Grupos válidos de la mano (tramos entre espacios) se marcan y se arrastran
-  enteros desde su primera o última carta; ✓ valida con `buildTurn` (client/src/staging.js) antes de enviar.
+- Lote 2 (jugada validada): hecho. Todo se juega ARRASTRANDO (no hay selección de cartas ni botón «A la mesa»).
+  Mantener presionada la 1.ª o última carta de un grupo de cartas JUNTAS (`groupAt` en client/src/staging.js) lo toma
+  entero; al soltarlo en la mano quedan juntas pero sueltas (sin agrupación fija). La mano va en una sola fila
+  (`fitHand` encima/achica). La mesa muestra los plantes sin nombres. ✓ valida con `buildTurn` antes de enviar.
 - Lote 3 (cuentas y menús): hecho. Ver "Cuentas" abajo.
 - Lote 4 (práctica con bots, temporizador): hecho. **Con cuenta**, la práctica se juega en el SERVIDOR (sala con la
   opción `practice: nBots`; los bots juegan en `PushGinRoom`) y da la **mitad del XP** (`PRACTICE_XP_FACTOR`), sin fichas.

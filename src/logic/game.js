@@ -1,7 +1,7 @@
 // Estado y turnos de UNA ronda. Pensado para vivir en el servidor (Colyseus) más adelante:
 // cada método valida y devuelve { ok:true, ... } o { ok:false, error }.
 import { makeDeck, shuffle, cardPoints } from './cards.js';
-import { stealTwo } from './melds.js';
+import { stealTwo, isCompleteMeld, meldCards } from './melds.js';
 import { resolveTurn } from './turn.js';
 
 export const HAND_SIZE = 10;
@@ -105,11 +105,13 @@ export class Round {
     }, pid, turn);
     if (!res.ok) return res;
     this.hands[pid] = res.hand;
-    this.melds = res.melds;
+    // Los plantes que quedan completos (cuarteto, o consecutivo de A a K) salen de la mesa.
+    const cleared = res.melds.filter((e) => isCompleteMeld(e.meld));
+    this.melds = res.melds.filter((e) => !isCompleteMeld(e.meld));
     this.nextMeldId = res.nextMeldId;
     this.planted[pid] = res.planted;
     if (res.playedCards.length) this._markRecent(res.playedCards);
-    return res;
+    return { ...res, cleared: cleared.map((e) => ({ id: e.id, owner: e.owner, kind: e.meld.kind, cards: meldCards(e.meld) })) };
   }
 
   // Jugada COMPLETA del turno: plantarse/bajar/enganchar y descartar, todo o nada.
@@ -119,7 +121,7 @@ export class Round {
     const res = this._commit(pid, turn);
     if (!res.ok) return res;
     const d = this.discard(pid, turn.discard);
-    return ok({ ...d, plantedNow: res.plantedNow, laid: res.laid, hooked: res.hooked });
+    return ok({ ...d, plantedNow: res.plantedNow, laid: res.laid, hooked: res.hooked, cleared: res.cleared });
   }
 
   // Acciones sueltas (las usa la lógica y las pruebas; el servidor solo expone playTurn).
