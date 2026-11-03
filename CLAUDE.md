@@ -76,7 +76,7 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
 - Animaciones: reparto y tu carta tras un push (`flyFromDeck`), tomar el descarte (`flyCard`), push en dos tiempos
   (si te lo hacen a ti, las 2 cartas vuelan del descarte a tus casillas), jugadas a la mesa (`applyFlights`,
   `detectRemotePlay`), lo que hacen los demás con el descarte (`detectRemoteDiscard` + `flyBetween`) y el plante
-  completo que sale de la mesa (`noteCleared`: brilla en dorado y se levanta). Bots: 1,5–2,4 s por movimiento.
+  completo que sale de la mesa (`noteCleared`: las cartas se voltean una a una y el grupo se apaga). Bots: 1,5–2,4 s por movimiento.
 - Lote 3 (cuentas y menús): hecho. Ver "Cuentas" abajo.
 - Lote 4 (práctica con bots, temporizador): hecho. **Con cuenta**, la práctica se juega en el SERVIDOR (sala con la
   opción `practice: nBots`; los bots juegan en `PushGinRoom`) y da la **mitad del XP** (`PRACTICE_XP_FACTOR`), sin fichas.

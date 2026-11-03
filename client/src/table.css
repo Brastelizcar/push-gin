@@ -38,11 +38,13 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .unified-slot.landing > *{ visibility:hidden; }
 .p-chip .avatar{ width:clamp(24px,2vw,32px); height:clamp(24px,2vw,32px); font-size:clamp(10.5px,.9vw,14px); }
 .p-chip .avatar.with-img{ width:clamp(30px,2.6vw,42px); height:clamp(30px,2.6vw,42px); background:none; border:0; padding:0; box-shadow:0 2px 6px rgba(0,0,0,.45); }
-/* Plante completo saliendo de la mesa: brillo dorado y se levanta */
-.clear-row{ position:fixed; display:flex; }
-.clear-row .card + .card{ margin-left:calc(var(--mw) * -.22); }
-.card.clear-card{ animation:clear-glow .55s ease-in-out 3 alternate; }
-@keyframes clear-glow{ to{ box-shadow:0 0 0 2px var(--gold-light), 0 0 22px 6px rgba(230,198,90,.75); } }
+/* Plante completo saliendo de la mesa: las cartas se voltean (quedan boca abajo) y el grupo se apaga */
+.clear-row{ position:fixed; display:flex; transform:translate(-50%,-50%); perspective:600px; }
+.clear-slot{ position:relative; width:var(--mw); height:calc(var(--mw) * 1.43); flex-shrink:0; }
+.clear-slot + .clear-slot{ margin-left:calc(var(--mw) * -.22); }
+.clear-slot > .card{ --cw:var(--mw); position:absolute; inset:0; width:100%; height:100%; margin:0; backface-visibility:hidden; }
+.card.clear-back{ transform:rotateY(-90deg); border-radius:calc(var(--mw) * .14);
+  background:repeating-linear-gradient(45deg,#7a1f1b 0 6px,#5e1714 6px 12px); border:2.5px solid var(--ivory); }  /* dorso rojo */
 .p-chip-meta{ display:flex; flex-direction:column; gap:2px; min-width:0; }
 .p-chip .p-name{ color:var(--ivory-shade); font-size:clamp(11.5px,1vw,15px); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .p-chip.you .p-name{ color:var(--gold-light); }

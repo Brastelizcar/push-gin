@@ -934,25 +934,28 @@ function flyBetween(card, from, to, T, size) {
     { duration: T, easing: "cubic-bezier(.3,.7,.3,1)", fill: "forwards" }).finished.catch(() => {}).finally(() => layer.remove());
 }
 
-// Un plante COMPLETO (cuarteto, o consecutivo de A a K) sale de la mesa: sus cartas brillan en dorado, se levantan
-// y se desvanecen. Se dibuja sobre el plante (antes de que el estado nuevo lo quite) o, si no estaba, al centro.
+// Un plante COMPLETO (cuarteto, o consecutivo de A a K) sale de la mesa: sus cartas se dan vuelta una por una (quedan
+// boca abajo) y luego el grupo se desvanece. Se dibuja sobre el plante (antes de que el estado nuevo lo quite) o, si
+// no estaba en la mesa, al centro.
 export function noteCleared(list) {
   const mesa = document.querySelector(".mesa-panel");
   if (!mesa || reduceMotion()) return;
   const mw = document.querySelector(".mesa-panel .card")?.getBoundingClientRect().width ?? 44;
   list.forEach((m, k) => {
     const anchor = (document.querySelector(`.mesa-panel .meld[data-meld="${m.id}"]`) ?? mesa).getBoundingClientRect();
-    const row = h("div", { class: "clear-row", style: `--mw:${mw}px;left:${anchor.left + anchor.width / 2}px;top:${anchor.top + anchor.height / 2}px` },
-      m.cards.map((c) => cardEl(c, "clear-card")));
+    const slots = m.cards.map((c) => h("div", { class: "clear-slot" }, cardEl(c, "clear-face"), h("div", { class: "card fly-draw-back clear-back" })));
+    const row = h("div", { class: "clear-row", style: `--mw:${mw}px;left:${anchor.left + anchor.width / 2}px;top:${anchor.top + anchor.height / 2}px` }, slots);
     const layer = h("div", { class: "fly-layer" }, row);
     document.body.append(layer);
-    row.animate([
-      { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: 0 },
-      { transform: "translate(-50%,-50%) scale(1.18)", opacity: 1, offset: 0.35 },
-      { transform: "translate(-50%,-50%) scale(1.18)", opacity: 1, offset: 0.5 },
-      { transform: "translate(-50%,-110%) scale(.95)", opacity: 0.85, offset: 0.75 },
-      { transform: "translate(-50%,-170%) scale(.7)", opacity: 0, offset: 1 },
-    ], { duration: 2000, delay: k * 250, easing: "ease-in-out", fill: "both" }).finished.catch(() => {}).finally(() => layer.remove());
+    const start = k * 400, step = Math.min(190, 1400 / m.cards.length), half = 200;
+    slots.forEach((slot, i) => {
+      const t = start + i * step;
+      slot.firstChild.animate([{ transform: "rotateY(0deg)" }, { transform: "rotateY(90deg)" }], { duration: half, delay: t, easing: "ease-in", fill: "both" });
+      slot.lastChild.animate([{ transform: "rotateY(-90deg)" }, { transform: "rotateY(0deg)" }], { duration: half, delay: t + half, easing: "ease-out", fill: "both" });
+    });
+    const flipped = start + (m.cards.length - 1) * step + 2 * half;   // todas boca abajo: un momento quietas y se apagan
+    row.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 800, delay: flipped + 450, easing: "ease-in", fill: "both" })
+      .finished.catch(() => {}).finally(() => layer.remove());
   });
 }
 
