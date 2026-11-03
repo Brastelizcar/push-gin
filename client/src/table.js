@@ -6,13 +6,14 @@ import { groupRuns, groupSets } from "./grouping.js";
 import { extendMeld, stealTwo } from "../../src/logic/melds.js";
 import { planHooks } from "../../src/logic/plan.js";
 import { meldShape, groupAt, previewMelds, addToGroup, buildTurn, emptyStage, stagedIds } from "./staging.js";
+import { syncCells, placeCard, placeGroup, cellsFromGroups, nextFree, gridShape, cellItems } from "./handgrid.js";
 
 // ---------- estado SOLO de interfaz (cosmético/local, no se sincroniza: spec sección 0) ----------
-// ui.order es el diseño de TU mano: ids de cartas y "espacios" ("gap:1", "gap:2"…) en el orden que elegiste.
-// Los espacios son elementos propios: mover una carta nunca los cierra ni los junta.
+// ui.cells es TU mano como cuadrícula: cada casilla tiene el id de una carta o null (un espacio que dejaste).
 const ui = {
-  order: [],
-  gapSeq: 1,
+  cells: [],
+  handW: 0,             // ancho medido de la mano (para calcular cuántas casillas caben)
+  incoming: null,       // carta del descarte que arrastraste a tu mano y que el servidor aún no confirma
   pending: null,        // carta arrastrada al descarte, a la espera de ✓
   arriving: new Set(),  // cartas que están "volando" hacia tu mano (ocultas hasta que lleguen)
   fly: null,            // capa de la animación en curso
@@ -28,9 +29,7 @@ const ui = {
   remotePlay: null,     // otro jugador acaba de plantarse / bajar / enganchar: { by, at }
   prevMesa: new Set(),  // cartas que había en la mesa en el render anterior
 };
-const MAX_GAPS = 10;
-const LONG_PRESS_MS = 350;
-const HAND_STEP = 0.76;   // parte visible de cada carta de la mano (en anchos de carta): deja ver el número // mantener presionada la primera o última carta de un grupo lo toma entero
+const LONG_PRESS_MS = 350; // mantener presionada la primera o última carta de un grupo lo toma entero
 let cur = null; // contexto del último render { view, room, rerender, canTake, mustDiscard }
 let hooks = { onExit: () => location.reload(), play: () => {} };
 // main.js conecta aquí la salida al menú y los sonidos.
@@ -38,6 +37,7 @@ export function setTableHooks(next) { hooks = { ...hooks, ...next }; }
 
 export function resetPending() {
   ui.pending = null;
+  ui.incoming = null;
   ui.arriving.clear();
   ui.fly?.remove();
   ui.fly = null;
@@ -53,103 +53,64 @@ export function handleRejected() {
 
 const points = (c) => (c.rank === "A" ? 15 : c.rank === "2" ? 20 : ["10", "J", "Q", "K"].includes(c.rank) ? 10 : 5);
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-const isGapId = (id) => typeof id === "string" && id.startsWith("gap:");
-const newGapId = () => `gap:${ui.gapSeq++}`;
 
 function cardEl(c, extra = "", idx) {
   return h("div", { class: `card ${suitColor(c.suit)} ${extra}`, "data-id": c.id, ...(idx !== undefined ? { "data-idx": idx } : {}) },
     h("div", { class: "corner" }, c.suit),            // palo pequeño arriba a la izquierda
     h("div", { class: "pip" }, c.rank));              // número grande al centro
 }
-function gapEl(id) {
-  return h("div", { class: "hand-gap", "data-id": id, title: "Arrastra para mover · toca para quitar" }, h("span", { class: "gap-line" }));
-}
+// Cara de la carta del descarte (y de la animación del push): igual que las demás, palo pequeño y número grande.
 function faceEl(c) {
-  return h("div", { class: "face" },
-    h("div", { class: "corner " + suitColor(c.suit) }, c.rank),
-    h("div", { class: "suit " + suitColor(c.suit) }, c.suit));
+  return h("div", { class: "face " + suitColor(c.suit) },
+    h("div", { class: "f-suit" }, c.suit),
+    h("div", { class: "f-rank" }, c.rank));
 }
 
-// ---------- diseño de la mano ----------
-// Devuelve [{card}|{gap}] en el orden elegido, sin la carta pendiente de descarte ni las que pusiste en la mesa.
+// ---------- tu mano: una cuadrícula (ver handgrid.js) ----------
+// Cartas que no se muestran en la mano (la del descarte pendiente y las que pusiste en la mesa sin confirmar).
+const hiddenIds = () => new Set([...stagedIds(ui.stage), ...(ui.pending ? [ui.pending] : [])]);
+// Las casillas como [{card}|{gap}]. De paso coloca las cartas nuevas y vacía las que ya no tienes.
 function layoutItems(view) {
-  const byId = new Map(view.hand.map((c) => [c.id, c]));
-  const out = [], seen = new Set(stagedIds(ui.stage));
-  if (ui.pending) seen.add(ui.pending);
-  for (const id of ui.order) {
-    if (isGapId(id)) out.push({ gap: id });
-    else if (byId.has(id) && !seen.has(id)) { out.push({ card: byId.get(id) }); seen.add(id); }
-  }
-  for (const c of view.hand) if (!seen.has(c.id)) out.push({ card: c }); // cartas nuevas al final
-  // Los espacios que ya no separan nada (al inicio, al final o seguidos, p. ej. tras plantarte) desaparecen.
-  const clean = [];
-  for (const it of out) {
-    if (it.gap && (!clean.length || clean.at(-1).gap)) continue;
-    clean.push(it);
-  }
-  while (clean.length && clean.at(-1).gap) clean.pop();
-  return clean;
+  const hand = [...view.hand];
+  if (ui.incoming && !hand.some((c) => c.id === ui.incoming.id)) hand.push(ui.incoming); // aún no confirmada
+  else ui.incoming = null;
+  ui.cells = syncCells(ui.cells, hand.map((c) => c.id));
+  return cellItems(ui.cells, new Map(hand.map((c) => [c.id, c])), hiddenIds());
 }
 const visibleCards = () => layoutItems(cur.view).filter((i) => i.card).map((i) => i.card);
-const layoutIds = () => layoutItems(cur.view).map((i) => i.card?.id ?? i.gap);
 
-// Inserta una carta en la posición idx del diseño (contando cartas y espacios).
-function insertIntoLayout(id, idx) {
-  const ids = layoutIds().filter((x) => x !== id);
-  ids.splice(idx ?? ids.length, 0, id);
-  ui.order = ui.pending ? [...ids, ui.pending] : ids;
-}
-function removeGap(id) { ui.order = ui.order.filter((x) => x !== id); cur.rerender(); }
-
-// Botones 789 / 777: ordenan UNA vez (no quedan activos) y separan los grupos con espacios.
+// Botones 789 / 777: ordenan UNA vez y dejan una casilla vacía entre grupo y grupo.
 function sortHand(mode) {
   const groups = (mode === "runs" ? groupRuns : groupSets)(visibleCards());
-  const order = [];
-  groups.forEach((g, i) => { if (i) order.push(newGapId()); order.push(...g.map((c) => c.id)); });
-  ui.order = ui.pending ? [...order, ui.pending] : order;
+  const hidden = [...hiddenIds()].filter((id) => cur.view.hand.some((c) => c.id === id));
+  ui.cells = [...cellsFromGroups(groups), ...(hidden.length ? [null, ...hidden] : [])];
   cur.rerender();
 }
 
-// Guarda en ui.order el orden actual del DOM (después de arrastrar/soltar).
-function commitDomOrder() {
-  const ids = [...document.getElementById("handLine").querySelectorAll("[data-id]")].map((e) => e.dataset.id);
-  if (ids.filter(isGapId).length > MAX_GAPS) { toast(`Máximo ${MAX_GAPS} espacios`); return false; }
-  ui.order = ui.pending ? [...ids, ui.pending] : ids;
-  return true;
+// Tamaño normal de una casilla en px: la carta de la mano (--hw de table.css) más un poco de aire.
+function cellMax() {
+  const scale = Number(getComputedStyle(document.documentElement).getPropertyValue("--ui-scale")) || 1;
+  const hw = Math.min(84, Math.max(38, Math.min(innerWidth * 0.05, innerHeight * 0.082))) * scale;
+  return hw * 1.1;
 }
-
-// ---------- FLIP (spec 1.3): las cartas se deslizan a su nuevo sitio en 0.15 s ----------
-const snapshot = (line) => new Map([...line.children].map((c) => [c, c.getBoundingClientRect()]));
-function flip(line, before) {
-  if (reduceMotion()) return;
-  for (const c of line.children) {
-    const o = before.get(c);
-    if (!o) continue;
-    const n = c.getBoundingClientRect();
-    const dx = o.left - n.left, dy = o.top - n.top;
-    if (dx || dy) c.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: "none" }], { duration: 150, easing: "ease-out" });
+// Casilla de la mano más cercana al puntero, o -1 si estás fuera de la mano.
+function cellAt(x, y) {
+  const panel = document.querySelector(".hand-panel");
+  if (!panel || !inRect(panel.getBoundingClientRect(), x, y, 12)) return -1;
+  let best = -1, bd = Infinity;
+  for (const el of document.querySelectorAll("#handLine .hand-cell")) {
+    const r = el.getBoundingClientRect();
+    const d = Math.hypot(x - (r.left + r.width / 2), (y - (r.top + r.height / 2)) * 1.3);
+    if (d < bd) { bd = d; best = Number(el.dataset.cell); }
   }
+  return best;
 }
-// Mueve `node` dentro de la mano según el puntero (el elemento más cercano decide el lado).
-function placeAt(node, x, y) {
-  const line = document.getElementById("handLine");
-  const others = [...line.children].filter((c) => c !== node && !c.classList.contains("lifted"));
-  let ref = null;
-  if (others.length) {
-    let best = null, bd = Infinity;
-    for (const c of others) {
-      const r = c.getBoundingClientRect();
-      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      const d = Math.hypot(x - cx, (y - cy) * 1.5);
-      if (d < bd) { bd = d; best = { c, cx }; }
-    }
-    ref = x < best.cx ? best.c : best.c.nextSibling;
-  }
-  if (ref === node || (node.parentNode === line && ref === node.nextSibling)) return;
-  const before = snapshot(line);
-  line.insertBefore(node, ref);
-  flip(line, before);
+// Resalta las casillas donde caería lo que arrastras (una carta o un grupo de n).
+function markCells(from, n = 1) {
+  document.querySelectorAll("#handLine .hand-cell.drop-cell").forEach((e) => e.classList.remove("drop-cell"));
+  for (let i = from; from >= 0 && i < from + n; i++) document.querySelector(`#handLine .hand-cell[data-cell="${i}"]`)?.classList.add("drop-cell");
 }
+const cellRect = (i) => document.querySelector(`#handLine .hand-cell[data-cell="${i}"]`)?.getBoundingClientRect();
 
 // ---------- animación: una carta vuela entre el descarte y tu mano (lenta y con arco) ----------
 function flyCard(card, fromRect, toRect) {
@@ -178,22 +139,18 @@ function flyCard(card, fromRect, toRect) {
   });
 }
 
-// Dónde caerá la carta si la tomas con un clic: al final de tu mano.
+// Dónde caerá la carta si la tomas con un clic: la primera casilla libre después de tu última carta.
 function endOfHandRect() {
-  const line = document.getElementById("handLine");
-  const last = line.lastElementChild;
-  if (!last) return line.getBoundingClientRect();
-  const r = last.getBoundingClientRect();
-  const w = line.querySelector(".card")?.getBoundingClientRect() ?? r;
-  return last.classList.contains("card")
-    ? new DOMRect(r.left + r.width * HAND_STEP, r.top, r.width, r.height)
-    : new DOMRect(r.right, r.bottom - w.height, w.width, w.height);
+  return cellRect(nextFree(ui.cells)) ?? document.getElementById("handLine").getBoundingClientRect();
 }
 
-// Con clic (sin `index`) la carta viaja animada a tu mano. Si la arrastraste tú, ya la moviste con la mano: sin animación.
+// Con clic (sin `index`) la carta viaja animada a tu mano. Si la arrastraste a una casilla, queda ahí sin animación.
 function takeDiscard(card, toRect, index) {
-  insertIntoLayout(card.id, index);
-  if (index === undefined) flyCard(card, document.getElementById("unifiedSlot").getBoundingClientRect(), toRect ?? endOfHandRect());
+  const at = index ?? nextFree(ui.cells);
+  const dest = toRect ?? cellRect(at) ?? endOfHandRect();
+  ui.cells = placeCard(ui.cells, card.id, at);
+  ui.incoming = card;
+  if (index === undefined) flyCard(card, document.getElementById("unifiedSlot").getBoundingClientRect(), dest);
   actions.takeDiscard(cur.room);
 }
 
@@ -201,7 +158,7 @@ function takeDiscard(card, toRect, index) {
 function undoDiscard(card, index) {
   const from = document.getElementById("unifiedSlot").getBoundingClientRect();
   ui.pending = null;
-  if (index !== undefined) { insertIntoLayout(card.id, index); cur.rerender(); return; }
+  if (index !== undefined) { ui.cells = placeCard(ui.cells, card.id, index); cur.rerender(); return; }
   ui.arriving.add(card.id);
   cur.rerender();
   const dest = document.querySelector(`#handLine [data-id="${card.id}"]`)?.getBoundingClientRect();
@@ -215,9 +172,9 @@ function undoDiscard(card, index) {
 function swapWithPending(card) {
   const old = cur.view.hand.find((c) => c.id === ui.pending);
   const from = document.getElementById("unifiedSlot").getBoundingClientRect();
-  const ids = layoutIds();                 // sin la pendiente; incluye la carta que soltaste
-  ids[ids.indexOf(card.id)] = old.id;      // la vieja toma el lugar exacto de la nueva
-  ui.order = [...ids, card.id];
+  const a = ui.cells.indexOf(card.id), b = ui.cells.indexOf(old.id);
+  ui.cells[a] = old.id;                    // la vieja toma la casilla exacta de la nueva
+  if (b >= 0) ui.cells[b] = card.id;
   ui.pending = card.id;                    // la nueva queda en el descarte
   ui.arriving.add(old.id);
   cur.rerender();
@@ -415,29 +372,22 @@ function actionBar(view, planted) {
 }
 
 // ---------- arrastre con Pointer Events (mouse y táctil), spec sección 3 ----------
-// 'hand'    : reordenar tu mano (local) o soltar la carta en el descarte.
-// 'gap'     : mover un espacio de tu mano; si lo sueltas fuera de la mano, se quita.
-// 'gaptool' : sacar un espacio nuevo del botón "Espacio" y colocarlo entre tus cartas.
-// 'slot'    : mode 'take' → traer el descarte a tu mano;  mode 'undo' → devolver tu carta pendiente.
-// 'group'   : un grupo válido de tu mano: se toma MANTENIENDO PRESIONADA su primera o última carta. Va entero a la
-//             mesa, o se mueve en tu mano (las cartas quedan juntas, pero sueltas: no queda agrupado).
+// 'hand'  : mover una carta a otra casilla de tu mano (si está ocupada, empuja las cartas hasta el siguiente espacio),
+//           soltarla en el descarte o sobre un plante de la mesa.
+// 'group' : un grupo válido de tu mano: se toma MANTENIENDO PRESIONADA su primera o última carta. Va entero a la
+//           mesa, o a otras casillas de tu mano (las cartas quedan juntas, pero sueltas: no queda agrupado).
+// 'slot'  : mode 'take' → traer el descarte a una casilla de tu mano;  mode 'undo' → devolver tu carta pendiente.
 const inRect = (r, x, y, pad = 0) => x > r.left - pad && x < r.right + pad && y > r.top - pad && y < r.bottom + pad;
 
-function beginDrag(e, { kind, mode, card, el, onTap, gapId, group, findGroup }) {
+function beginDrag(e, { kind, mode, card, el, onTap, group, findGroup }) {
   if (e.button > 0) return;
   if (e.pointerType === "mouse") e.preventDefault();
   const sx = e.clientX, sy = e.clientY;
-  let ghost = null, placeholder = null, pressTimer = null, longPressed = false;
-  const panel = () => document.querySelector(".hand-panel");
+  let ghost = null, pressTimer = null, longPressed = false;
   const slot = () => document.getElementById("unifiedSlot");
-  const gapDrag = kind === "gap" || kind === "gaptool";
-  const inHandKinds = () => kind === "hand" || kind === "gap"; // (kind cambia a "group" al mantener presionado)
   const groupEls = () => group.map((c) => document.querySelector(`#handLine [data-id="${c.id}"]`)).filter(Boolean);
-  const makeGhost = () => {
-    if (gapDrag) return h("div", { class: "ghost-gap" }, h("span", { class: "gap-line" }));
-    if (kind === "group") return h("div", { class: "ghost-group" }, group.map((c) => cardEl(c)));
-    return cardEl(card, "ghost");
-  };
+  const overSlot = (ev) => inRect(slot().getBoundingClientRect(), ev.clientX, ev.clientY, 14);
+  const makeGhost = () => (kind === "group" ? h("div", { class: "ghost-group" }, group.map((c) => cardEl(c))) : cardEl(card, "ghost"));
   // Carta de la mano: si la mantienes presionada sin moverla y es la 1.ª o última de un grupo válido, tomas el grupo.
   if (kind === "hand" && findGroup) {
     pressTimer = setTimeout(() => {
@@ -455,27 +405,14 @@ function beginDrag(e, { kind, mode, card, el, onTap, gapId, group, findGroup }) 
       ghost = makeGhost();
       document.body.append(ghost);
       if (kind === "group") groupEls().forEach((x) => { x.classList.remove("grp-pick"); x.classList.add("lifted"); });
-      else if (kind !== "gaptool") el.classList.add("dragging");
+      else el.classList.add("dragging");
     }
     if (!ghost) return;
     ghost.style.left = ev.clientX + "px";
     ghost.style.top = ev.clientY + "px";
-    const overHand = inRect(panel().getBoundingClientRect(), ev.clientX, ev.clientY, 12);
-    if (kind === "hand" || kind === "group") markMeldHover(ev.clientX, ev.clientY);
-    if (kind === "group" && cur.mustDiscard) slot().classList.toggle("drag-over", inRect(slot().getBoundingClientRect(), ev.clientX, ev.clientY, 14));
-    if (inHandKinds()) {
-      if (overHand) placeAt(el, ev.clientX, ev.clientY);
-      if (kind === "hand" && cur.mustDiscard) slot().classList.toggle("drag-over", inRect(slot().getBoundingClientRect(), ev.clientX, ev.clientY, 14));
-    } else if (overHand) {
-      placeholder ??= kind === "gaptool" ? gapEl(newGapId())
-        : kind === "group" ? h("div", { class: "card placeholder group-ph", style: `width:calc(var(--hw) * ${HAND_STEP * group.length + 1 - HAND_STEP})` })
-        : h("div", { class: "card placeholder" });
-      placeAt(placeholder, ev.clientX, ev.clientY);
-    } else if (placeholder) {
-      const line = document.getElementById("handLine"), before = snapshot(line);
-      placeholder.remove(); placeholder = null;
-      flip(line, before);
-    }
+    if (kind !== "slot") markMeldHover(ev.clientX, ev.clientY);
+    if (kind !== "slot" && cur.mustDiscard) slot().classList.toggle("drag-over", overSlot(ev));
+    markCells(cellAt(ev.clientX, ev.clientY), kind === "group" ? group.length : 1);
   };
 
   const end = (ev) => {
@@ -487,80 +424,53 @@ function beginDrag(e, { kind, mode, card, el, onTap, gapId, group, findGroup }) 
       if (longPressed) { groupEls().forEach((x) => x.classList.remove("grp-pick")); return; }
       return ev.type === "pointerup" ? onTap?.() : undefined;
     }
-    const ghostRect = ghost.getBoundingClientRect();
     ghost.remove();
     el.classList.remove("dragging");
     slot()?.classList.remove("drag-over");
     markMeldHover();
-    const ok = ev.type === "pointerup" && (kind === "gaptool" || el.isConnected);
+    markCells(-1);
+    const ok = ev.type === "pointerup" && el.isConnected;
+    const target = ok ? cellAt(ev.clientX, ev.clientY) : -1;   // casilla de tu mano donde lo soltaste
+
     if (kind === "group") {
       groupEls().forEach((x) => x.classList.remove("lifted"));
-      const overHandNow = ok && inRect(panel().getBoundingClientRect(), ev.clientX, ev.clientY, 12);
-      if (ok && cur.mustDiscard && inRect(slot().getBoundingClientRect(), ev.clientX, ev.clientY, 14)) {
-        placeholder?.remove();                       // al descarte va solo la carta que tomaste, no el grupo
+      if (ok && cur.mustDiscard && overSlot(ev)) {                // al descarte va solo la carta que tomaste
         if (ui.pending && ui.pending !== card.id) return swapWithPending(card);
         ui.pending = card.id;
         return cur.rerender();
       }
-      if (ok && !overHandNow && (overMesa(ev.clientX, ev.clientY) || meldAt(ev.clientX, ev.clientY))) {
-        placeholder?.remove();
+      if (ok && target < 0 && (overMesa(ev.clientX, ev.clientY) || meldAt(ev.clientX, ev.clientY)))
         return dropGroup(group, ev.clientX, ev.clientY);
-      }
-      if (overHandNow && placeholder) moveGroupTo(placeholder, group);  // reordenar el grupo entero en tu mano
-      placeholder?.remove();
+      if (target >= 0) ui.cells = placeGroup(ui.cells, group.map((c) => c.id), target);
       return cur.rerender();
     }
-    if (kind === "hand" && ok) {                    // ¿la soltaste sobre un plante de la mesa? (enganchar / robar un 2)
-      const target = meldAt(ev.clientX, ev.clientY);
-      if (target) { dropOnMeld(card, target, ev.clientX, ghostRect); return cur.rerender(); }
-      if (cur.mustDiscard && overMesa(ev.clientX, ev.clientY))
-        toast("Una carta sola no es un plante: suéltala sobre un plante para engancharla, o arrastra un grupo");
-    }
-    const overHand = ok && inRect(panel().getBoundingClientRect(), ev.clientX, ev.clientY, 12);
-
     if (kind === "hand") {
-      if (ok && cur.mustDiscard && inRect(slot().getBoundingClientRect(), ev.clientX, ev.clientY, 14)) {
+      if (ok && target < 0) {                                     // ¿sobre un plante de la mesa? (enganchar / robar un 2)
+        const meld = meldAt(ev.clientX, ev.clientY);
+        if (meld) { dropOnMeld(card, meld, ev.clientX); return cur.rerender(); }
+        if (cur.mustDiscard && overMesa(ev.clientX, ev.clientY))
+          toast("Una carta sola no es un plante: suéltala sobre un plante para engancharla, o arrastra un grupo");
+      }
+      if (ok && cur.mustDiscard && overSlot(ev)) {
         if (ui.pending && ui.pending !== card.id) return swapWithPending(card); // intercambio animado
-        ui.pending = card.id;                       // descartar (se confirma con ✓)
+        ui.pending = card.id;                                     // descartar (se confirma con ✓)
         hooks.play("card");
-      } else if (overHand) {
-        commitDomOrder();                           // reordenar (los espacios no se tocan)
+      } else if (target >= 0) {
+        ui.cells = placeCard(ui.cells, card.id, target);          // a otra casilla de tu mano
       }
-      cur.rerender();                               // fuera de todo: la carta vuelve a su sitio
-    } else if (kind === "gap") {
-      if (ok && !overHand) return removeGap(gapId); // soltar fuera de la mano = quitar el espacio
-      if (overHand) commitDomOrder();
-      cur.rerender();
-    } else if (kind === "gaptool") {
-      if (overHand && placeholder) commitDomOrder(); else placeholder?.remove();
-      cur.rerender();
-    } else if (ok && overHand && placeholder) {     // kind 'slot'
-      const idx = [...document.getElementById("handLine").children].indexOf(placeholder);
-      if (mode === "take" && cur.canTake) {
-        takeDiscard(card, undefined, idx);                      // arrastrado: sin animación
-        placeholder.replaceWith(cardEl(card));                  // el hueco se vuelve la carta al instante
-        document.getElementById("unifiedSlot")?.classList.add("taken"); // la carta del slot ya está en tu mano
-      }
-      else if (mode === "undo") undoDiscard(card, idx);
-      else placeholder.remove();
-    } else {
-      placeholder?.remove();
+      return cur.rerender();                                      // fuera de todo: la carta vuelve a su casilla
     }
+    // kind 'slot'
+    if (target < 0) return;
+    if (mode === "take" && cur.canTake) {
+      takeDiscard(card, undefined, target);                       // arrastrada: queda en esa casilla, sin animación
+      document.getElementById("unifiedSlot")?.classList.add("taken");
+      cur.rerender();
+    } else if (mode === "undo") undoDiscard(card, target);
   };
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", end);
   window.addEventListener("pointercancel", end);
-}
-
-// El grupo arrastrado queda donde está el hueco: sus cartas juntas, pero sueltas (sin espacios ni agrupación fija).
-function moveGroupTo(placeholder, group) {
-  const ids = new Set(group.map((c) => c.id));
-  const order = [];
-  for (const child of document.getElementById("handLine").children) {
-    if (child === placeholder) order.push(...ids);
-    else if (child.dataset.id && !ids.has(child.dataset.id)) order.push(child.dataset.id);
-  }
-  ui.order = ui.pending ? [...order, ui.pending] : order;
 }
 
 // ---------- render de la mesa ----------
@@ -572,7 +482,7 @@ export function renderTable(app, { view, room, rerender }) {
   const mustDiscard = myTurn && view.turnPhase === "main";
   cur = { view, room, rerender, canTake, mustDiscard };
 
-  if (ui.round !== view.round) { ui.round = view.round; ui.order = []; ui.stage = emptyStage(); resetPending(); }
+  if (ui.round !== view.round) { ui.round = view.round; ui.cells = []; ui.stage = emptyStage(); resetPending(); }
   if (!mustDiscard || !view.hand.some((c) => c.id === ui.pending)) ui.pending = null;
   // La jugada sin confirmar solo vive durante tu fase 'main'; si alguna carta ya no está en tu mano, se descarta entera.
   const inHand = new Set(view.hand.map((c) => c.id));
@@ -599,6 +509,8 @@ export function renderTable(app, { view, room, rerender }) {
   ui.prevIds = new Set(view.hand.map((c) => c.id));
   const planted = !!byId[me]?.planted;
   const canMeldAct = mustDiscard || (canTake && !planted); // los plantes responden al toque / al arrastre
+  const stagedPoints = [...ui.stage.groups.flatMap((g) => g.cards), ...ui.stage.hooks.map((x) => x.card)].reduce((s, c) => s + points(c), 0);
+  const handPts = view.handPoints - (pendingCard ? points(pendingCard) : 0) - stagedPoints; // puntos que te quedan en la mano
 
   // --- barra superior ---
   const hint = !myTurn
@@ -612,7 +524,8 @@ export function renderTable(app, { view, room, rerender }) {
     h("div", { class: "scoreboard" },
       view.players.map((p) =>
         h("div", { class: "sc-item" + (p.id === me ? " you" : "") },
-          h("div", { class: "name" }, p.name), h("div", { class: "total" }, p.total)))),
+          h("div", { class: "name" }, p.name), h("div", { class: "total" }, p.total),
+          p.id === me ? h("div", { class: "hand-pts", title: "Puntos de las cartas que te quedan en la mano (los sumas si otro gana la ronda)" }, `en mano ${handPts}`) : null))),
     h("div", { class: "turn-flag" + (myTurn ? "" : " wait") }, hint, turnClock(view)),
     h("div", { class: "top-btns" }, sizeButton(() => requestAnimationFrame(fitMesa)), fsButton(),
       h("button", { class: "fs-btn menu-btn", title: "Menú: ajustes, reglas y salir", "aria-label": "Menú", onclick: () => hooks.onMenu?.() }, "☰")));
@@ -650,26 +563,25 @@ export function renderTable(app, { view, room, rerender }) {
       ? h("div", { class: "melds-line" }, stagedMelds, tableMelds)
       : h("div", { class: "empty-mesa" }, mustDiscard ? "Arrastra aquí tus grupos para plantarte" : "Nadie se ha plantado todavía"));
 
-  // --- mano: tú decides el orden y los espacios. Mantener presionada la 1.ª o última carta de un grupo lo toma entero ---
+  // --- mano: una cuadrícula de hasta 2 filas; cada carta en su casilla y las vacías son tus espacios.
+  //     Mantener presionada la 1.ª o última carta de un grupo de cartas juntas lo toma entero. ---
   const items = layoutItems(view);
-  const handLine = h("div", { class: "hand-line", id: "handLine" },
-    items.map((it) => {
-      if (it.gap) {
-        const g = gapEl(it.gap);
-        g.addEventListener("pointerdown", (e) => beginDrag(e, { kind: "gap", el: g, gapId: it.gap, onTap: () => removeGap(it.gap) }));
-        return g;
-      }
-      const c = it.card;
+  const shape = gridShape(items.length, ui.handW || Math.max(300, innerWidth * 0.72), cellMax());
+  const handLine = h("div", {
+    class: "hand-line", id: "handLine",
+    style: `--cols:${shape.cols};--cell:${shape.cell}px;--hw:${(shape.cell / 1.1).toFixed(1)}px`,
+  }, Array.from({ length: shape.rows * shape.cols }, (_, i) => {
+    const c = items[i]?.card;
+    const cell = h("div", { class: "hand-cell" + (c ? "" : " empty"), "data-cell": i });
+    if (c) {
       const el = cardEl(c, ui.arriving.has(c.id) ? "arriving" : "");
       el.addEventListener("pointerdown", (e) => beginDrag(e, {
         kind: "hand", card: c, el, findGroup: () => groupAt(layoutItems(cur.view), c.id),
       }));
-      return el;
-    }));
-  const gapTool = h("div", {
-    class: "sort-btn gap-btn", title: "Arrastra un espacio entre tus cartas para separarlas",
-    onpointerdown: (e) => beginDrag(e, { kind: "gaptool", el: gapTool, onTap: () => toast("Arrastra el espacio hasta el lugar de tu mano donde quieras separar") }),
-  }, h("div", { class: "val" }, "⇿"), h("div", { class: "sub" }, "Espacio"));
+      cell.append(el);
+    }
+    return cell;
+  }));
   const handPanel = h("div", { class: "hand-panel" }, actionBar(view, planted), handLine);
 
   // --- riel de acciones ---
@@ -702,19 +614,14 @@ export function renderTable(app, { view, room, rerender }) {
   // ✓ siempre responde en tu turno: si la jugada no vale, explica por qué y no la envía.
   const turnCheck = mustDiscard ? buildTurn(view, ui.stage, ui.pending, planted) : null;
   const confirmState = !mustDiscard ? "disabled" : turnCheck.turn ? "active" : pendingCard || hasStage() ? "invalid" : "disabled";
-  const stagedPoints = [...ui.stage.groups.flatMap((g) => g.cards), ...ui.stage.hooks.map((x) => x.card)].reduce((s, c) => s + points(c), 0);
   const pot = (view.entryFee ?? 0) * view.players.length;   // lo que se lleva el ganador de la partida
   const rail = h("div", { class: "action-rail" },
-    h("div", { class: "rail-pill", title: "Puntos de las cartas que te quedan en la mano (los sumas si otro gana la ronda)" },
-      h("div", { class: "val" }, view.handPoints - (pendingCard ? points(pendingCard) : 0) - stagedPoints),
-      h("div", { class: "sub" }, "Tus puntos")),
     pot ? h("div", { class: "rail-pill pot", title: `Cuota de ${view.entryFee} fichas × ${view.players.length} jugadores: se lo lleva el ganador de la partida` },
       h("div", { class: "val" }, h("span", { class: "coin" }), pot.toLocaleString("es")),
       h("div", { class: "sub" }, "Pozo")) : null,
     h("div", { class: "rail-center-group" },
       h("div", { class: "sort-btn", "aria-label": "Ordenar por consecutivos", onclick: () => sortHand("runs") }, h("div", { class: "val" }, "789")),
       h("div", { class: "sort-btn", "aria-label": "Ordenar por tríos", onclick: () => sortHand("sets") }, h("div", { class: "val" }, "777")),
-      gapTool,
       h("button", {
         class: "push-btn" + (canTake && view.deckCount >= 2 ? "" : " disabled"),
         title: view.deckCount < 2 ? "Se acabó el mazo: solo puedes tomar el descarte" : "",
@@ -957,29 +864,14 @@ function fitMesa() {
 window.addEventListener("resize", () => { if (cur) fitMesa(); });
 
 // Otro jugador acaba de plantarse / bajar / enganchar: sus cartas viajan desde su ficha hasta la mesa.
-// La mano ocupa hasta DOS filas: cuando se llena el ancho, las cartas pasan a la fila de abajo. Si ni en dos filas
-// caben, se enciman más (y, si aun así no caben, se achican un poco).
+// La cuadrícula de la mano se calcula con el ancho disponible: se mide tras dibujar y, si cambió, se redibuja.
 function fitHand() {
   const line = document.getElementById("handLine");
   if (!line) return;
-  line.style.removeProperty("--hw");
-  line.style.removeProperty("--hov");
-  const cards = line.querySelectorAll(".card").length;
-  if (cards < 2) return;
-  const hw = line.querySelector(".card").getBoundingClientRect().width;
-  const gaps = line.querySelectorAll(".hand-gap").length;
-  const MIN_STEP = 0.3, GAP = 0.7;                        // en anchos de carta
-  const W = line.clientWidth - (gaps * GAP * hw) / 2;     // los espacios se reparten entre las dos filas
-  const perRow = Math.ceil(cards / 2);
-  // En una fila de n cartas: hw + (n − 1) · paso ≤ W
-  const step = (W - hw) / (perRow - 1);
-  if (step >= HAND_STEP * hw) return;                     // en dos filas caben con la separación normal
-  if (step >= MIN_STEP * hw) { line.style.setProperty("--hov", `${step - hw}px`); return; }
-  const small = Math.floor(W / (1 + MIN_STEP * (perRow - 1)));
-  line.style.setProperty("--hw", `${small}px`);
-  line.style.setProperty("--hov", `${(MIN_STEP - 1) * small}px`);
+  const w = line.clientWidth;
+  if (Math.abs(w - ui.handW) > 2) { ui.handW = w; cur.rerender(); }
 }
-window.addEventListener("resize", () => requestAnimationFrame(fitHand));
+window.addEventListener("resize", () => requestAnimationFrame(() => cur && cur.rerender()));
 
 export function notePlay(by) { ui.remotePlay = { by, at: performance.now() }; }
 function detectRemotePlay(view) {
