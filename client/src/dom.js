@@ -41,3 +41,7 @@ document.addEventListener("fullscreenchange", () => {
   document.querySelectorAll(".fs-btn").forEach((b) => (b.textContent = on ? "🗗" : "⛶"));
 });
 
+
+// Imagen de un avatar (1 a 8, en client/public/avatars). Con aro dorado incluido.
+export const avatarSrc = (n) => `${import.meta.env.BASE_URL}avatars/avatar-${n}.webp`;
+export const avatarImg = (n, alt = "") => h("img", { class: "avatar-img", src: avatarSrc(n), alt, draggable: "false" });

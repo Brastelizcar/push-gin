@@ -1,6 +1,6 @@
 import { Room, matchMaker } from "colyseus";
 import {
-  Match, seededRng, ENTRY_FEES, gameRewards, levelInfo, botMove, BOT_NAMES, isBot, PRACTICE_XP_FACTOR,
+  Match, seededRng, ENTRY_FEES, gameRewards, levelInfo, botMove, BOT_NAMES, BOT_AVATARS, isBot, PRACTICE_XP_FACTOR,
 } from "../../../src/logic/index.js";
 import { initStore, publicAccount } from "../accounts/store.js";
 import { PushGinState } from "./schema/PushGinState.js";
@@ -31,7 +31,7 @@ export class PushGinRoom extends Room {
   turnTimer = null;
   reconnectSeconds = RECONNECT_SECONDS; // (las pruebas lo acortan)
   practice = 0;         // práctica contra bots: cuántos bots (0 = partida normal). Da la mitad del XP.
-  botDelay = [700, 1300]; // ms que "piensa" cada bot (las pruebas lo acortan)
+  botDelay = [1500, 2400]; // ms que "piensa" cada bot antes de cada movimiento (las pruebas lo acortan)
   botTimer = null;
 
   get game() { return this.match.game; } // la ronda actual (las pruebas la usan)
@@ -90,9 +90,9 @@ export class PushGinRoom extends Room {
     const account = auth?.account ?? null;
     if (account) this.accounts.set(client.sessionId, account.id);
     const name = account?.name ?? (String(options?.name ?? "").trim().slice(0, 16) || "Jugador");
-    this.match.addPlayer(client.sessionId, name, account ? levelInfo(account.xp).level : null);
+    this.match.addPlayer(client.sessionId, name, account ? levelInfo(account.xp).level : null, account?.avatar);
     if (this.practice) {                   // la práctica empieza apenas entras
-      BOT_NAMES.slice(0, this.practice).forEach((n, i) => this.match.addPlayer(`bot${i + 1}`, n));
+      BOT_NAMES.slice(0, this.practice).forEach((n, i) => this.match.addPlayer(`bot${i + 1}`, n, null, BOT_AVATARS[i]));
       this.lock();
       this.#handle(client, "start");
       return;

@@ -8,6 +8,7 @@
 // XP y fichas solo cambian por decisión del servidor: ninguna ruta acepta esos valores del cliente.
 import express from "express";
 import { initStore, publicAccount, cleanName } from "./store.js";
+import { isAvatar } from "../../../src/logic/avatars.js";
 
 // Límite de intentos por IP en una ventana de tiempo (memoria del proceso).
 function limiter(max, windowMs) {
@@ -65,6 +66,14 @@ export function mountAccountRoutes(app) {
     const name = cleanName(req.body?.name);
     if (!name) return res.status(400).json({ error: "Escribe tu nombre" });
     res.json({ account: publicAccount(await (await initStore()).rename(acc.id, name)) });
+  }));
+
+  // Cambiar tu avatar (uno de los 8 disponibles).
+  app.post("/api/account/avatar", safe(async (req, res) => {
+    const acc = await auth(req, res); if (!acc) return;
+    const avatar = req.body?.avatar;
+    if (!isAvatar(avatar)) return res.status(400).json({ error: "Ese avatar no existe" });
+    res.json({ account: publicAccount(await (await initStore()).setAvatar(acc.id, avatar)) });
   }));
 
   app.post("/api/chips/claim", safe(async (req, res) => {

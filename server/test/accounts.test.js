@@ -58,6 +58,26 @@ describe("Cuentas: API y salas", () => {
     assert.equal(c.account.chips, 300);                                  // siempre 300, nunca lo que se pida
   });
 
+  it("API: avatar al crear la cuenta y cambiarlo (solo uno de los 8)", async () => {
+    const r = await api("/account", { body: { name: "Ana", avatar: 99 } });
+    assert.ok(r.account.avatar >= 1 && r.account.avatar <= 8);
+    const ok = await api("/account/avatar", { token: r.token, body: { avatar: 4 } });
+    assert.equal(ok.account.avatar, 4);
+    assert.equal((await api("/account/avatar", { token: r.token, body: { avatar: 9 } })).status, 400);
+    assert.equal((await api("/account/avatar", { body: { avatar: 2 } })).status, 401);
+    assert.equal((await api("/account", { token: r.token })).account.avatar, 4);
+  });
+
+  it("sala: los jugadores llevan su avatar (y los bots de práctica el suyo)", async () => {
+    const { account: acc, token } = await store.create("Ana");
+    await store.setAvatar(acc.id, 6);
+    const room = await colyseus.createRoom("push_gin", { practice: 2 });
+    room.botDelay = [60_000, 60_000];
+    const a = await join(room, { token });
+    await tick(150);
+    assert.deepEqual(a.view.players.map((p) => p.avatar), [6, 3, 5]);
+  });
+
   it("API: fichas gratis una vez cada 24 h (lo decide el servidor)", async () => {
     const { token } = await api("/account", { body: { name: "Ana" } });
     const r1 = await api("/chips/claim", { token, body: {} });

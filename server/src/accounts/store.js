@@ -14,6 +14,7 @@
 import { randomBytes, randomInt, createHash } from "node:crypto";
 import { DAILY_CHIPS, claimStatus, levelInfo } from "../../../src/logic/progress.js";
 import { SYNC_ALPHABET, SYNC_CODE_LENGTH, SYNC_CODE_TTL_MS, normalizeSyncCode } from "../../../src/logic/sync.js";
+import { AVATAR_COUNT, avatarFor, isAvatar } from "../../../src/logic/avatars.js";
 
 export const hash = (s) => createHash("sha256").update(s).digest("hex");
 export const newToken = () => randomBytes(32).toString("base64url");            // 43 caracteres
@@ -29,11 +30,14 @@ export const cleanName = (s) => String(s ?? "").replace(/\s+/g, " ").trim().slic
 // Lo que ve el propio jugador de su cuenta (sin ids internos ni secretos).
 export function publicAccount(acc, now = Date.now()) {
   return {
-    name: acc.name, xp: acc.xp, chips: acc.chips,
+    name: acc.name, avatar: acc.avatar, xp: acc.xp, chips: acc.chips,
     ...levelInfo(acc.xp),
     claim: claimStatus(acc.lastClaimAt, now),
   };
 }
+
+// Avatar al azar para una cuenta nueva.
+const newAvatar = () => 1 + randomInt(AVATAR_COUNT);
 
 export class MemoryStore {
   constructor({ now = () => Date.now() } = {}) {
@@ -47,7 +51,7 @@ export class MemoryStore {
   #session(id) { const token = newToken(); this.sessions.set(hash(token), id); return token; }
 
   async create(name) {
-    const acc = { id: newId(), name: cleanName(name) || "Jugador", xp: 0, chips: 0, lastClaimAt: null };
+    const acc = { id: newId(), name: cleanName(name) || "Jugador", avatar: newAvatar(), xp: 0, chips: 0, lastClaimAt: null };
     this.rows.set(acc.id, acc);
     return { account: this.#copy(acc), token: this.#session(acc.id) };
   }
@@ -57,6 +61,7 @@ export class MemoryStore {
   }
   async byId(id) { return this.#copy(this.rows.get(id)); }
   async rename(id, name) { const r = this.rows.get(id); if (r) r.name = cleanName(name) || r.name; return this.#copy(r); }
+  async setAvatar(id, avatar) { const r = this.rows.get(id); if (r && isAvatar(avatar)) r.avatar = avatar; return this.#copy(r); }
 
   // Un código nuevo anula los anteriores sin usar de esa cuenta.
   async createSyncCode(id) {
@@ -101,6 +106,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   last_claim_at TIMESTAMPTZ,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS avatar INTEGER;
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash    TEXT PRIMARY KEY,
   account_id    TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -114,7 +120,7 @@ CREATE TABLE IF NOT EXISTS sync_codes (
 );`;
 
 const fromRow = (r) => r && ({
-  id: r.id, name: r.name, xp: Number(r.xp), chips: Number(r.chips),
+  id: r.id, name: r.name, avatar: isAvatar(r.avatar) ? r.avatar : avatarFor(r.id), xp: Number(r.xp), chips: Number(r.chips),
   lastClaimAt: r.last_claim_at ? new Date(r.last_claim_at).getTime() : null,
 });
 
@@ -129,7 +135,7 @@ export class PgStore {
   }
   async create(name) {
     const { rows } = await this.pool.query(
-      "INSERT INTO accounts (id, name) VALUES ($1, $2) RETURNING *", [newId(), cleanName(name) || "Jugador"]);
+      "INSERT INTO accounts (id, name, avatar) VALUES ($1, $2, $3) RETURNING *", [newId(), cleanName(name) || "Jugador", newAvatar()]);
     const account = fromRow(rows[0]);
     return { account, token: await this.#session(account.id) };
   }
@@ -144,6 +150,11 @@ export class PgStore {
     const n = cleanName(name);
     if (!n) return this.byId(id);
     return fromRow((await this.pool.query("UPDATE accounts SET name = $2 WHERE id = $1 RETURNING *", [id, n])).rows[0]);
+  }
+
+  async setAvatar(id, avatar) {
+    if (!isAvatar(avatar)) return this.byId(id);
+    return fromRow((await this.pool.query("UPDATE accounts SET avatar = $2::int WHERE id = $1 RETURNING *", [id, avatar])).rows[0]);
   }
 
   // El vencimiento se calcula con la hora de la base de datos.

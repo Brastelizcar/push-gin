@@ -1,5 +1,5 @@
 import "./table.css";
-import { h, toast, fsButton } from "./dom.js";
+import { h, toast, fsButton, avatarImg } from "./dom.js";
 import { actions } from "./net.js";
 import { suitColor } from "./format.js";
 import { groupRuns, groupSets } from "./grouping.js";
@@ -542,7 +542,7 @@ export function renderTable(app, { view, room, rerender }) {
         class: "p-chip" + (p.id === me ? " you" : "") + (p.id === view.current && view.phase === "playing" ? " turn" : ""), "data-pid": p.id,
         ...(p.id === view.current && view.phase === "playing" && turnFill(view)),
       },
-        h("div", { class: "avatar" }, (p.name || "?")[0].toUpperCase()),
+        p.avatar ? h("div", { class: "avatar with-img" }, avatarImg(p.avatar, p.name)) : h("div", { class: "avatar" }, (p.name || "?")[0].toUpperCase()),
         h("div", { class: "p-chip-meta" },
           h("div", { class: "p-name" }, p.name),
           p.reconnectMsLeft != null && !p.left
@@ -932,6 +932,28 @@ function flyBetween(card, from, to, T, size) {
   const at = (r) => `translate(${r.left + r.width / 2 - w / 2}px,${r.top + r.height / 2 - hgt / 2}px) scale(${r === size ? 1 : 0.55})`;
   return el.animate([{ transform: at(from), opacity: from === size ? 1 : 0.5 }, { transform: at(to), opacity: to === size ? 1 : 0.3 }],
     { duration: T, easing: "cubic-bezier(.3,.7,.3,1)", fill: "forwards" }).finished.catch(() => {}).finally(() => layer.remove());
+}
+
+// Un plante COMPLETO (cuarteto, o consecutivo de A a K) sale de la mesa: sus cartas brillan en dorado, se levantan
+// y se desvanecen. Se dibuja sobre el plante (antes de que el estado nuevo lo quite) o, si no estaba, al centro.
+export function noteCleared(list) {
+  const mesa = document.querySelector(".mesa-panel");
+  if (!mesa || reduceMotion()) return;
+  const mw = document.querySelector(".mesa-panel .card")?.getBoundingClientRect().width ?? 44;
+  list.forEach((m, k) => {
+    const anchor = (document.querySelector(`.mesa-panel .meld[data-meld="${m.id}"]`) ?? mesa).getBoundingClientRect();
+    const row = h("div", { class: "clear-row", style: `--mw:${mw}px;left:${anchor.left + anchor.width / 2}px;top:${anchor.top + anchor.height / 2}px` },
+      m.cards.map((c) => cardEl(c, "clear-card")));
+    const layer = h("div", { class: "fly-layer" }, row);
+    document.body.append(layer);
+    row.animate([
+      { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: 0 },
+      { transform: "translate(-50%,-50%) scale(1.18)", opacity: 1, offset: 0.35 },
+      { transform: "translate(-50%,-50%) scale(1.18)", opacity: 1, offset: 0.5 },
+      { transform: "translate(-50%,-110%) scale(.95)", opacity: 0.85, offset: 0.75 },
+      { transform: "translate(-50%,-170%) scale(.7)", opacity: 0, offset: 1 },
+    ], { duration: 2000, delay: k * 250, easing: "ease-in-out", fill: "both" }).finished.catch(() => {}).finally(() => layer.remove());
+  });
 }
 
 export function notePlay(by) { ui.remotePlay = { by, at: performance.now() }; }

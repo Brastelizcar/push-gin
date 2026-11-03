@@ -4,6 +4,7 @@
 import { Round } from './game.js';
 import { TOTAL_ROUNDS, ROUND_REQUIREMENTS } from './rounds.js';
 import { cardPoints } from './cards.js';
+import { avatarFor, isAvatar } from './avatars.js';
 
 export const MIN_PLAYERS = 2;
 export const TURN_TIMES = [0, 30, 45, 60, 90, 120]; // segundos por turno (0 = sin límite)
@@ -42,6 +43,7 @@ export class Match {
     this.order = [];          // ids en orden de llegada (el primero es el anfitrión)
     this.names = new Map();
     this.levels = new Map();
+    this.avatars = new Map();
     this.connected = new Set();
     this.game = null;         // Round actual
     this.roundIndex = 0;
@@ -58,10 +60,11 @@ export class Match {
   get stayed() { return this.order.filter((id) => !this.left.has(id)); }
 
   // ---------- jugadores ----------
-  addPlayer(id, name, level = null) {
+  addPlayer(id, name, level = null, avatar = null) {
     this.order.push(id);
     this.names.set(id, name);
     if (level) this.levels.set(id, level);
+    this.avatars.set(id, isAvatar(avatar) ? avatar : avatarFor(id));
     this.connected.add(id);
   }
   // En la sala de espera se libera el cupo (y el anfitrión pasa al siguiente).
@@ -141,7 +144,7 @@ export class Match {
         if (!turn) return fail('Mensaje inválido');
         return this.#act((g) => g.playTurn(pid, turn),
           (res) => ({ type: 'turn', by: pid, planted: res.plantedNow, laid: res.laid, hooked: res.hooked,
-            ...(res.cleared?.length && { cleared: res.cleared.map((c) => c.kind) }) }));
+            ...(res.cleared?.length && { cleared: res.cleared.map(({ id, kind, cards }) => ({ id, kind, cards })) }) }));
       }
       case 'discard':
         if (typeof m?.cardId !== 'string') return fail('Mensaje inválido');
@@ -224,6 +227,7 @@ export class Match {
       left: this.left.has(id),
       reconnectMsLeft: this.dropped.has(id) ? Math.max(0, this.dropped.get(id) - this.now()) : null,
       level: this.levels.get(id) ?? null,
+      avatar: this.avatars.get(id),
       total: this.totals[id] ?? 0,
       ...(this.game && { cards: this.game.hands[id].length, planted: this.game.planted[id] }),
     }));

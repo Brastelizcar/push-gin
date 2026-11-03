@@ -104,7 +104,16 @@ for (const [label, make] of Object.entries(makers)) {
       const pub = publicAccount(acc);
       assert.equal(pub.level, 2);
       assert.equal(pub.into, 50);
-      assert.deepEqual(Object.keys(pub).sort(), ["chips", "claim", "into", "level", "name", "needed", "xp"]);
+      assert.deepEqual(Object.keys(pub).sort(), ["avatar", "chips", "claim", "into", "level", "name", "needed", "xp"]);
+    });
+
+    it("avatar: cada cuenta nueva trae uno al azar (1 a 8) y se puede cambiar solo a uno que exista", async () => {
+      const { account: a } = await s.create("Ana");
+      assert.ok(a.avatar >= 1 && a.avatar <= 8);
+      assert.equal((await s.setAvatar(a.id, 7)).avatar, 7);
+      assert.equal((await s.setAvatar(a.id, 99)).avatar, 7);           // no existe: no cambia
+      assert.equal((await s.setAvatar(a.id, "3")).avatar, 7);
+      assert.equal((await s.byId(a.id)).avatar, 7);
     });
   });
 }

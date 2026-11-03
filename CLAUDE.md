@@ -8,7 +8,8 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
   - `rounds.js` requisitos de las 5 rondas · `game.js` clase `Round` (estado y turnos de una ronda)
   - `turn.js` jugada completa de un turno, validada de una vez (`resolveTurn`) · `plan.js` ayudas para agrupar cartas
   - `match.js` la PARTIDA (jugadores, 5 rondas, vistas privadas, temporizador). La usan la sala del servidor y la práctica
-  - `bot.js` jugador automático (solo ve su propia vista) · `progress.js` XP, niveles y fichas
+  - `bot.js` jugador automático (solo ve su propia vista; nombres y avatares de los bots) · `progress.js` XP, niveles y fichas
+  - `avatars.js` los 8 avatares (`client/public/avatars/avatar-N.webp`, recortados de `docs/referencias/avatares*.png`)
 - `test/` — pruebas de la lógica (`npm test` en la raíz, `node --test`).
 - `server/` — servidor Colyseus 0.18 (`PushGinRoom`). Pruebas con mocha (`cd server && npm test`).
 - `client/` — Vite + JS sin framework. `table.js` es la mesa; `main.js` las pantallas. Pruebas puras en `client/test` (`cd client && npm test`).
@@ -74,7 +75,8 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
   izquierda). Botón «Terminar turno» dorado. Avisos (toast) justo encima de la mano. Sin botón de tamaño de cartas.
 - Animaciones: reparto y tu carta tras un push (`flyFromDeck`), tomar el descarte (`flyCard`), push en dos tiempos
   (si te lo hacen a ti, las 2 cartas vuelan del descarte a tus casillas), jugadas a la mesa (`applyFlights`,
-  `detectRemotePlay`) y lo que hacen los demás con el descarte (`detectRemoteDiscard` + `flyBetween`).
+  `detectRemotePlay`), lo que hacen los demás con el descarte (`detectRemoteDiscard` + `flyBetween`) y el plante
+  completo que sale de la mesa (`noteCleared`: brilla en dorado y se levanta). Bots: 1,5–2,4 s por movimiento.
 - Lote 3 (cuentas y menús): hecho. Ver "Cuentas" abajo.
 - Lote 4 (práctica con bots, temporizador): hecho. **Con cuenta**, la práctica se juega en el SERVIDOR (sala con la
   opción `practice: nBots`; los bots juegan en `PushGinRoom`) y da la **mitad del XP** (`PRACTICE_XP_FACTOR`), sin fichas.
@@ -91,5 +93,7 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
   atómica y entrega un token NUEVO. Canjes limitados por IP.
 - **XP y fichas los decide siempre el servidor:** premios de la partida, cuota (a todos o a nadie) y fichas gratis.
   Ninguna ruta acepta esos valores del cliente. La práctica da la mitad del XP solo si se juega en el servidor.
-- Cliente: `account.js` (API), `menus.js`/`menus.css`, `settings.js`, `sound.js`.
+- **Avatar:** cada cuenta nueva recibe uno al azar (1–8, columna `accounts.avatar`; cuentas viejas: `avatarFor(id)`).
+  Se cambia tocando el avatar en el menú de inicio (`POST /api/account/avatar`). Los jugadores lo llevan en la vista.
+- Cliente: `account.js` (API), `menus.js`/`menus.css`, `settings.js`, `sound.js`. Los menús ocupan toda la pantalla.
 

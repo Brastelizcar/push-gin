@@ -1,5 +1,9 @@
 /* Menús: mismo lenguaje visual que la mesa (fieltro verde, marco de madera, detalles dorados). */
-#app.menu{ max-width:1080px; }
+/* Los menús (inicio, juego privado, práctica, sala de espera) ocupan toda la pantalla, como la mesa */
+body:has(#app.menu){ padding:6px; align-items:stretch; }
+#app.menu{ max-width:none; height:calc(100vh - 12px); height:calc(100dvh - 12px); }
+#app.menu > .menu-frame:not(.narrow){ height:100%; display:flex; flex-direction:column; }
+#app.menu > .menu-frame:not(.narrow) > .menu-felt{ flex:1; min-height:0; }
 .menu-frame{ width:100%; }
 .menu-frame.narrow{ max-width:560px; margin:0 auto; }
 .menu-felt{
@@ -33,6 +37,19 @@
   display:flex; align-items:center; justify-content:center;
 }
 .m-avatar.small{ width:34px; height:34px; }
+/* Con imagen: el aro dorado ya viene en la imagen */
+.m-avatar.with-img{ background:none; border:0; box-shadow:0 4px 10px rgba(0,0,0,.45); padding:0; }
+.m-avatar.with-img{ width:56px; height:56px; } .m-avatar.small.with-img{ width:38px; height:38px; }
+.avatar-img{ width:100%; height:100%; border-radius:50%; display:block; object-fit:cover; user-select:none; -webkit-user-drag:none; }
+.m-avatar.pickable{ cursor:pointer; transition:transform .12s ease; } .m-avatar.pickable:hover{ transform:scale(1.07); }
+.m-rivals{ display:flex; justify-content:center; gap:22px; margin-top:6px; }
+.m-rival{ display:flex; flex-direction:column; align-items:center; gap:6px; color:var(--ivory); font-weight:700; }
+.m-rival .m-avatar.with-img{ width:72px; height:72px; }
+.m-avatars{ display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; padding:4px; }
+.m-avatar-pick{ width:clamp(64px, 11vw, 104px); aspect-ratio:1; padding:0; border:0; border-radius:50%; background:none; cursor:pointer;
+  box-shadow:0 4px 10px rgba(0,0,0,.45); transition:transform .12s ease, box-shadow .12s ease; }
+.m-avatar-pick:hover{ transform:scale(1.06); }
+.m-avatar-pick.current{ box-shadow:0 0 0 3px var(--confirm-light), 0 0 18px rgba(127,208,160,.6); }
 .m-avatar-letter{ font-family:'Fraunces',serif; font-weight:900; font-size:20px; color:var(--wood-dark); }
 .m-avatar.small .m-avatar-letter{ font-size:15px; }
 .m-level{

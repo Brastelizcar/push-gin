@@ -1,8 +1,8 @@
 import "./style.css";
 import { connect, resume, savedReconnect, actions, wakeServer, IS_REMOTE, SERVER_CONFIGURED, RECONNECT_SECONDS } from "./net.js";
 import { h, toast } from "./dom.js";
-import { renderTable, handleRejected, playPushAnimation, notePush, notePlay, setTableHooks } from "./table.js";
-import { loadAccount, createAccount, requestSyncCode, redeemSyncCode, claimChips, accountFromServer, savedToken } from "./account.js";
+import { renderTable, handleRejected, playPushAnimation, notePush, notePlay, noteCleared, setTableHooks } from "./table.js";
+import { loadAccount, createAccount, requestSyncCode, redeemSyncCode, claimChips, accountFromServer, savedToken, setAvatar } from "./account.js";
 import { welcomeScreen, mainMenu, privateMenu, practiceMenu, waitingRoom, renderModal, tickCountdowns } from "./menus.js";
 import { startPractice } from "./practice.js";
 import { play } from "./sound.js";
@@ -51,6 +51,7 @@ async function withBusy(fn, slowMsg = "Despertando el servidor… la primera vez
 const onCreateAccount = (name) => withBusy(async () => { account = await createAccount(name); screen = "menu"; });
 const onRedeem = (code) => withBusy(async () => { account = await redeemSyncCode(code); modal = null; sync = null; screen = "menu"; toast(`Ahora juegas como ${account.name}`); });
 const onRequestCode = () => withBusy(async () => { sync = await requestSyncCode(); });
+const onPickAvatar = (n) => withBusy(async () => { account = await setAvatar(n); modal = null; play("ok"); });
 const onClaim = () => withBusy(async () => {
   const r = await claimChips();
   account = r.account;
@@ -115,7 +116,7 @@ async function tryResume() {
 function playPractice() {
   leaving = false;
   if (account && !offline && SERVER_CONFIGURED) return join({ mode: "practice", bots, turnTime });
-  room = startPractice({ name: account?.name ?? "Tú", level: account?.level ?? null, bots, turnTime }, roomHandlers());
+  room = startPractice({ name: account?.name ?? "Tú", level: account?.level ?? null, avatar: account?.avatar ?? null, bots, turnTime }, roomHandlers());
 }
 
 function onEvent(ev) {
@@ -130,8 +131,9 @@ function onEvent(ev) {
     notePush({ by: ev.by, to: ev.to, card: view.discardTop, anim: playPushAnimation({ card: view.discardTop, toPid: ev.to, me: view.you }) });
   } else if (ev.type === "turn" && ev.planted) toast(ev.by === view.you ? "¡Te plantaste!" : `${name(ev.by)} se plantó`);
   else if (played && ev.by !== view.you) toast(`${name(ev.by)} ${ev.laid ? "bajó una combinación" : "enganchó en la mesa"}`);
-  if (ev.cleared?.length) {                      // cuarteto o consecutivo de A a K: sale de la mesa
-    const what = ev.cleared.map((k) => (k === "set" ? "un cuarteto" : "un consecutivo de A a K")).join(" y ");
+  if (ev.cleared?.length) {                      // cuarteto o consecutivo de A a K: sale de la mesa (con animación)
+    noteCleared(ev.cleared);
+    const what = ev.cleared.map((m) => (m.kind === "set" ? "un cuarteto" : "un consecutivo de A a K")).join(" y ");
     setTimeout(() => toast(`¡Se completó ${what}: sale de la mesa!`), 900);
   }
   else if (ev.type === "timeout") toast(ev.by === view.you ? "Se acabó tu tiempo: el turno pasó" : `A ${name(ev.by)} se le acabó el tiempo`);
@@ -196,6 +198,7 @@ function render() {
       onPractice: () => setScreen("practice"),
       onSettings: () => { modal = "settings"; render(); },
       onRules: () => { modal = "rules"; render(); },
+      onAvatar: () => { modal = "avatar"; render(); },
       onClaim,
     });
   }
@@ -209,7 +212,7 @@ function modalOverlay() {
   if (!modal) return null;
   const close = () => { modal = null; render(); };
   return renderModal(modal, {
-    account, sync, busy, onClose: close, onRedeem, onRequestCode,
+    account, sync, busy, onClose: close, onRedeem, onRequestCode, onPickAvatar,
     onSync: () => { modal = "sync"; render(); },
     onSettings: () => { modal = "settings"; render(); },
     onRules: () => { modal = "rules"; render(); },

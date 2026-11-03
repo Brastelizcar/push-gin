@@ -212,6 +212,7 @@ export function findSteal(view) {
 
 // Nombres de los bots de práctica (ids bot1, bot2, bot3).
 export const BOT_NAMES = ['Rosa', 'Tomás', 'Lucía'];
+export const BOT_AVATARS = [3, 5, 8];   // sus avatares (client/public/avatars)
 export const isBot = (id) => /^bot\d$/.test(id);
 
 // Siguiente acción del bot cuando es su turno.

@@ -48,6 +48,7 @@ export async function redeemSyncCode(code) {
   return withClock(account);
 }
 export const renameAccount = async (name) => withClock((await call("/account/name", { body: { name } })).account);
+export const setAvatar = async (avatar) => withClock((await call("/account/avatar", { body: { avatar } })).account);
 export async function claimChips() {
   const r = await call("/chips/claim", { body: {} });
   return { ok: r.ok, account: withClock(r.account) };

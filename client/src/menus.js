@@ -1,7 +1,9 @@
 // Menús: bienvenida, menú principal, ajustes, sincronización, reglas, juego privado y sala de espera.
 // Estilo de la mesa (fieltro, madera y dorado); la disposición sigue las referencias de docs/referencias/.
 import "./menus.css";
-import { h, toast, fsButton } from "./dom.js";
+import { h, toast, fsButton, avatarImg } from "./dom.js";
+import { AVATAR_COUNT } from "../../src/logic/avatars.js";
+import { BOT_NAMES, BOT_AVATARS } from "../../src/logic/bot.js";
 import { formatCountdown, normalizeSyncCode, formatSyncCode, suitColor } from "./format.js";
 import { settings, setSetting } from "./settings.js";
 import { ENTRY_FEES, DAILY_CHIPS } from "../../src/logic/progress.js";
@@ -25,9 +27,13 @@ const frame = (cls, ...content) =>
   h("div", { class: `table-frame menu-frame ${cls}` }, h("div", { class: "menu-felt" }, ...content));
 
 // ---------- avatar con estrella de nivel ----------
-export function avatar(name, level, size = "") {
-  return h("div", { class: `m-avatar ${size}` },
-    h("span", { class: "m-avatar-letter" }, (name || "?")[0].toUpperCase()),
+// n: número de avatar (1 a 8); sin él, la inicial del nombre. onClick: el avatar se puede tocar (para cambiarlo).
+export function avatar(name, level, size = "", n = null, onClick = null) {
+  return h(onClick ? "button" : "div", {
+    class: `m-avatar ${size}${n ? " with-img" : ""}${onClick ? " pickable" : ""}`,
+    ...(onClick && { onclick: onClick, title: "Cambiar avatar", "aria-label": "Cambiar avatar" }),
+  },
+    n ? avatarImg(n, name) : h("span", { class: "m-avatar-letter" }, (name || "?")[0].toUpperCase()),
     level ? h("span", { class: "m-level", title: `Nivel ${level}` }, level) : null);
 }
 
@@ -48,7 +54,7 @@ export function welcomeScreen({ busy, status, onCreate, onSync }) {
 }
 
 // ---------- barra superior (menú principal y juego privado) ----------
-function topBar(account, { onSettings, offline, onRetry }) {
+function topBar(account, { onSettings, offline, onRetry, onAvatar }) {
   if (!account) {
     return h("div", { class: "m-top" },
       h("div", { class: "m-offline" }, offline ? "Sin conexión con el servidor" : "Cargando tu cuenta…",
@@ -57,7 +63,7 @@ function topBar(account, { onSettings, offline, onRetry }) {
   }
   const pct = Math.min(100, (account.into / account.needed) * 100);
   return h("div", { class: "m-top" },
-    h("div", { class: "m-who" }, avatar(account.name, account.level), h("div", { class: "m-name" }, account.name)),
+    h("div", { class: "m-who" }, avatar(account.name, account.level, "", account.avatar, onAvatar), h("div", { class: "m-name" }, account.name)),
     h("div", { class: "m-xp", title: `Nivel ${account.level}: ${account.into} de ${account.needed} XP para subir` },
       h("div", { class: "m-xp-nums" }, h("b", {}, account.into.toLocaleString("es")), h("span", {}, ` / ${account.needed.toLocaleString("es")} XP`)),
       h("div", { class: "m-xp-bar" }, h("div", { class: "m-xp-fill", style: `width:${pct}%` }))),
@@ -67,7 +73,7 @@ function topBar(account, { onSettings, offline, onRetry }) {
 }
 
 // ---------- menú principal ----------
-export function mainMenu({ account, offline, onRetry, onPrivate, onPractice, onSettings, onRules, onClaim }) {
+export function mainMenu({ account, offline, onRetry, onPrivate, onPractice, onSettings, onRules, onClaim, onAvatar }) {
   const mode = (cls, title, art, onclick) =>
     h("button", { class: `m-mode ${cls}`, onclick }, h("div", { class: "m-mode-art" }, art), h("div", { class: "m-mode-title" }, title));
   const mini = (rank, suit, extra = "") =>
@@ -83,7 +89,7 @@ export function mainMenu({ account, offline, onRetry, onPrivate, onPractice, onS
           h("span", { class: "m-claim-time", "data-countdown": account.claimAt }, formatCountdown(account.claimAt - Date.now())));
   }
   return frame("wide-menu",
-    topBar(account, { onSettings, offline, onRetry }),
+    topBar(account, { onSettings, offline, onRetry, onAvatar }),
     h("div", { class: "m-modes" },
       mode("private", "Juego privado", privArt, onPrivate),
       mode("practice", "Práctica", practArt, onPractice)),
@@ -250,7 +256,8 @@ export function practiceMenu({ account, bots, turnTime, onBots, onTurnTime, onPl
         h("p", { class: "m-text small" }, account
           ? "Juega contra la máquina: ganas la MITAD de la experiencia (1.º 50 XP, 2.º 25, 3.º 15, 4.º 5). No se juegan fichas."
           : "Juega contra la máquina para aprender las rondas. Sin cuenta (o sin internet) no da experiencia."),
-        h("p", { class: "m-text small" }, "Tus rivales: ", ["Rosa", "Tomás", "Lucía"].slice(0, bots).join(", ")))),
+        h("div", { class: "m-rivals" }, BOT_NAMES.slice(0, bots).map((n, i) =>
+          h("div", { class: "m-rival" }, avatar(n, null, "", BOT_AVATARS[i]), h("span", {}, n)))))),
     h("div", { class: "m-bottom" },
       h("button", { class: "m-back", "aria-label": "Volver", onclick: onBack }, "‹"),
       h("button", { class: "m-invite", onclick: onPlay }, "Jugar"),
@@ -273,7 +280,7 @@ export function waitingRoom({ view, onStart, onLeave }) {
         h("p", { class: "m-text" }, view.players.length < 2 ? "Esperando a que tus amigos se unan al juego." : `Jugadores: ${view.players.length} de 4`),
         h("div", { class: "m-wait-players" },
           view.players.map((p) => h("div", { class: "m-wait-p" + (p.id === view.you ? " me" : "") },
-            avatar(p.name, p.level, "small"),
+            avatar(p.name, p.level, "small", p.avatar),
             h("span", { class: "m-wait-name" }, p.name, p.id === view.you ? " (tú)" : ""),
             p.id === view.host ? h("span", { class: "badge" }, "Anfitrión") : null))),
         h("div", { class: "m-wait-btns" },
@@ -298,8 +305,20 @@ export function gameMenuModal({ onClose, onSettings, onRules, onHelp, onExit, in
       h("button", { class: "m-btn red wide", onclick: onExit }, inGame ? "Salir al menú de inicio" : "Volver al menú de inicio")));
 }
 
+// Elegir avatar: los 8 disponibles; el tuyo marcado.
+export function avatarModal({ account, busy, onPickAvatar, onClose }) {
+  return modal("Tu avatar", onClose,
+    h("div", { class: "m-avatars" },
+      Array.from({ length: AVATAR_COUNT }, (_, i) => i + 1).map((n) =>
+        h("button", {
+          class: "m-avatar-pick" + (account?.avatar === n ? " current" : ""), disabled: busy,
+          "aria-label": `Avatar ${n}`, onclick: () => onPickAvatar(n),
+        }, avatarImg(n)))));
+}
+
 // Ventanas que pueden abrirse sobre cualquier menú.
 export function renderModal(kind, props) {
+  if (kind === "avatar") return avatarModal(props);
   if (kind === "game") return gameMenuModal(props);
   if (kind === "settings") return settingsModal(props);
   if (kind === "sync") return syncModal(props);

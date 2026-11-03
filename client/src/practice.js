@@ -3,21 +3,21 @@
 // Usa la misma lógica que el servidor (Match) y una "sala local" con la misma forma que la de Colyseus
 // (send / leave), así la mesa funciona igual que en línea.
 import { Match } from "../../src/logic/match.js";
-import { botMove, BOT_NAMES } from "../../src/logic/bot.js";
+import { botMove, BOT_NAMES, BOT_AVATARS } from "../../src/logic/bot.js";
 
 export { BOT_NAMES };
 const ME = "tú";
-const BOT_DELAY = [700, 1300]; // ms que "piensa" cada bot (al azar dentro del rango)
+const BOT_DELAY = [1500, 2400]; // ms que "piensa" cada bot antes de cada movimiento (al azar dentro del rango)
 
 /**
  * Empieza una partida de práctica. bots: 1 a 3. turnTime: segundos por turno (0 = sin límite).
  * handlers: los mismos que net.connect ({ onState, onEvent, onRejected, onLeave }).
  * Devuelve la sala local: { roomId, send(type, msg), leave() }.
  */
-export function startPractice({ name, level = null, bots = 2, turnTime = 0, rng }, handlers) {
+export function startPractice({ name, level = null, avatar = null, bots = 2, turnTime = 0, rng }, handlers) {
   const match = new Match({ turnTime, rng });
-  match.addPlayer(ME, name, level);
-  BOT_NAMES.slice(0, Math.max(1, Math.min(3, bots))).forEach((n, i) => match.addPlayer(`bot${i + 1}`, n));
+  match.addPlayer(ME, name, level, avatar);
+  BOT_NAMES.slice(0, Math.max(1, Math.min(3, bots))).forEach((n, i) => match.addPlayer(`bot${i + 1}`, n, null, BOT_AVATARS[i]));
   let closed = false;
   let botTimer = null, turnTimer = null;
 
