@@ -48,7 +48,9 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .status-chip{ font-size:clamp(8.5px,.7vw,11px); font-weight:800; padding:1px 6px; border-radius:20px; width:fit-content; background:var(--gold); color:var(--wood-dark); }
 .status-chip.off{ background:rgba(255,255,255,.12); color:var(--ivory-shade); }
 .card-count{ margin-left:auto; display:flex; align-items:center; gap:4px; color:var(--ivory-shade); font-size:clamp(11.5px,1vw,15px); font-weight:700; flex-shrink:0; }
-.card-count .icon{ width:12px; height:16px; border-radius:2px; background:linear-gradient(160deg,var(--ivory),var(--ivory-shade)); border:1.1px solid var(--card-border); }
+/* El ícono de cuántas cartas tiene: el reverso de una carta (como el del mazo) */
+.card-count .icon{ width:12px; height:16px; border-radius:2px; border:1.3px solid var(--ivory); box-shadow:0 1px 2px rgba(0,0,0,.5);
+  background:repeating-linear-gradient(45deg, #7a1f1b 0 2.5px, #5e1714 2.5px 5px); }
 
 /* La mesa se estira para ocupar todo el espacio libre */
 .mesa-panel{ --mw:calc(var(--hw) * .7 * var(--mscale, 1)); flex:1; min-height:0; overflow:visible; background:rgba(0,0,0,.14); border:1px solid rgba(255,255,255,.07); border-radius:14px; padding:clamp(10px,1.2vw,18px); }
@@ -288,13 +290,23 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 
 /* ============ Disposición de la mesa: jugadores a la izquierda, mesa grande, tu mano en un atril de madera ============ */
 .table-felt{ display:grid; grid-template-columns:clamp(112px, 11vw, 160px) minmax(0, 1fr) auto; grid-template-rows:auto minmax(0, 1fr) auto;
-  grid-template-areas:"players top top" "players mesa rail" "players hand hand"; padding-bottom:0; }
-.table-felt > .players-col{ grid-area:players; } .table-felt > .topbar{ grid-area:top; } .table-felt > .mesa-panel{ grid-area:mesa; }
-.table-felt > .action-rail{ grid-area:rail; } .table-felt > .hand-dock{ grid-area:hand; }
+  padding-top:0; padding-bottom:0; }
+/* Barra arriba a TODO lo ancho y pegada al borde; jugadores, tablero y riel debajo. El atril va centrado en la mesa
+   entera (su fila se superpone a las columnas de jugadores y riel, que siguen hasta abajo). */
+.table-felt > .topbar{ grid-column:1 / -1; grid-row:1; }
+.table-felt > .players-col{ grid-column:1; grid-row:2 / 4; }
+.table-felt > .mesa-panel{ grid-column:2; grid-row:2; }
+.table-felt > .action-rail{ grid-column:3; grid-row:2 / 4; }
+.table-felt > .hand-dock{ grid-column:1 / -1; grid-row:3; pointer-events:none; }
+.hand-dock > .hand-rack{ pointer-events:auto; }
+/* La barra es una franja pegada al borde de arriba, de lado a lado del fieltro (cancela su relleno) */
+.table-felt > .topbar{ margin:0 calc(-1 * clamp(8px, 1vw, 14px)); border:0; border-bottom:1px solid rgba(201,162,39,.3); border-radius:12px 12px 0 0;
+  padding-left:clamp(16px, 1.8vw, 26px); padding-right:clamp(16px, 1.8vw, 26px); }
+.turn-flag{ white-space:nowrap; max-width:none; }
 /* El tablero sin recuadro: del mismo verde del fieltro y sin marco */
 .mesa-panel{ background:none; border:0; }
 /* El riel empieza justo donde empieza el tablero */
-.action-rail .rail-center-group{ flex:none; justify-content:flex-start; }
+.action-rail .rail-center-group{ flex:none; justify-content:flex-start; gap:clamp(12px, 2.4vh, 22px); }
 /* Los asientos repartidos a lo alto con el mismo espacio entre ellos (sean 3 o 4) */
 .players-col{ display:flex; flex-direction:column; align-items:center; justify-content:space-between; gap:clamp(6px, 1.4vh, 14px);
   min-height:0; overflow:hidden; padding:6px 0 clamp(8px, 1vw, 14px); }
@@ -332,6 +344,6 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .hand-dock{ display:flex; justify-content:center; min-width:0; margin-bottom:calc(-1 * (clamp(8px, 1.1vw, 16px) + 2px)); }
 .hand-rack{ max-width:100%; padding:clamp(6px, 1vh, 10px) clamp(8px, 1vw, 14px) calc(clamp(10px, 1.6vh, 16px) + clamp(8px, 1.1vw, 16px)); border-radius:16px 16px 0 0;
   background:linear-gradient(180deg, #8a5a33 0%, var(--wood) 45%, var(--wood-dark) 100%);
-  box-shadow:inset 0 2px 0 rgba(255,255,255,.18), inset 0 -3px 0 rgba(0,0,0,.35), 0 6px 14px rgba(0,0,0,.45); }
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.18); }
 .hand-rack .hand-panel{ background:rgba(0,0,0,.28); border:1px solid rgba(0,0,0,.35); box-shadow:inset 0 2px 6px rgba(0,0,0,.45); }
 @media (max-width:900px) and (orientation:landscape){ .table-felt{ grid-template-columns:88px minmax(0, 1fr) auto; } }

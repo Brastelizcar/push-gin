@@ -85,8 +85,9 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
 - Mesa (UI): cartas de 4 colores (`suitColor`: ♥ rojo, ♠ negro, ♦ azul, ♣ verde), número grande al centro y palo
   pequeño en la esquina (también la del descarte). Riel: «Pozo» (cuota × personas, solo con cuota).
   Botón ☰: menú de la partida (ajustes de sonido, reglas, ayuda, salir al menú de inicio = abandonar).
-  Disposición (cuadrícula en `.table-felt`: barra arriba a todo lo ancho, tablero sin recuadro, riel que empieza a la
-  altura del tablero; ref. `docs/referencias/diposicion del tablero.png`, solo disposición): columna de jugadores a la izquierda
+  Disposición (cuadrícula en `.table-felt`: barra arriba como franja pegada al borde y de lado a lado, tablero sin
+  recuadro, riel que empieza a la altura del tablero, atril centrado en la mesa entera y sin sombra; el ícono de cartas
+  de cada jugador es un reverso rojo; el aviso de turno va en una sola línea; ref. `docs/referencias/diposicion del tablero.png`, solo disposición): columna de jugadores a la izquierda
   (avatar, nombre, cartas, puntos; tú abajo; repartidos con el mismo espacio entre ellos), mesa grande con las cartas de cada plante lado a lado, tu mano en un
   atril de madera y el riel a la derecha. El jugador EN TURNO lleva un aro dorado alrededor del avatar que se va
   vaciando: es su reloj (`--t` 1→0); su asiento no lleva marco. Botón «Terminar turno» dorado. Avisos (toast) justo encima de la mano. Sin botón de tamaño de cartas.
