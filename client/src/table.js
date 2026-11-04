@@ -7,7 +7,7 @@ import { extendMeld, stealTwo } from "../../src/logic/melds.js";
 import { planHooks } from "../../src/logic/plan.js";
 import { isBot } from "../../src/logic/bot.js";
 import { meldShape, groupAt, previewMelds, addToGroup, buildTurn, emptyStage, stagedIds } from "./staging.js";
-import { syncCells, placeCard, placeGroup, cellsFromGroups, nextFree, gridShape, cellItems, MIN_COLS } from "./handgrid.js";
+import { syncCells, placeCard, placeGroup, cellsFromGroups, nextFree, gridShape, cellItems } from "./handgrid.js";
 
 // ---------- estado SOLO de interfaz (cosmético/local, no se sincroniza: spec sección 0) ----------
 // ui.cells es TU mano como cuadrícula: cada casilla tiene el id de una carta o null (un espacio que dejaste).
@@ -575,9 +575,9 @@ export function renderTable(app, { view, room, rerender }) {
   //     Mantener presionada la 1.ª o última carta de un grupo de cartas juntas lo toma entero. ---
   const items = layoutItems(view);
   const maxCell = cellMax();
-  // El atril es FIJO: el ancho de 10 casillas normales (o lo que quepa); con más cartas, las cartas se achican.
-  const rackW = Math.min(ui.handW || Math.max(300, innerWidth * 0.72), MIN_COLS * maxCell);
-  const shape = gridShape(items.length, rackW, maxCell);
+  // El atril empieza con 10 casillas por fila; con más cartas CRECE a lo ancho (las cartas conservan su tamaño) y solo
+  // si ya no cabe entre los jugadores y el riel, las cartas se achican.
+  const shape = gridShape(items.length, ui.handW || Math.max(300, innerWidth * 0.6), maxCell);
   // --hw: tamaño de las cartas (el normal, o más chicas si la casilla es angosta) · --hwmax: el normal, que fija el alto
   // de las 2 filas. Van en el atril (también lo usa para su madera).
   const rackStyle = `--cols:${shape.cols};--cell:${shape.cell}px;--hw:${(Math.min(shape.cell, maxCell) / CELL_AIR).toFixed(1)}px;--hwmax:${(maxCell / CELL_AIR).toFixed(1)}px`;
@@ -900,9 +900,11 @@ function fitHand() {
   if (!line) return;
   const panel = document.querySelector(".hand-panel").getBoundingClientRect();
   document.documentElement.style.setProperty("--toast-bottom", `${Math.round(innerHeight - panel.top + 8)}px`); // avisos sobre tu mano
-  // Ancho disponible para las casillas = ancho del contenedor − marco del atril (madera, bordes y relleno).
+  // Ancho disponible para las casillas: el atril va centrado en la mesa entera sin pisar la columna de jugadores ni
+  // el riel (se deja a cada lado lo que mida el más ancho), menos el marco del atril.
   const dock = document.querySelector(".hand-dock"), rack = document.querySelector(".hand-rack");
-  const w = Math.floor(dock.clientWidth - (rack.offsetWidth - line.clientWidth));
+  const side = Math.max(document.querySelector(".players-col").offsetWidth, document.querySelector(".action-rail").offsetWidth) + 12;
+  const w = Math.floor(dock.clientWidth - 2 * side - (rack.offsetWidth - line.clientWidth));
   if (Math.abs(w - ui.handW) > 2) { ui.handW = w; cur.rerender(); }
 }
 window.addEventListener("resize", () => requestAnimationFrame(() => cur && cur.rerender()));

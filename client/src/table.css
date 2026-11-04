@@ -84,7 +84,7 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
    Las dos filas siempre miden lo mismo (--hwmax): el atril no cambia de tamaño, solo las cartas. */
 .hand-panel{ min-width:0; }
 .hand-line{ display:grid; grid-template-columns:repeat(var(--cols), var(--cell)); width:calc(var(--cols) * var(--cell)); justify-content:start; min-width:0; contain:inline-size;
-  row-gap:calc(var(--hwmax) * .05); }
+  row-gap:calc(var(--hwmax) * 1.43 * -.12); }   /* la fila de abajo se monta un poco sobre la de arriba */
 .hand-cell{ width:var(--cell); height:calc(var(--hwmax) * 1.43); display:flex; align-items:center; justify-content:center; border-radius:calc(var(--hw) * .14); }
 .hand-cell.empty{ box-shadow:none; }
 .hand-cell.row-top{ align-items:flex-end; } .hand-cell.row-bottom{ align-items:flex-start; }
@@ -345,12 +345,17 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .hand-dock{ display:flex; justify-content:center; min-width:0; margin-bottom:calc(-1 * (clamp(8px, 1.1vw, 16px) + 2px)); }
 .hand-rack{ position:relative; isolation:isolate; max-width:100%;
   padding:0 clamp(6px, .7vw, 10px) calc(clamp(8px, 1.2vh, 12px) + clamp(8px, 1.1vw, 16px)); }
-/* La madera del atril (ref. docs/referencias/idea atril.jpg): empieza a media altura de la fila de arriba, así las
-   cartas sobresalen por encima; abajo, un borde más oscuro donde se apoyan. */
-.hand-rack::before{ content:""; position:absolute; z-index:-1; left:0; right:0; bottom:0; top:calc(var(--hwmax) * 1.43 * .4);
-  border-radius:12px 12px 0 0; background:linear-gradient(180deg, #8a5a33 0%, var(--wood) 40%, var(--wood-dark) 100%);
-  box-shadow:inset 0 2px 0 rgba(255,255,255,.18), inset 0 calc(-1 * (clamp(8px, 1.2vh, 12px) + clamp(8px, 1.1vw, 16px))) 0 rgba(0,0,0,.28); }
+/* La madera del atril (ref. docs/referencias/atril 20 espacios.png y atril agrandado.png): un RESPALDO detrás de la
+   fila de arriba (las cartas sobresalen apenas por encima) y una TABLA DELANTERA, más clara, donde se apoya la fila de
+   abajo, que se monta un poco sobre la de arriba. Al crecer a lo ancho conserva el mismo aspecto. */
+.hand-rack{ --ch:calc(var(--hwmax) * 1.43); }
+.hand-rack::before{ content:""; position:absolute; z-index:-2; left:0; right:0; bottom:0; top:calc(var(--ch) * .1);
+  border-radius:10px 10px 0 0; background:linear-gradient(180deg, var(--wood) 0%, var(--wood-dark) 100%);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.16), inset 0 -6px 12px rgba(0,0,0,.25); }
+.hand-rack::after{ content:""; position:absolute; z-index:-1; left:0; right:0; bottom:0; top:calc(var(--ch) * 1.08);
+  background:linear-gradient(180deg, #a06a3c 0%, #8a5a33 30%, var(--wood) 100%);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.28), 0 -3px 6px rgba(0,0,0,.35); }
 .hand-rack .hand-panel{ background:none; border:0; box-shadow:none; padding:0; border-radius:0; }
 /* Los avisos de la mano van justo encima del atril */
-.hand-rack .hand-actions{ top:auto; bottom:calc(100% + 6px); left:-22vw; right:-22vw; justify-content:center; }
+.hand-rack .hand-actions{ top:auto; bottom:calc(100% + 6px); left:50%; right:auto; transform:translateX(-50%); width:max-content; max-width:min(92vw, 900px); justify-content:center; }
 @media (max-width:900px) and (orientation:landscape){ .table-felt{ grid-template-columns:88px minmax(0, 1fr) auto; } }
