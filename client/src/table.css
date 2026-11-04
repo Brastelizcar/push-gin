@@ -34,7 +34,6 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
   transition:--t .5s linear; }
 .p-chip.turn .p-name, .p-chip.turn.you .p-name, .p-chip.turn .card-count{ color:var(--ivory); text-shadow:0 1px 2px rgba(0,0,0,.6); }
 .fly-between{ position:fixed; left:0; top:0; border-radius:9px; transform-origin:center; }
-.unified-slot.landing > *{ visibility:hidden; }
 .p-chip .avatar{ width:clamp(24px,2vw,32px); height:clamp(24px,2vw,32px); font-size:clamp(10.5px,.9vw,14px); }
 .p-chip .avatar.with-img{ width:clamp(30px,2.6vw,42px); height:clamp(30px,2.6vw,42px); background:none; border:0; padding:0; box-shadow:0 2px 6px rgba(0,0,0,.45); }
 /* Plante completo saliendo de la mesa: las cartas se voltean (quedan boca abajo) y el grupo se apaga */
@@ -80,11 +79,12 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 /* Hasta dos filas: al llenarse el ancho, las cartas bajan a la fila de abajo (fitHand encima más si no caben).
    Todas las cartas llevan el margen negativo y la fila lo compensa con padding: así CADA fila empieza en el borde. */
 /* Tu mano es una CUADRÍCULA de hasta 2 filas: cada carta en su casilla y las casillas vacías son tus espacios.
-   La mesa (table.js) calcula --cols, --cell y --hw: con muchas cartas, las casillas y las cartas se achican. */
+   La mesa (table.js) calcula --cols, --cell y --hw: con muchas cartas, las casillas y las cartas se achican.
+   Las dos filas siempre miden lo mismo (--hwmax): el atril no cambia de tamaño, solo las cartas. */
 .hand-panel{ min-width:0; }
 .hand-line{ display:grid; grid-template-columns:repeat(var(--cols), var(--cell)); justify-content:start; min-width:0; contain:inline-size;
-  padding-top:calc(var(--hw) * .34); row-gap:calc(var(--hw) * .1); }
-.hand-cell{ width:var(--cell); height:calc(var(--hw) * 1.43); display:flex; align-items:flex-end; justify-content:center; border-radius:calc(var(--hw) * .14); }
+  padding-top:calc(var(--hwmax) * .34); row-gap:calc(var(--hwmax) * .1); }
+.hand-cell{ width:var(--cell); height:calc(var(--hwmax) * 1.43); display:flex; align-items:center; justify-content:center; border-radius:calc(var(--hw) * .14); }
 .hand-cell.empty{ box-shadow:inset 0 0 0 1px rgba(230,198,90,.10); }
 .hand-cell.drop-cell{ background:rgba(230,198,90,.16); box-shadow:inset 0 0 0 2px var(--gold-light); }
 .hand-line .card, .card.ghost, .card.fly-take{ --cw:var(--hw); }
@@ -312,6 +312,8 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .meld .card{ margin-left:calc(var(--mw) * .04); }
 .meld .card:first-child{ margin-left:0; }
 .meld.clearing .card{ visibility:hidden; }
+/* Tu jugada sin confirmar: en su propia fila, debajo de los plantes de la mesa */
+.staged-row{ flex-basis:100%; display:flex; flex-wrap:wrap; gap:inherit; }
 /* Tu mano en un atril de madera */
 .hand-rack{ padding:clamp(6px, 1vh, 10px) clamp(8px, 1vw, 14px) clamp(10px, 1.6vh, 16px); border-radius:14px;
   background:linear-gradient(180deg, #8a5a33 0%, var(--wood) 45%, var(--wood-dark) 100%);

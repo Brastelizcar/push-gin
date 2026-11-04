@@ -67,11 +67,14 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
 - Lote 1 (juego completo multijugador): hecho.
 - Lote 2 (jugada validada): hecho. Todo se juega ARRASTRANDO (no hay selección de cartas ni botón «A la mesa»).
   Mantener presionada la 1.ª o última carta de un grupo de cartas JUNTAS (`groupAt` en client/src/staging.js) lo toma
-  entero; al soltarlo en la mano quedan juntas pero sueltas (sin agrupación fija). La mesa muestra los plantes sin
+  entero (también de a dos: un dúo o un consecutivo de 2, `pairShape`); al soltarlo en la mano quedan juntas pero sueltas (sin agrupación fija). La mesa muestra los plantes sin
   nombres. ✓ valida con `buildTurn` antes de enviar.
 - Mano = CUADRÍCULA (`client/src/handgrid.js`, `ui.cells`: id o null por casilla). Cada carta en su casilla; las
   vacías son los espacios (no hay botón Espacio). Soltar en una casilla vacía la ocupa; sobre otra carta, la empuja
-  hasta el siguiente hueco. 789/777 dejan una casilla vacía entre grupos. Hasta 2 filas; luego las casillas se achican.
+  hasta el siguiente hueco. 789/777 dejan una casilla vacía entre grupos. Las cartas que llegan ocupan la PRIMERA
+  casilla vacía (también los espacios entre grupos). SIEMPRE 2 filas de alto fijo (`--hwmax`): si no caben, solo las
+  cartas se achican. Tu jugada sin confirmar se ve en su propia fila, debajo de los plantes de la mesa.
+  Fin de ronda: la tabla va de menor a mayor total.
 - Mesa (UI): cartas de 4 colores (`suitColor`: ♥ rojo, ♠ negro, ♦ azul, ♣ verde), número grande al centro y palo
   pequeño en la esquina (también la del descarte). Riel: «Pozo» (cuota × personas, solo con cuota).
   Botón ☰: menú de la partida (ajustes de sonido, reglas, ayuda, salir al menú de inicio = abandonar).

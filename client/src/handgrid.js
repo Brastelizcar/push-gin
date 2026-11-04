@@ -1,15 +1,15 @@
 // Tu mano como CUADRÍCULA: cada carta ocupa una casilla y las casillas vacías son los espacios que tú dejas.
 // `cells` es un arreglo de ids de carta o null (casilla vacía). Funciones puras (se prueban sin navegador).
 
-// Quita las cartas que ya no están en tu mano (su casilla queda vacía) y coloca las nuevas en la primera casilla
-// libre después de la última carta. Las casillas vacías del final no se guardan.
+// Quita las cartas que ya no están en tu mano (su casilla queda vacía) y coloca las nuevas en la PRIMERA casilla
+// vacía (también los espacios que separan grupos). Las casillas vacías del final no se guardan.
 export function syncCells(cells, handIds) {
   const inHand = new Set(handIds);
   const out = cells.map((id) => (id && inHand.has(id) ? id : null));
   const placed = new Set(out.filter(Boolean));
   for (const id of handIds) {
     if (placed.has(id)) continue;
-    out.splice(lastCard(out) + 1, 0, id);
+    out[nextFree(out)] = id;
     placed.add(id);
   }
   return trim(out);
@@ -38,17 +38,18 @@ export function cellsFromGroups(groups) {
   return out;
 }
 
-// Primera casilla libre después de la última carta (donde cae una carta nueva).
-export const nextFree = (cells) => lastCard(cells) + 1;
+// Primera casilla vacía (donde cae una carta nueva): un hueco entre cartas o, si no hay, la siguiente a la última.
+export function nextFree(cells) {
+  const hole = cells.indexOf(null);
+  return hole >= 0 ? hole : cells.length;
+}
 
-// Forma de la cuadrícula: hasta DOS filas. Con pocas cartas, una fila con todas las casillas que caben; cuando no
-// alcanza, dos filas; y si ni en dos filas caben con su tamaño normal, las casillas (y las cartas) se achican.
+// Forma de la cuadrícula: SIEMPRE dos filas (el atril no cambia de alto). Mientras quepan con su tamaño normal, las
+// casillas son de ese tamaño; si no, se hacen más angostas y las cartas se achican para caber en el mismo espacio.
 // used: casillas en uso (hasta la última carta). width: ancho disponible. cellMax: tamaño normal de una casilla.
 export function gridShape(used, width, cellMax) {
   const perRow = Math.max(1, Math.floor(width / cellMax));
-  const needed = used + 1;                               // siempre queda al menos una casilla libre al final
-  if (needed <= perRow) return { rows: 1, cols: perRow, cell: cellMax };
-  const cols = Math.max(perRow, Math.ceil(needed / 2));
+  const cols = Math.max(perRow, Math.ceil((used + 1) / 2)); // siempre queda al menos una casilla libre
   return { rows: 2, cols, cell: Math.min(cellMax, width / cols) };
 }
 
@@ -58,10 +59,6 @@ export function cellItems(cells, byId, hidden = new Set()) {
 }
 
 // ---------- internos ----------
-function lastCard(cells) {
-  for (let i = cells.length - 1; i >= 0; i--) if (cells[i]) return i;
-  return -1;
-}
 function trim(cells) {
   const out = [...cells];
   while (out.length && !out.at(-1)) out.pop();

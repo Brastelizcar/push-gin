@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { meldShape, handSegments, groupAt, previewMelds, addToGroup, buildTurn, emptyStage, stagedIds } from "../src/staging.js";
+import { meldShape, pairShape, handSegments, groupAt, previewMelds, addToGroup, buildTurn, emptyStage, stagedIds } from "../src/staging.js";
 
 let n = 0;
 const c = (s) => ({ id: `s${n++}`, rank: s.slice(0, -1), suit: s.slice(-1) });
@@ -31,9 +31,27 @@ test("groupAt: mantener presionada la 1.ª o última carta de un grupo de cartas
   assert.deepEqual(ids(groupAt(it, h[8].id)), ids({ cards: h.slice(5, 9) }));   // 7♣ → el mismo, desde el final
   assert.equal(groupAt(it, h[0].id), null);                                     // la K sola no forma nada
   assert.equal(groupAt(it, h[9].id), null);
-  // Un espacio en medio corta el grupo: 8♥ 8♠ | 8♦ ya no es trío.
+  // De a dos: un dúo (mismo número) o un consecutivo de 2 (mismo palo)
+  const d = cs("9♥", "9♠", "K♦", "J♣", "Q♣", "4♥", "6♥");
+  const di = items(d);
+  assert.deepEqual(ids(groupAt(di, d[0].id)), ids({ cards: d.slice(0, 2) }));
+  assert.deepEqual(ids(groupAt(di, d[1].id)), ids({ cards: d.slice(0, 2) }));
+  assert.deepEqual(ids(groupAt(di, d[4].id)), ids({ cards: d.slice(3, 5) }));   // J-Q♣
+  assert.equal(groupAt(di, d[5].id), null);                                     // 4♥ 6♥ no son seguidos
+  assert.equal(groupAt(di, d[2].id), null);                                     // K♦ junto a 9♠ y J♣: nada
+  // Un espacio en medio corta el grupo: 8♥ 8♠ | 8♦ ya no es trío (solo el dúo 8♥ 8♠).
   const split = items(h.slice(1, 3), h.slice(3, 4));
-  assert.equal(groupAt(split, h[1].id), null);
+  assert.deepEqual(ids(groupAt(split, h[1].id)), ids({ cards: h.slice(1, 3) }));
+  assert.equal(groupAt(split, h[3].id), null);
+});
+
+test("pairShape: dúo o consecutivo de 2 del mismo palo; nada más", () => {
+  assert.deepEqual(pairShape(cs("7♠", "7♥")), { ordered: false });
+  assert.deepEqual(pairShape(cs("2♥", "3♥")), { ordered: true });           // el 2 como número
+  assert.deepEqual(pairShape(cs("K♦", "Q♦")), { ordered: true });
+  assert.equal(pairShape(cs("5♥", "6♠")), null);
+  assert.equal(pairShape(cs("A♣", "K♣")), null);                            // el As no va después de la K
+  assert.equal(pairShape(cs("5♥", "6♥", "7♥")), null);
 });
 
 test("previewMelds aplica los enganches sin tocar la mesa real", () => {

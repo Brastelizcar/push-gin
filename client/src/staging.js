@@ -2,6 +2,7 @@
 // Durante tu turno (fase 'main') armas la jugada en local: grupos que sueltas en la mesa, cartas que enganchas
 // y la carta del descarte. Nada llega al servidor hasta pulsar ✓; entonces viaja todo junto (playTurn).
 import { buildSet, buildRun, extendMeld } from "../../src/logic/melds.js";
+import { rankValues } from "../../src/logic/cards.js";
 import { splitTurnGroups } from "../../src/logic/plan.js";
 import { resolveTurn } from "../../src/logic/turn.js";
 
@@ -15,6 +16,16 @@ export function meldShape(cards) {
   return null;
 }
 
+// ¿Dos cartas que van juntas? Un DÚO (mismo número) o un consecutivo de 2 (mismo palo, números seguidos; aquí el 2
+// cuenta como número). Sirve para tomarlas juntas de la mano. Devuelve { ordered } o null.
+export function pairShape(cards) {
+  if (cards.length !== 2) return null;
+  const [a, b] = cards;
+  if (a.rank === b.rank) return { ordered: false };
+  if (a.suit === b.suit && Math.abs(rankValues(a.rank)[0] - rankValues(b.rank)[0]) === 1) return { ordered: true };
+  return null;
+}
+
 // Tramos de la mano separados por espacios: items [{card}|{gap}] → [[card, ...], ...].
 export function handSegments(items) {
   const out = [[]];
@@ -24,15 +35,16 @@ export function handSegments(items) {
 
 // Grupo que se toma al MANTENER PRESIONADA la carta `id`: el plante más largo formado por cartas JUNTAS de la mano
 // (sin espacios en medio) que empieza o termina en esa carta. Si hay empate, gana el que empieza en ella.
+// Si no hay plante de 3 o más, sirve un dúo o un consecutivo de 2 (pairShape).
 // items: [{card}|{gap}] en el orden de la mano. Devuelve { cards, ordered } o null.
 export function groupAt(items, id) {
   for (const seg of handSegments(items)) {
     const i = seg.findIndex((c) => c.id === id);
     if (i < 0) continue;
-    // El más largo de 3 a 13 cartas: hacia la derecha (empieza en la carta) o hacia la izquierda (termina en ella).
+    // El más largo de 2 a 13 cartas: hacia la derecha (empieza en la carta) o hacia la izquierda (termina en ella).
     const longest = (maxLen, slice) => {
-      for (let len = Math.min(13, maxLen); len >= 3; len--) {
-        const cards = slice(len), shape = meldShape(cards);
+      for (let len = Math.min(13, maxLen); len >= 2; len--) {
+        const cards = slice(len), shape = len >= 3 ? meldShape(cards) : pairShape(cards);
         if (shape) return { cards, ordered: shape.ordered };
       }
       return null;

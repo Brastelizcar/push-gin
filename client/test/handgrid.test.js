@@ -2,9 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { syncCells, placeCard, placeGroup, cellsFromGroups, nextFree, gridShape, cellItems } from "../src/handgrid.js";
 
-test("syncCells: las cartas nuevas van a la primera casilla libre tras la última; las que se van dejan su hueco", () => {
+test("syncCells: las cartas nuevas van a la primera casilla vacía (también los espacios); las que se van dejan su hueco", () => {
   assert.deepEqual(syncCells([], ["a", "b", "c"]), ["a", "b", "c"]);
-  assert.deepEqual(syncCells(["a", null, "b"], ["a", "b", "x"]), ["a", null, "b", "x"]);
+  assert.deepEqual(syncCells(["a", null, "b"], ["a", "b", "x"]), ["a", "x", "b"]);        // ocupa el espacio
+  assert.deepEqual(syncCells(["a", null, "b"], ["a", "b", "x", "y"]), ["a", "x", "b", "y"]);
   assert.deepEqual(syncCells(["a", "b", "c"], ["a", "c"]), ["a", null, "c"]);       // b se jugó: queda el hueco
   assert.deepEqual(syncCells(["a", "b", null, null], ["a"]), ["a"]);               // sin huecos al final
 });
@@ -24,12 +25,13 @@ test("placeGroup: el grupo queda junto y en orden donde lo sueltas", () => {
 test("789 / 777: una casilla vacía entre grupos (sin línea divisoria)", () => {
   const g = (...ids) => ids.map((id) => ({ id }));
   assert.deepEqual(cellsFromGroups([g("a", "b"), g("c"), g("d", "e")]), ["a", "b", null, "c", null, "d", "e"]);
-  assert.equal(nextFree(["a", null, "b"]), 3);
+  assert.equal(nextFree(["a", null, "b"]), 1);
+  assert.equal(nextFree(["a", "b"]), 2);
   assert.equal(nextFree([]), 0);
 });
 
-test("gridShape: una fila mientras quepan; luego dos; y si no caben, casillas más pequeñas", () => {
-  assert.deepEqual(gridShape(10, 1000, 60), { rows: 1, cols: 16, cell: 60 });
+test("gridShape: siempre dos filas; y si no caben, casillas más pequeñas", () => {
+  assert.deepEqual(gridShape(10, 1000, 60), { rows: 2, cols: 16, cell: 60 });
   assert.deepEqual(gridShape(20, 1000, 60), { rows: 2, cols: 16, cell: 60 });
   const big = gridShape(40, 1000, 60);
   assert.equal(big.rows, 2);

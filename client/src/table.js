@@ -13,6 +13,7 @@ import { syncCells, placeCard, placeGroup, cellsFromGroups, nextFree, gridShape,
 // ui.cells es TU mano como cuadrícula: cada casilla tiene el id de una carta o null (un espacio que dejaste).
 const ui = {
   cells: [],
+  landing: null,        // id de la carta que otro jugador descartó y aún vuela al descarte (mientras, se ve vacío)
   handW: 0,             // ancho medido de la mano (para calcular cuántas casillas caben)
   incoming: null,       // carta del descarte que arrastraste a tu mano y que el servidor aún no confirma
   pending: null,        // carta arrastrada al descarte, a la espera de ✓
@@ -215,7 +216,9 @@ function applyFlights() {
     const ghost = el.cloneNode(true);
     ghost.classList.remove("recent", "arriving");
     ghost.classList.add("fly-flight");
-    ghost.style.cssText = `left:${to.left}px;top:${to.top}px;width:${to.width}px;height:${to.height}px`;
+    // Fuera de la mesa la copia perdería su tamaño de letra: se le da el mismo que tendrá al aterrizar.
+    ghost.style.cssText = `left:${to.left}px;top:${to.top}px;width:${to.width}px;height:${to.height}px;--cw:${to.width}px`;
+    for (const part of [".pip", ".corner"]) ghost.querySelector(part).style.fontSize = getComputedStyle(el.querySelector(part)).fontSize;
     const layer = h("div", { class: "fly-layer" }, ghost);
     document.body.append(layer);
     el.classList.add("arriving");
@@ -354,6 +357,7 @@ function dropGroup(cards, x, y) {
   }
   const shape = meldShape(cards);
   if (shape) stageGroups([{ cards, ordered: shape.ordered }]);
+  else toast(cards.length < 3 ? "Un plante necesita al menos 3 cartas" : "Esas cartas no forman un plante");
 }
 
 // Barra sobre tu mano: qué puedes hacer y cómo va tu jugada.
@@ -554,8 +558,8 @@ export function renderTable(app, { view, room, rerender }) {
   };
   const playersCol = h("div", { class: "players-col" }, seated.map(seat));
 
-  // --- plantes en mesa: de todos (sin nombres). Primero tu jugada sin confirmar, luego los plantes con tus enganches
-  //     sin confirmar ya colocados (en punteado). ---
+  // --- plantes en mesa: de todos (sin nombres), con tus enganches sin confirmar ya colocados (en punteado). Tu jugada
+  //     sin confirmar va AL FINAL (debajo), para no mover los plantes que ya están. ---
   const shownMelds = previewMelds(view.melds, ui.stage.hooks);
   const recent = new Set(view.recentCardIds);
   const stagedHookIds = new Set(ui.stage.hooks.map((x) => x.card.id));
@@ -576,16 +580,18 @@ export function renderTable(app, { view, room, rerender }) {
   const mesa = h("div", { class: "mesa-panel" + (mustDiscard ? " droppable" : "") },
     h("div", { class: "mesa-title" }, "Plantes en mesa"),
     stagedMelds.length || tableMelds.length
-      ? h("div", { class: "melds-line" }, stagedMelds, tableMelds)
+      ? h("div", { class: "melds-line" }, tableMelds, stagedMelds.length ? h("div", { class: "staged-row" }, stagedMelds) : null)
       : h("div", { class: "empty-mesa" }, mustDiscard ? "Arrastra aquí tus grupos para plantarte" : "Nadie se ha plantado todavía"));
 
-  // --- mano: una cuadrícula de hasta 2 filas; cada carta en su casilla y las vacías son tus espacios.
+  // --- mano: una cuadrícula de SIEMPRE 2 filas (alto fijo); cada carta en su casilla y las vacías son tus espacios.
   //     Mantener presionada la 1.ª o última carta de un grupo de cartas juntas lo toma entero. ---
   const items = layoutItems(view);
-  const shape = gridShape(items.length, ui.handW || Math.max(300, innerWidth * 0.72), cellMax());
+  const maxCell = cellMax();
+  const shape = gridShape(items.length, ui.handW || Math.max(300, innerWidth * 0.72), maxCell);
   const handLine = h("div", {
     class: "hand-line", id: "handLine",
-    style: `--cols:${shape.cols};--cell:${shape.cell}px;--hw:${(shape.cell / 1.1).toFixed(1)}px`,
+    // --hw: tamaño de las cartas (se achican si no caben) · --hwmax: el normal, que fija el alto de las 2 filas
+    style: `--cols:${shape.cols};--cell:${shape.cell}px;--hw:${(shape.cell / 1.1).toFixed(1)}px;--hwmax:${(maxCell / 1.1).toFixed(1)}px`,
   }, Array.from({ length: shape.rows * shape.cols }, (_, i) => {
     const c = items[i]?.card;
     const cell = h("div", { class: "hand-cell" + (c ? "" : " empty"), "data-cell": i });
@@ -614,7 +620,7 @@ export function renderTable(app, { view, room, rerender }) {
       slotBody = h("span", { class: "drop-icon" }, "⇩");
       slotLabel = "Descartar";
     }
-  } else if (top) {
+  } else if (top && ui.landing !== top.id) {
     slotClass += " has-card" + (canTake ? " tappable" : "");
     slotBody = faceEl(top);
     slotLabel = canTake ? "Toca o arrastra a tu mano" : "Descarte";
@@ -717,7 +723,9 @@ function overlay(view, room) {
   const finished = view.phase === "finished";
   const isHost = view.host === view.you;
   const rows = [...view.players]
-    .sort((a, b) => (finished ? a.total - b.total : 0))
+    // de menor a mayor puntaje (el que va ganando arriba); a igual total, el que sumó menos en la ronda; quien
+    // abandonó, al final
+    .sort((a, b) => (!!a.left - !!b.left) || a.total - b.total || (view.roundScores?.[a.id] ?? 0) - (view.roundScores?.[b.id] ?? 0))
     .map((p) =>
       h("div", { class: "score-row" + (p.id === view.winner ? " win" : "") },
         h("div", { class: "p-name" }, p.name, p.id === view.winner ? " 🏆" : "", p.left ? " (abandonó)" : ""),
@@ -926,10 +934,14 @@ function detectRemoteDiscard(view) {
   if (view.discardTop && view.discardTop.id !== prev.top?.id && prev.current !== view.you && prev.current !== view.current) {
     const chip = chipOf(prev.current);
     if (!chip) return;
-    slot.classList.add("landing");                    // el descarte espera a que la carta llegue
+    // El descarte se ve VACÍO hasta que la carta llega (también si se redibuja mientras vuela).
     const sr = slot.getBoundingClientRect();
+    const id = view.discardTop.id;
+    ui.landing = id;
+    slot.className = "unified-slot empty-wait idle";
+    slot.replaceChildren(h("span", { class: "drop-icon" }, "…"));
     flyBetween(view.discardTop, chip.getBoundingClientRect(), sr, 650, sr)
-      .finally(() => document.getElementById("unifiedSlot")?.classList.remove("landing"));
+      .finally(() => { if (ui.landing === id) { ui.landing = null; cur.rerender(); } });
   }
 }
 // Una carta boca arriba (del tamaño `size`, el del descarte) vuela de un rectángulo a otro. Junto a la ficha de un
