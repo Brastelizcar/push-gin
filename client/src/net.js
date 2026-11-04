@@ -111,7 +111,7 @@ function wire(room, handlers) {
 
 // Acciones (el servidor valida todo; aquí solo se envían).
 export const actions = {
-  start: (room) => room.send("start"),
+  start: (room, bots) => room.send("start", { bots }),
   nextRound: (room) => room.send("nextRound"),
   takeDiscard: (room) => room.send("takeDiscard"),
   push: (room) => room.send("push"),

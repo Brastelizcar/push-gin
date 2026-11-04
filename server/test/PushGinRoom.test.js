@@ -26,6 +26,7 @@ describe("PushGinRoom", () => {
 
   async function setup(n = 3) {
     const room = await colyseus.createRoom("push_gin", {});
+    room.minPlayers = 2;  // estas pruebas juegan de a 2, sin bots
     const names = ["Ana", "Luis", "Sofía", "Camilo"].slice(0, n);
     const cs = [];
     for (const nm of names) cs.push(await join(colyseus, room, nm));
@@ -45,6 +46,7 @@ describe("PushGinRoom", () => {
 
   it("un segundo jugador entra con el código (joinById) y uno inexistente falla", async () => {
     const room = await colyseus.createRoom("push_gin", {});
+    room.minPlayers = 2;  // estas pruebas juegan de a 2, sin bots
     const a = await colyseus.sdk.joinById(room.roomId, { name: "Ana" });
     const b = await colyseus.sdk.joinById(room.roomId, { name: "Luis" });
     await tick();
@@ -255,6 +257,7 @@ describe("PushGinRoom", () => {
 
   it("temporizador: la vista trae el tiempo y al acabarse el turno pasa solo", async () => {
     const room = await colyseus.createRoom("push_gin", { turnTime: 30 });
+    room.minPlayers = 2;  // estas pruebas juegan de a 2, sin bots
     const a = await join(colyseus, room, "Ana"), b = await join(colyseus, room, "Luis");
     await tick();
     a.send("start"); await tick();
@@ -270,6 +273,7 @@ describe("PushGinRoom", () => {
 
   it("un tiempo de turno que no está en la lista se ignora (sin límite)", async () => {
     const room = await colyseus.createRoom("push_gin", { turnTime: 7 });
+    room.minPlayers = 2;  // estas pruebas juegan de a 2, sin bots
     assert.equal(room.match.turnTime, 0);
   });
 
@@ -319,5 +323,39 @@ describe("PushGinRoom", () => {
     const { cs } = await setup(3);
     dropConnection(cs[2]); await tick(150);
     assert.equal(cs[0].view.players.length, 2);
+  });
+
+  it("juego privado con 2 personas: se agrega 1 bot obligatorio (mínimo 3 en la mesa) y juega solo", async () => {
+    const room = await colyseus.createRoom("push_gin", {});
+    room.botDelay = [5, 10];
+    const a = await join(colyseus, room, "Ana"), b = await join(colyseus, room, "Luis");
+    await tick();
+    a.send("start", { bots: 0 });                       // 0 no alcanza: se sube al mínimo
+    await until(() => a.view?.phase === "playing");
+    assert.deepEqual(a.view.players.map((p) => p.name), ["Ana", "Luis", "Rosa"]);
+    for (const c of [a, b]) {                           // Ana y Luis toman el descarte y lo devuelven
+      await until(() => room.game.currentPlayer === c.sessionId);
+      c.send("takeDiscard"); await until(() => room.game.phase === "main");
+      c.send("discard", { cardId: room.match.lastDrawn });
+    }
+    await until(() => room.game.currentPlayer === "bot1");
+    await until(() => room.game.currentPlayer === a.sessionId);   // el bot jugó y le devolvió el turno a Ana
+    assert.equal(room.game.currentPlayer, a.sessionId);
+    assert.equal(a.view.players[2].cards, 10);
+  });
+
+  it("juego privado: el anfitrión puede pedir 2 bots para ser 4; nunca más de 4 en la mesa", async () => {
+    const room = await colyseus.createRoom("push_gin", {});
+    room.botDelay = [60_000, 60_000];
+    const a = await join(colyseus, room, "Ana"); await join(colyseus, room, "Luis");
+    await tick();
+    a.send("start", { bots: 9 });
+    await until(() => a.view?.phase === "playing");
+    assert.deepEqual(a.view.players.map((p) => p.name), ["Ana", "Luis", "Rosa", "Tomás"]);
+  });
+
+  it("práctica: mínimo 2 bots (3 en la mesa)", async () => {
+    const room = await colyseus.createRoom("push_gin", { practice: 1 });
+    assert.equal(room.practice, 2);
   });
 });

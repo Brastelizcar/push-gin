@@ -41,7 +41,7 @@ test("práctica: tus jugadas pasan por las mismas reglas (rechazos incluidos)", 
 });
 
 test("práctica: los bots juegan su turno solos y te devuelven el turno", async () => {
-  const { room, log, last } = practice({ bots: 1 });
+  const { room, log, last } = practice({ bots: 2 });
   await sleep(5);
   room.send("takeDiscard"); await sleep(5);
   room.send("playTurn", { discard: last().hand[0].id }); await sleep(5);
@@ -54,12 +54,19 @@ test("práctica: los bots juegan su turno solos y te devuelven el turno", async 
 });
 
 test("práctica: el temporizador juega tu turno si se acaba el tiempo", async () => {
-  const { room, log, last } = practice({ bots: 1, turnTime: 30 });
+  const { room, log, last } = practice({ bots: 2, turnTime: 30 });
   await sleep(5);
   assert.ok(last().turnMsLeft > 29_000);
   room.match.turnStartedAt -= 30_000;                       // como si ya hubieran pasado 30 s
   room.send("requestState");                                // (cualquier cambio reprograma el reloj)
   room.send("takeDiscard"); await sleep(120);
   assert.deepEqual(log.events.find((e) => e.type === "timeout"), { type: "timeout", by: "tú" });
+  room.leave();
+});
+
+test("práctica: mínimo 2 rivales (3 en la mesa)", async () => {
+  const { room, last } = practice({ bots: 1 });
+  await sleep(5);
+  assert.equal(last().players.length, 3);
   room.leave();
 });

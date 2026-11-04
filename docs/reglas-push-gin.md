@@ -9,7 +9,8 @@ Ser el primer jugador en quedarse sin cartas en la mano, cumpliendo en cada rond
 ## Componentes y preparación
 
 - **Baraja:** 3 barajas de póker estándar, mezcladas juntas.
-- **Jugadores:** probado y funcional con 4 jugadores.
+- **Jugadores:** mínimo 3 y máximo 4 en la mesa. Si en juego privado solo hay 2 personas, entra 1 bot para completar
+  (o 2, si el anfitrión quiere ser 4). En práctica juegas contra 2 o 3 bots.
 - **Reparto:** 10 cartas por jugador.
 - Se voltea **una carta boca arriba** sobre la mesa para iniciar el pozo de descarte. El resto de las cartas forma el **mazo** (boca abajo).
 

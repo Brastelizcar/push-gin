@@ -53,3 +53,12 @@ test('práctica contra bots: la mitad del XP (50, 25, 15, 5)', () => {
   const r = gameRewards(['a', 'b', 'c', 'd'], { a: 30, b: 10, c: 50, d: 20 }, 0, [], { xpFactor: PRACTICE_XP_FACTOR });
   assert.deepEqual(['b', 'd', 'a', 'c'].map((id) => r[id].xp), [50, 25, 15, 5]);
 });
+
+test('juego privado con bots: los bots no pagan cuota ni ganan; el pozo es de las personas', () => {
+  const r = gameRewards(['a', 'b', 'bot1'], { a: 5, b: 9, bot1: 7 }, 100, [], { bots: ['bot1'] });
+  assert.deepEqual(r.a, { place: 0, xp: 100, chips: 100 });          // pozo 200 (solo pagan a y b)
+  assert.deepEqual(r.b, { place: 2, xp: 30, chips: -100 });
+  assert.deepEqual(r.bot1, { place: 1, xp: 0, chips: 0 });
+  const botWins = gameRewards(['a', 'b', 'bot1'], { a: 9, b: 7, bot1: 5 }, 100, [], { bots: ['bot1'] });
+  assert.deepEqual([botWins.a.chips, botWins.b.chips, botWins.bot1.chips], [-100, -100, 0]);
+});

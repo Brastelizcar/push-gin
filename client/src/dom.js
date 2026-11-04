@@ -42,6 +42,10 @@ document.addEventListener("fullscreenchange", () => {
 });
 
 
-// Imagen de un avatar (1 a 8, en client/public/avatars). Con aro dorado incluido.
+// Imagen de un avatar (1 a 8, en client/public/avatars): retrato redondo con fondo vino tinto, sin aro.
 export const avatarSrc = (n) => `${import.meta.env.BASE_URL}avatars/avatar-${n}.webp`;
 export const avatarImg = (n, alt = "") => h("img", { class: "avatar-img", src: avatarSrc(n), alt, draggable: "false" });
+
+// La ficha (moneda) del juego: client/public/coin.webp (de docs/referencias/ICONO MONEDA.png).
+export const coinImg = (cls = "chip-coin") =>
+  h("img", { class: cls, src: `${import.meta.env.BASE_URL}coin.webp`, alt: "", "aria-hidden": "true", draggable: "false" });

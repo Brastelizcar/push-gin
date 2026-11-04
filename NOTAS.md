@@ -51,4 +51,7 @@
   que tomó. Tiempos: sin límite, 30, 45, 60, 90, 120 s.
 - **Práctica** (decidido 30-oct-2026): contra bots vale la **mitad del XP** (50/25/15/5) y no se juegan fichas. Para
   que el XP lo decida el servidor, con cuenta la práctica se juega en el servidor (los bots juegan allí). Sin cuenta o
-  sin internet sigue corriendo en el navegador y no da XP. 1 a 3 bots; solo ven su propia mano.
+  sin internet sigue corriendo en el navegador y no da XP. 2 o 3 bots; solo ven su propia mano.
+- **Mesa de 3 a 4** (decidido 3-nov-2026): mínimo 3 jugadores en la mesa y máximo 4. En juego privado, con 2 personas
+  entra 1 bot obligatorio y se puede pedir un 2.º bot. Los bots no pagan cuota ni cobran: el pozo es solo de las
+  personas (si gana un bot, nadie se lo lleva). XP completo en juego privado aunque haya bots.

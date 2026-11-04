@@ -1,6 +1,7 @@
 import { Room, matchMaker } from "colyseus";
 import {
   Match, seededRng, ENTRY_FEES, gameRewards, levelInfo, botMove, BOT_NAMES, BOT_AVATARS, isBot, PRACTICE_XP_FACTOR,
+  TABLE_MIN, TABLE_MAX,
 } from "../../../src/logic/index.js";
 import { initStore, publicAccount } from "../accounts/store.js";
 import { PushGinState } from "./schema/PushGinState.js";
@@ -33,17 +34,23 @@ export class PushGinRoom extends Room {
   practice = 0;         // práctica contra bots: cuántos bots (0 = partida normal). Da la mitad del XP.
   botDelay = [1500, 2400]; // ms que "piensa" cada bot antes de cada movimiento (las pruebas lo acortan)
   botTimer = null;
+  minPlayers = TABLE_MIN; // mínimo en la mesa (personas + bots); faltan → bots (las pruebas de 2 lo bajan a 2)
 
   get game() { return this.match.game; } // la ronda actual (las pruebas la usan)
 
   messages = {
-    start: async (client) => {
+    // { bots }: el anfitrión completa la mesa con bots. Con 2 personas va 1 obligatorio (o 2 para ser 4).
+    start: async (client, m) => {
       if (this.starting) return this.#reject(client, "La partida ya empezó");
       const can = this.match.canStart(client.sessionId);
       if (!can.ok) return this.#reject(client, can.error);
-      if (this.entryFee > 0 && !(await this.#chargeFees(client))) return;
+      const humans = this.match.order.length;
+      const min = Math.max(0, this.minPlayers - humans), max = Math.max(0, TABLE_MAX - humans);
+      const bots = Math.max(min, Math.min(max, Number.isInteger(m?.bots) ? m.bots : min));
+      if (this.entryFee > 0 && !(await this.#chargeFees(client))) return; // los bots no pagan
       if (this.match.phase !== "lobby") return;
       this.lock(); // nadie más puede entrar
+      this.#addBots(bots);
       this.#handle(client, "start");
     },
     nextRound: (client) => this.#handle(client, "nextRound"),
@@ -63,9 +70,9 @@ export class PushGinRoom extends Room {
     // Reparto reproducible para pruebas (nunca en producción).
     const rng = process.env.NODE_ENV !== "production" && Number.isInteger(options?.seed) ? seededRng(options.seed) : null;
     this.match = new Match({ rng, turnTime: options?.turnTime });
-    // Práctica: tú solo contra 1–3 bots que juegan en el servidor (así el XP también lo decide el servidor).
+    // Práctica: tú solo contra 2 o 3 bots que juegan en el servidor (así el XP también lo decide el servidor).
     if (options?.practice !== undefined) {
-      this.practice = Math.max(1, Math.min(3, Number.parseInt(options.practice, 10) || 2));
+      this.practice = Math.max(TABLE_MIN - 1, Math.min(TABLE_MAX - 1, Number.parseInt(options.practice, 10) || 2));
       this.entryFee = 0;
       this.maxClients = 1;
     }
@@ -92,7 +99,7 @@ export class PushGinRoom extends Room {
     const name = account?.name ?? (String(options?.name ?? "").trim().slice(0, 16) || "Jugador");
     this.match.addPlayer(client.sessionId, name, account ? levelInfo(account.xp).level : null, account?.avatar);
     if (this.practice) {                   // la práctica empieza apenas entras
-      BOT_NAMES.slice(0, this.practice).forEach((n, i) => this.match.addPlayer(`bot${i + 1}`, n, null, BOT_AVATARS[i]));
+      this.#addBots(this.practice);
       this.lock();
       this.#handle(client, "start");
       return;
@@ -140,11 +147,16 @@ export class PushGinRoom extends Room {
     this.#scheduleBot();
   }
 
-  // Práctica: si le toca a un bot, juega tras una pausa. Un bot nunca debería equivocarse; si pasa, solo descarta.
+  #addBots(n) {
+    BOT_NAMES.slice(0, n).forEach((name, i) => this.match.addPlayer(`bot${i + 1}`, name, null, BOT_AVATARS[i]));
+  }
+
+  // Si le toca a un bot (práctica, o juego privado completado con bots), juega tras una pausa. Un bot nunca
+  // debería equivocarse; si pasa, solo descarta.
   #scheduleBot() {
     this.botTimer?.clear();
     this.botTimer = null;
-    if (!this.practice || this.match.phase !== "playing" || !isBot(this.match.game.currentPlayer)) return;
+    if (this.match.phase !== "playing" || !isBot(this.match.game.currentPlayer)) return;
     const [a, b] = this.botDelay;
     this.botTimer = this.clock.setTimeout(() => {
       if (this.match.phase !== "playing") return;
@@ -198,7 +210,7 @@ export class PushGinRoom extends Room {
   #giveRewards() {
     const order = this.match.order;
     this.rewards = gameRewards(order, this.match.totals, this.entryFee, [...this.match.left],
-      { xpFactor: this.practice ? PRACTICE_XP_FACTOR : 1 });
+      { xpFactor: this.practice ? PRACTICE_XP_FACTOR : 1, bots: order.filter(isBot) });
     const list = order.filter((sid) => this.accounts.has(sid))
       .map((sid) => ({ sid, id: this.accounts.get(sid), xp: this.rewards[sid].xp, chips: this.rewards[sid].chips + this.entryFee }));
     this.rewardsSaved = (async () => {

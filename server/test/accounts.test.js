@@ -115,6 +115,7 @@ describe("Cuentas: API y salas", () => {
     const { account: acc, token } = await store.create("Ana");
     await store.reward([{ id: acc.id, xp: 150, chips: 0 }]);
     const room = await colyseus.createRoom("push_gin", {});
+    room.minPlayers = 2;  // estas pruebas juegan de a 2, sin bots
     const a = await join(room, { token, name: "otro nombre" });
     await tick();
     assert.equal(a.view.players[0].name, "Ana");
@@ -127,6 +128,7 @@ describe("Cuentas: API y salas", () => {
     const [{ account: a1, token: ta }, { account: b1, token: tb }] = [await store.create("Ana"), await store.create("Luis")];
     await store.claim(a1.id);                                          // Ana 300, Luis 0
     const room = await colyseus.createRoom("push_gin", { entryFee: 100 });
+    room.minPlayers = 2;  // estas pruebas juegan de a 2, sin bots
     const a = await join(room, { token: ta });
     await assert.rejects(colyseus.connectTo(room, { name: "Invitado" }));
     const b = await join(room, { token: tb });
@@ -145,6 +147,7 @@ describe("Cuentas: API y salas", () => {
 
   it("una cuota que no está en la lista se ignora (sala sin cuota)", async () => {
     const room = await colyseus.createRoom("push_gin", { entryFee: 37 });
+    room.minPlayers = 2;  // estas pruebas juegan de a 2, sin bots
     assert.equal(room.entryFee, 0);
   });
 
@@ -152,6 +155,7 @@ describe("Cuentas: API y salas", () => {
     const [{ account: a1, token: ta }, { account: b1, token: tb }] = [await store.create("Ana"), await store.create("Luis")];
     await store.claim(a1.id); await store.claim(b1.id);
     const room = await colyseus.createRoom("push_gin", { entryFee: 100 });
+    room.minPlayers = 2;  // estas pruebas juegan de a 2, sin bots
     const a = await join(room, { token: ta });
     const b = await join(room, { token: tb });
     await tick();
@@ -181,6 +185,7 @@ describe("Cuentas: API y salas", () => {
     const [{ account: a1, token: ta }, { account: b1, token: tb }] = [await store.create("Ana"), await store.create("Luis")];
     await store.claim(a1.id); await store.claim(b1.id);
     const room = await colyseus.createRoom("push_gin", { entryFee: 100 });
+    room.minPlayers = 2;  // estas pruebas juegan de a 2, sin bots
     const a = await join(room, { token: ta });
     const b = await join(room, { token: tb });
     await tick();
@@ -217,7 +222,7 @@ describe("Cuentas: API y salas", () => {
   it("práctica en el servidor: da la MITAD del XP y no mueve fichas", async () => {
     const { account: a1, token } = await store.create("Ana");
     await store.claim(a1.id);
-    const room = await colyseus.createRoom("push_gin", { practice: 1, entryFee: 500 });
+    const room = await colyseus.createRoom("push_gin", { practice: 2, entryFee: 500 });
     assert.equal(room.entryFee, 0);                                        // en práctica no hay cuota
     room.botDelay = [60_000, 60_000];                                      // los bots no alcanzan a jugar
     const a = await join(room, { token });

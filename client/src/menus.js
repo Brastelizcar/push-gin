@@ -1,13 +1,13 @@
 // Menús: bienvenida, menú principal, ajustes, sincronización, reglas, juego privado y sala de espera.
 // Estilo de la mesa (fieltro, madera y dorado); la disposición sigue las referencias de docs/referencias/.
 import "./menus.css";
-import { h, toast, fsButton, avatarImg } from "./dom.js";
+import { h, toast, fsButton, avatarImg, coinImg } from "./dom.js";
 import { AVATAR_COUNT } from "../../src/logic/avatars.js";
 import { BOT_NAMES, BOT_AVATARS } from "../../src/logic/bot.js";
 import { formatCountdown, normalizeSyncCode, formatSyncCode, suitColor } from "./format.js";
 import { settings, setSetting } from "./settings.js";
-import { ENTRY_FEES, DAILY_CHIPS } from "../../src/logic/progress.js";
-import { TURN_TIMES } from "../../src/logic/match.js";
+import { ENTRY_FEES, DAILY_CHIPS, CLAIM_INTERVAL_MS } from "../../src/logic/progress.js";
+import { TURN_TIMES, TABLE_MIN, TABLE_MAX, botsRange } from "../../src/logic/match.js";
 
 // Selector − / + de un valor dentro de una lista (cuota, tiempo de turno, rivales).
 function stepper(list, value, label, show, onChange) {
@@ -22,7 +22,7 @@ function stepper(list, value, label, show, onChange) {
 const showTime = (t) => (t ? h("span", {}, t, h("small", {}, "s")) : "∞");
 const timeHint = (t) => (t ? `Si se acaba el tiempo, el turno se juega solo (se descarta la carta que tomaste).` : "Sin límite de tiempo por turno.");
 
-const coin = () => h("span", { class: "chip-coin", "aria-hidden": "true" });
+const coin = () => coinImg();
 const frame = (cls, ...content) =>
   h("div", { class: `table-frame menu-frame ${cls}` }, h("div", { class: "menu-felt" }, ...content));
 
@@ -45,7 +45,7 @@ export function welcomeScreen({ busy, status, onCreate, onSync }) {
   return frame("narrow",
     fsButton("fs-corner"),
     h("h1", {}, "Push Gin"),
-    h("div", { class: "tagline" }, "De 2 a 4 jugadores · 5 rondas"),
+    h("div", { class: "tagline" }, "De 3 a 4 jugadores · 5 rondas"),
     h("div", {}, h("label", {}, "¿Cómo te llamas?"), name),
     h("button", { class: "primary", disabled: busy, onclick: create }, "Empezar"),
     h("div", { class: "divider" }, "o"),
@@ -63,13 +63,16 @@ function topBar(account, { onSettings, offline, onRetry, onAvatar }) {
   }
   const pct = Math.min(100, (account.into / account.needed) * 100);
   return h("div", { class: "m-top" },
-    h("div", { class: "m-who" }, avatar(account.name, account.level, "", account.avatar, onAvatar), h("div", { class: "m-name" }, account.name)),
-    h("div", { class: "m-xp", title: `Nivel ${account.level}: ${account.into} de ${account.needed} XP para subir` },
-      h("div", { class: "m-xp-nums" }, h("b", {}, account.into.toLocaleString("es")), h("span", {}, ` / ${account.needed.toLocaleString("es")} XP`)),
-      h("div", { class: "m-xp-bar" }, h("div", { class: "m-xp-fill", style: `width:${pct}%` }))),
-    h("div", { class: "m-chips", title: "Tus fichas" }, coin(), h("b", {}, account.chips.toLocaleString("es"))),
-    fsButton("m-fs"),
-    h("button", { class: "m-gear", title: "Ajustes", "aria-label": "Ajustes", onclick: onSettings }, "⚙"));
+    h("div", { class: "m-who" }, avatar(account.name, account.level, "", account.avatar, onAvatar)),
+    h("div", { class: "m-profile" },
+      h("div", { class: "m-name" }, account.name),
+      h("div", { class: "m-xp", title: `Nivel ${account.level}: ${account.into} de ${account.needed} XP para subir` },
+        h("div", { class: "m-xp-nums" }, h("b", {}, account.into.toLocaleString("es")), h("span", {}, ` / ${account.needed.toLocaleString("es")} XP`)),
+        h("div", { class: "m-xp-bar" }, h("div", { class: "m-xp-fill", style: `width:${pct}%` })))),
+    h("div", { class: "m-box m-chips", title: "Tus fichas" }, coinImg("m-box-icon"), h("b", {}, account.chips.toLocaleString("es"))),
+    h("div", { class: "m-top-btns" },
+      fsButton("m-fs"),
+      h("button", { class: "m-gear", title: "Ajustes", "aria-label": "Ajustes", onclick: onSettings }, "⚙")));
 }
 
 // ---------- menú principal ----------
@@ -81,21 +84,24 @@ export function mainMenu({ account, offline, onRetry, onPrivate, onPractice, onS
   const privArt = [h("div", { class: "m-friends" }, h("span", { class: "m-face a" }), h("span", { class: "m-face b" })), h("div", { class: "m-stack" }, coin(), coin(), coin())];
   const practArt = [mini("7", "♣", "tilt-l"), mini("7", "♥"), mini("7", "♠", "tilt-r")];
 
-  let claimArea = null;
-  if (account) {
-    claimArea = account.claim?.canClaim || account.claimAt <= Date.now()
-      ? h("button", { class: "m-claim ready", onclick: onClaim }, coin(), `Reclamar ${DAILY_CHIPS} fichas gratis`)
-      : h("div", { class: "m-claim" }, h("span", { class: "m-claim-lbl" }, "Fichas gratis en:"),
-          h("span", { class: "m-claim-time", "data-countdown": account.claimAt }, formatCountdown(account.claimAt - Date.now())));
-  }
+  // Barra de fichas gratis: la ficha está apagada mientras corre el tiempo y se vuelve dorada cuando ya se puede recoger.
+  const ready = account && (account.claim?.canClaim || account.claimAt <= Date.now());
+  const claimBar = h("div", { class: "m-claim" + (ready ? " ready" : "") },
+    h("div", { class: "m-brand" }, "Push Gin"),
+    account ? h("div", { class: "m-claim-coin" }, coinImg("m-claim-img")) : null,
+    !account ? null : ready
+      ? h("button", { class: "m-claim-btn", onclick: onClaim }, `Recoger ${DAILY_CHIPS} fichas`)
+      : h("div", { class: "m-claim-info" },
+          h("span", { class: "m-claim-lbl" }, "Fichas gratis en:"),
+          h("span", { class: "m-claim-time", "data-countdown": account.claimAt }, formatCountdown(account.claimAt - Date.now())),
+          h("div", { class: "m-claim-track" }, h("div", { class: "m-claim-fill", "data-claim-at": account.claimAt, style: `width:${claimPct(account.claimAt)}%` }))));
   return frame("wide-menu",
     topBar(account, { onSettings, offline, onRetry, onAvatar }),
     h("div", { class: "m-modes" },
       mode("private", "Juego privado", privArt, onPrivate),
       mode("practice", "Práctica", practArt, onPractice)),
-    h("div", { class: "m-bottom" },
-      h("div", { class: "m-brand" }, "Push Gin"),
-      claimArea,
+    h("div", { class: "m-bottom m-main-bottom" },
+      claimBar,
       h("button", { class: "m-help", title: "Reglas del juego", "aria-label": "Reglas del juego", onclick: onRules }, "?")));
 }
 
@@ -248,7 +254,7 @@ export function practiceMenu({ account, bots, turnTime, onBots, onTurnTime, onPl
     h("div", { class: "m-private" },
       h("div", { class: "m-panel" },
         h("div", { class: "m-steppers" },
-          stepper([1, 2, 3], bots, bots === 1 ? "Rival" : "Rivales", String, onBots),
+          stepper([TABLE_MIN - 1, TABLE_MAX - 1], bots, "Rivales", String, onBots),
           stepper(TURN_TIMES, turnTime, "Tiempo de turnos", showTime, onTurnTime)),
         h("div", { class: "hint" }, timeHint(turnTime))),
       h("div", { class: "m-panel" },
@@ -265,9 +271,19 @@ export function practiceMenu({ account, bots, turnTime, onBots, onTurnTime, onPl
 }
 
 // ---------- sala de espera ----------
-export function waitingRoom({ view, onStart, onLeave }) {
+// Mínimo 3 en la mesa y máximo 4: con 2 personas entra 1 bot obligatorio y el anfitrión puede pedir 2 (para ser 4).
+// `bots`: lo que eligió el anfitrión (se ajusta si entra o sale alguien).
+export function waitingRoom({ view, bots, onBots, onStart, onLeave }) {
   const isHost = view.host === view.you;
-  const canStart = isHost && view.players.length >= 2;
+  const humans = view.players.length;
+  const range = botsRange(humans);
+  const nBots = Math.max(range.min, Math.min(range.max, bots ?? range.min));
+  const canStart = isHost && humans >= 2;
+  const botList = isHost && humans >= 2 ? BOT_NAMES.slice(0, nBots) : [];
+  const botChoice = isHost && humans >= 2 && range.max > range.min
+    ? h("div", { class: "m-steppers m-wait-bots" },
+        stepper(Array.from({ length: range.max - range.min + 1 }, (_, i) => range.min + i), nBots, nBots === 1 ? "Bot" : "Bots", String, onBots))
+    : null;
   return frame("wide-menu waiting",
     h("div", { class: "m-wait" },
       h("div", { class: "m-wait-head" }, h("h2", {}, "Preparando la partida")),
@@ -277,15 +293,20 @@ export function waitingRoom({ view, onStart, onLeave }) {
           h("span", {}, "Turno: ", h("b", { class: "gold" }, view.turnTime ? `${view.turnTime} s` : "sin límite")),
           h("span", { class: "m-wait-code", title: "Código de la sala" }, view.code),
           h("button", { class: "m-pill gold", onclick: () => share(`Únete a mi partida de Push Gin con el código ${view.code}`, "Código") }, "Compartir código")),
-        h("p", { class: "m-text" }, view.players.length < 2 ? "Esperando a que tus amigos se unan al juego." : `Jugadores: ${view.players.length} de 4`),
+        h("p", { class: "m-text" }, humans < 2 ? "Esperando a que tus amigos se unan al juego."
+          : `Jugadores: ${humans}${botList.length ? ` + ${botList.length} ${botList.length === 1 ? "bot" : "bots"}` : ""} de ${TABLE_MAX}` +
+            (range.min ? ` · Mínimo ${TABLE_MIN} en la mesa: los bots la completan.` : "")),
         h("div", { class: "m-wait-players" },
           view.players.map((p) => h("div", { class: "m-wait-p" + (p.id === view.you ? " me" : "") },
             avatar(p.name, p.level, "small", p.avatar),
             h("span", { class: "m-wait-name" }, p.name, p.id === view.you ? " (tú)" : ""),
-            p.id === view.host ? h("span", { class: "badge" }, "Anfitrión") : null))),
+            p.id === view.host ? h("span", { class: "badge" }, "Anfitrión") : null)),
+          botList.map((n, i) => h("div", { class: "m-wait-p bot" },
+            avatar(n, null, "small", BOT_AVATARS[i]), h("span", { class: "m-wait-name" }, n), h("span", { class: "badge" }, "Bot")))),
+        botChoice,
         h("div", { class: "m-wait-btns" },
           isHost
-            ? h("button", { class: "m-btn green", disabled: !canStart, onclick: onStart }, "Comenzar")
+            ? h("button", { class: "m-btn green", disabled: !canStart, onclick: () => onStart(nBots) }, "Comenzar")
             : h("div", { class: "hint" }, "Esperando a que el anfitrión comience…"),
           h("button", { class: "m-btn red", onclick: onLeave }, "Dejar")))));
 }
@@ -329,7 +350,11 @@ export function renderModal(kind, props) {
 
 // Actualiza cada segundo los contadores ("Fichas gratis en", vencimiento del código) sin redibujar el menú.
 // onDone se llama cuando alguno llega a cero (para mostrar el botón de reclamar o "generar otro código").
+// Cuánto ha avanzado la espera de las fichas gratis (0 a 100).
+const claimPct = (claimAt) => Math.max(0, Math.min(100, 100 - ((claimAt - Date.now()) / CLAIM_INTERVAL_MS) * 100));
+
 export function tickCountdowns(onDone) {
+  for (const el of document.querySelectorAll("[data-claim-at]")) el.style.width = `${claimPct(Number(el.dataset.claimAt))}%`;
   for (const el of document.querySelectorAll("[data-countdown]")) {
     const left = Number(el.dataset.countdown) - Date.now();
     el.textContent = formatCountdown(left);

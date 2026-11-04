@@ -100,7 +100,7 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .action-rail{ width:clamp(84px,8.6vw,132px); flex-shrink:0; min-height:0; display:flex; flex-direction:column; align-items:center; gap:clamp(6px,1vh,12px); }
 .rail-pill{ width:100%; background:rgba(0,0,0,.28); border:1px solid rgba(201,162,39,.3); border-radius:14px; padding:8px 4px; text-align:center; }
 .rail-pill .val{ display:flex; align-items:center; justify-content:center; gap:4px; font-family:'Fraunces',serif; font-weight:700; color:var(--ivory); font-size:clamp(14px,1.35vw,20px); }
-.rail-pill .coin{ width:12px; height:12px; border-radius:50%; background:radial-gradient(circle at 35% 30%, var(--gold-light), var(--gold)); }
+.rail-pill .coin{ width:18px; height:18px; display:block; filter:drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
 .rail-pill .sub{ font-size:clamp(7.5px,.65vw,10px); color:var(--ivory-shade); opacity:.6; text-transform:uppercase; letter-spacing:.03em; margin-top:2px; }
 .rail-center-group{ flex:1; min-height:0; width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:clamp(6px,1.3vh,14px); }
 .sort-btn{ width:100%; background:linear-gradient(180deg, rgba(201,162,39,.18), rgba(201,162,39,.08)); border:1px solid rgba(201,162,39,.4); border-radius:12px; padding:clamp(6px,1vh,11px) 4px; text-align:center; cursor:pointer; user-select:none; transition:transform .08s ease; }
@@ -282,12 +282,13 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 
 /* ============ Disposición de la mesa: jugadores a la izquierda, mesa grande, tu mano en un atril de madera ============ */
 .table-felt{ display:grid; grid-template-columns:clamp(96px, 9vw, 130px) minmax(0, 1fr) auto; }
-.players-col{ display:flex; flex-direction:column; align-items:stretch; gap:clamp(6px, 1.4vh, 14px); min-height:0; overflow:hidden; padding:2px 0; }
-.players-col .seat.you{ margin-top:auto; }
+/* Los asientos repartidos a lo alto con el mismo espacio entre ellos (sean 3 o 4) */
+.players-col{ display:flex; flex-direction:column; align-items:stretch; justify-content:space-between; gap:clamp(6px, 1.4vh, 14px);
+  min-height:0; overflow:hidden; padding:2px 0; }
 .seat{ flex:none; display:flex; flex-direction:column; align-items:center; gap:2px; padding:4px 2px; text-align:center;
   background:none; border:0; box-shadow:none; border-radius:12px; min-width:0; }
 .seat-av{ position:relative; width:clamp(50px, min(5.6vw, 10vh), 78px); aspect-ratio:1; border-radius:50%; flex-shrink:0; }
-.seat-av .avatar-img, .seat-av .avatar{ width:100%; height:100%; border-radius:50%; font-size:22px; box-shadow:0 3px 8px rgba(0,0,0,.45); }
+.seat-av .avatar-img, .seat-av .avatar{ width:100%; height:100%; border-radius:50%; font-size:22px; box-shadow:0 0 0 2px rgba(0,0,0,.35), 0 3px 8px rgba(0,0,0,.45); }
 .seat-level{ position:absolute; right:-6px; top:-4px; width:24px; height:24px; display:flex; align-items:center; justify-content:center;
   font-size:10px; font-weight:800; color:var(--wood-dark); background:var(--gold-light);
   clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%); }
@@ -298,9 +299,8 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .seat-total{ font-family:'Fraunces',serif; font-weight:700; color:var(--ivory); }
 .seat-total::before{ content:"pts "; font-family:'Manrope',sans-serif; font-weight:600; font-size:.8em; opacity:.6; }
 .seat .status-chip{ font-size:clamp(8px, .65vw, 10px); }
-.seat .hand-pts{ font-size:clamp(9px, .75vw, 11px); color:var(--ivory-shade); opacity:.75; }
 /* El jugador en turno: aro dorado alrededor del avatar que se va vaciando (su reloj) */
-.seat.turn{ background:rgba(201,162,39,.10); border:0; box-shadow:inset 0 0 0 1.5px rgba(230,198,90,.55); text-shadow:none; }
+.seat.turn{ background:none; border:0; box-shadow:none; text-shadow:none; }
 .seat.turn .seat-name{ color:var(--gold-light); }
 .seat.turn .seat-av::before{ content:""; position:absolute; inset:-6px; border-radius:50%;
   background:conic-gradient(var(--gold-light) calc(var(--t) * 360deg), rgba(255,255,255,.12) 0);

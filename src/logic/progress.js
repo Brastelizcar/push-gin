@@ -29,16 +29,19 @@ export function placements(totals) {
 // left: quienes abandonaron a media partida. Pierden su cuota (queda en el pozo), no ganan XP y no tienen
 // puesto (place: null); los puestos se reparten entre los que siguieron jugando.
 // xpFactor: multiplica el XP (práctica contra bots: PRACTICE_XP_FACTOR).
-export function gameRewards(order, totals, fee = 0, left = [], { xpFactor = 1 } = {}) {
-  const gone = new Set(left);
+// bots: ids de los bots (juego privado completado con bots). No pagan cuota ni ganan nada; si un bot gana, el pozo
+// no es de nadie.
+export function gameRewards(order, totals, fee = 0, left = [], { xpFactor = 1, bots = [] } = {}) {
+  const gone = new Set(left), robot = new Set(bots);
   const stayed = order.filter((id) => !gone.has(id));
   const place = placements(Object.fromEntries(stayed.map((id) => [id, totals[id]])));
-  const winners = stayed.filter((id) => place[id] === 0);
-  const pot = fee * order.length;
+  const winners = stayed.filter((id) => place[id] === 0 && !robot.has(id));
+  const pot = fee * order.filter((id) => !robot.has(id)).length;
   const share = winners.length ? Math.floor(pot / winners.length) : 0;
   const extra = pot - share * winners.length;
   return Object.fromEntries(order.map((id) => [id, gone.has(id)
     ? { place: null, xp: 0, chips: -fee, left: true }
+    : robot.has(id) ? { place: place[id], xp: 0, chips: 0 }
     : {
       place: place[id],
       xp: Math.round((XP_BY_PLACE[place[id]] ?? 0) * xpFactor),

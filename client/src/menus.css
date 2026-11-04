@@ -17,17 +17,16 @@ body:has(#app.menu){ padding:6px; align-items:stretch; }
 .gold{ color:var(--gold-light); }
 
 /* ---------- moneda / ficha ---------- */
-.chip-coin{
-  display:inline-block; width:1em; height:1em; border-radius:50%; vertical-align:-.12em; margin:0 .25em;
-  background:radial-gradient(circle at 35% 30%, var(--gold-light), var(--gold) 70%, #8c6d12);
-  box-shadow:inset 0 0 0 .12em rgba(61,37,21,.35), 0 1px 2px rgba(0,0,0,.4);
-}
+.chip-coin{ display:inline-block; width:1.15em; height:1.15em; vertical-align:-.2em; margin:0 .25em; filter:drop-shadow(0 1px 2px rgba(0,0,0,.45)); }
 
 /* ---------- barra superior ---------- */
-.m-top{
-  display:flex; align-items:center; gap:18px; padding:10px 14px;
-  background:rgba(0,0,0,.25); border:1px solid rgba(201,162,39,.3); border-radius:14px;
+/* Panel oscuro con brillo arriba y filo dorado; íconos grandes (ref. docs/referencias/barra superior.png) */
+.m-top, .m-claim{
+  background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,0) 45%), linear-gradient(180deg, #0f3324, #06190f);
+  border:1px solid rgba(201,162,39,.5);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14), inset 0 -2px 0 rgba(0,0,0,.4), 0 8px 18px rgba(0,0,0,.4);
 }
+.m-top{ display:flex; align-items:center; gap:clamp(14px, 2.2vw, 30px); padding:10px 18px 10px 14px; border-radius:18px; }
 .m-who{ display:flex; align-items:center; gap:10px; }
 .m-name{ font-family:'Fraunces',serif; font-weight:700; color:var(--ivory); font-size:16px; }
 .m-avatar{
@@ -37,15 +36,15 @@ body:has(#app.menu){ padding:6px; align-items:stretch; }
   display:flex; align-items:center; justify-content:center;
 }
 .m-avatar.small{ width:34px; height:34px; }
-/* Con imagen: el aro dorado ya viene en la imagen */
-.m-avatar.with-img{ background:none; border:0; box-shadow:0 4px 10px rgba(0,0,0,.45); padding:0; }
+/* Con imagen: retrato redondo (fondo vino tinto, sin aro) con un borde oscuro fino */
+.m-avatar.with-img{ background:none; border:0; box-shadow:0 0 0 2px rgba(0,0,0,.35), 0 4px 10px rgba(0,0,0,.45); padding:0; }
 .m-avatar.with-img{ width:56px; height:56px; } .m-avatar.small.with-img{ width:38px; height:38px; }
 .avatar-img{ width:100%; height:100%; border-radius:50%; display:block; object-fit:cover; user-select:none; -webkit-user-drag:none; }
 /* Perfil del menú de inicio: avatar grande */
 .m-who{ gap:14px; }
 .m-who .m-avatar.with-img{ width:clamp(96px, 16vh, 130px); height:clamp(96px, 16vh, 130px); }
 .m-who .m-level{ width:40px; height:40px; font-size:15px; right:-12px; bottom:-8px; }
-.m-who .m-name{ font-size:clamp(20px, 3.2vh, 28px); }
+.m-profile .m-name{ font-size:clamp(20px, 3.2vh, 28px); line-height:1.1; }
 .m-who{ gap:20px; }
 .m-avatar.pickable{ cursor:pointer; transition:transform .12s ease; } .m-avatar.pickable:hover{ transform:scale(1.07); }
 .m-rivals{ display:flex; justify-content:center; gap:22px; margin-top:6px; }
@@ -66,18 +65,23 @@ body:has(#app.menu){ padding:6px; align-items:stretch; }
   width:26px; height:26px;
 }
 .m-avatar.small .m-level{ width:20px; height:20px; min-width:0; font-size:9px; right:-8px; bottom:-5px; }
-.m-xp{ flex:1; max-width:260px; }
-.m-xp-nums{ font-size:13px; color:var(--ivory-shade); }
-.m-xp-nums b{ font-family:'Fraunces',serif; font-size:18px; color:var(--gold-light); }
-.m-xp-bar{ height:8px; margin-top:4px; border-radius:6px; background:rgba(0,0,0,.35); border:1px solid rgba(201,162,39,.35); overflow:hidden; }
-.m-xp-fill{ height:100%; background:linear-gradient(90deg, var(--confirm), var(--confirm-light)); border-radius:6px; transition:width .4s ease; }
-.m-chips{
-  margin-left:auto; display:flex; align-items:center; gap:2px; padding:6px 16px; border-radius:24px;
-  background:rgba(0,0,0,.3); border:1px solid rgba(201,162,39,.4); font-size:18px;
-}
-.m-chips b{ font-family:'Fraunces',serif; color:var(--gold-light); }
-.m-gear, .m-fs{ background:none; border:0; padding:4px 6px; font-size:26px; color:var(--gold-light); line-height:1; }
-.m-fs{ position:static; font-size:20px; }
+.m-profile{ display:flex; flex-direction:column; gap:6px; flex:1; min-width:150px; max-width:340px; }
+.m-xp-nums{ display:flex; align-items:baseline; justify-content:space-between; font-size:13px; color:var(--ivory-shade); }
+.m-xp-nums b{ font-family:'Fraunces',serif; font-size:clamp(20px, 3vh, 26px); color:var(--gold-light); line-height:1; }
+.m-xp-nums span{ font-weight:700; opacity:.8; }
+.m-xp-bar{ height:12px; margin-top:4px; border-radius:8px; background:rgba(0,0,0,.55); box-shadow:inset 0 2px 4px rgba(0,0,0,.6); overflow:hidden; }
+.m-xp-fill{ height:100%; border-radius:8px; transition:width .4s ease;
+  background:linear-gradient(90deg, var(--gold), var(--gold-light)); box-shadow:0 0 10px rgba(230,198,90,.6), inset 0 1px 0 rgba(255,255,255,.4); }
+/* Cajas redondeadas hundidas con un ícono grande (fichas) */
+.m-box{ display:flex; align-items:center; gap:12px; padding:6px 26px 6px 6px; border-radius:999px;
+  background:rgba(0,0,0,.45); border:1px solid rgba(201,162,39,.35); box-shadow:inset 0 2px 8px rgba(0,0,0,.6); }
+.m-box-icon{ width:clamp(42px, 7vh, 58px); height:clamp(42px, 7vh, 58px); filter:drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+.m-box b{ font-family:'Fraunces',serif; font-size:clamp(22px, 3.4vh, 30px); color:var(--gold-light); font-variant-numeric:tabular-nums; }
+.m-chips{ margin-left:auto; }
+.m-top-btns{ display:flex; align-items:center; gap:4px; }
+.m-gear, .m-fs{ background:none; border:0; padding:4px 6px; font-size:clamp(34px, 5.6vh, 46px); color:var(--gold-light); line-height:1;
+  text-shadow:0 2px 6px rgba(0,0,0,.5); transition:transform .2s ease; }
+.m-fs{ position:static; font-size:clamp(24px, 3.8vh, 32px); }
 .m-gear:hover{ transform:rotate(30deg); background:none !important; }
 .m-offline{ display:flex; align-items:center; gap:12px; color:var(--ivory-shade); font-size:14px; flex:1; }
 .m-small{ padding:5px 12px; font-size:12px; border-radius:20px; }
@@ -119,13 +123,28 @@ body:has(#app.menu){ padding:6px; align-items:stretch; }
 /* ---------- barra inferior ---------- */
 .m-bottom{ display:flex; align-items:center; gap:18px; min-height:56px; }
 .m-brand{ font-family:'Fraunces',serif; font-weight:900; font-size:26px; color:var(--gold-light); letter-spacing:.02em; }
-.m-claim{ margin:0 auto; display:flex; align-items:center; gap:10px; padding:8px 20px; border-radius:24px; background:rgba(0,0,0,.3); border:1px solid rgba(201,162,39,.35); }
-.m-claim-lbl{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--ivory-shade); }
-.m-claim-time{ font-family:'Fraunces',serif; font-weight:700; font-size:22px; color:var(--ivory); font-variant-numeric:tabular-nums; }
-.m-claim.ready{ font-size:16px; color:#0e2f1f; border:0; background:radial-gradient(circle at 35% 30%, var(--confirm-light), var(--confirm) 80%); animation:tap-pulse 2s ease-in-out infinite; }
 .m-help{ width:46px; height:46px; padding:0; border-radius:50%; font-family:'Fraunces',serif; font-size:22px; }
-.m-claim + .m-help, .m-claim.ready + .m-help{ margin-left:0; }
-.m-bottom .m-help:only-child, .m-brand + .m-help{ margin-left:auto; }
+/* Barra de fichas gratis (ref. barra de monedas gratis/activa.png): la marca a la izquierda, la ficha en un hueco que
+   sobresale al centro y a la derecha el tiempo que falta (con su barra) o el botón para recogerlas. */
+.m-main-bottom{ align-items:flex-end; padding-top:34px; }
+.m-claim{ flex:1; max-width:820px; margin:0 auto; height:66px; padding:0 26px; border-radius:26px 26px 16px 16px;
+  display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:22px; }
+.m-claim .m-brand{ justify-self:start; font-size:clamp(22px, 3.4vh, 30px); text-shadow:0 2px 4px rgba(0,0,0,.5); }
+.m-claim-coin{ width:clamp(92px, 14vh, 110px); aspect-ratio:1; margin-top:-40px; border-radius:50%; display:grid; place-items:center;
+  background:radial-gradient(circle at 50% 40%, #12402d, #051510 75%); border:2px solid rgba(201,162,39,.55);
+  box-shadow:0 -6px 16px rgba(0,0,0,.45), inset 0 4px 10px rgba(0,0,0,.7); }
+.m-claim-img{ width:80%; height:80%; filter:grayscale(1) brightness(.5) contrast(1.15); opacity:.85; transition:filter .5s ease, opacity .5s ease; }
+.m-claim.ready .m-claim-img{ filter:drop-shadow(0 0 10px rgba(230,198,90,.75)); opacity:1; animation:coin-ready 2.2s ease-in-out infinite; }
+@keyframes coin-ready{ 50%{ transform:scale(1.06); } }
+.m-claim-info{ justify-self:end; display:grid; grid-template-columns:auto auto; align-items:baseline; column-gap:10px; row-gap:6px; }
+.m-claim-lbl{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--ivory-shade); }
+.m-claim-time{ font-family:'Fraunces',serif; font-weight:700; font-size:clamp(20px, 3.2vh, 26px); color:var(--ivory); font-variant-numeric:tabular-nums; }
+.m-claim-track{ grid-column:1 / -1; height:6px; border-radius:4px; background:rgba(0,0,0,.55); box-shadow:inset 0 1px 3px rgba(0,0,0,.6); overflow:hidden; }
+.m-claim-fill{ height:100%; border-radius:4px; background:linear-gradient(90deg, rgba(230,198,90,.35), var(--gold-light)); box-shadow:0 0 8px rgba(230,198,90,.6); transition:width 1s linear; }
+.m-claim-btn{ justify-self:end; padding:10px 26px; border-radius:14px; font-family:'Fraunces',serif; font-weight:700; font-size:clamp(16px, 2.4vh, 20px);
+  color:var(--ivory); background:linear-gradient(180deg, #8a5a33, var(--wood-dark)); border:2px solid var(--gold-light);
+  box-shadow:0 0 0 2px rgba(0,0,0,.35), 0 4px 12px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.25); animation:tap-pulse 2s ease-in-out infinite; }
+.m-claim-btn:hover{ filter:brightness(1.12); }
 
 /* ---------- ventanas ---------- */
 .m-modal-back{ position:fixed; inset:0; z-index:300; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; padding:20px; }
@@ -227,4 +246,5 @@ body.no-highlight .card.recent{ box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0
   .m-step-val{ font-size:42px; }
   .m-invite{ font-size:22px; height:50px; }
   .m-screen-title, .m-brand{ display:none; }
+  .m-claim{ grid-template-columns:auto 1fr; padding:0 16px; gap:14px; }
 }

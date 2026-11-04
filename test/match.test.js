@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Match, cleanTurn } from '../src/logic/match.js';
+import { Match, cleanTurn, botsRange } from '../src/logic/match.js';
 import { seededRng } from '../src/logic/cards.js';
 import { cs } from './helpers.js';
 
@@ -183,4 +183,11 @@ test('cleanTurn: limpia lo que manda el cliente', () => {
   assert.equal(cleanTurn({ discard: 'x', hooks: [{ meldId: '1', cardId: 'y' }] }), null);
   assert.deepEqual(cleanTurn({ discard: 'x', hooks: [{ meldId: 1, cardId: 'y', end: null }], extra: 1 }),
     { plant: [], melds: [], discard: 'x', hooks: [{ meldId: 1, cardId: 'y', end: undefined }] });
+});
+
+test('bots para completar la mesa: mínimo 3 y máximo 4 en total', () => {
+  assert.deepEqual(botsRange(1), { min: 2, max: 3 });
+  assert.deepEqual(botsRange(2), { min: 1, max: 2 });   // con 2 personas, 1 bot obligatorio (o 2)
+  assert.deepEqual(botsRange(3), { min: 0, max: 1 });
+  assert.deepEqual(botsRange(4), { min: 0, max: 0 });
 });

@@ -6,7 +6,14 @@ import { TOTAL_ROUNDS, ROUND_REQUIREMENTS } from './rounds.js';
 import { cardPoints } from './cards.js';
 import { avatarFor, isAvatar } from './avatars.js';
 
-export const MIN_PLAYERS = 2;
+export const MIN_PLAYERS = 2;   // lo mínimo que acepta la lógica (las pruebas juegan de a 2)
+export const TABLE_MIN = 3;     // en el juego: mínimo 3 en la mesa (personas + bots) …
+export const TABLE_MAX = 4;     // … y máximo 4
+
+// Bots que completan una mesa de `humans` personas: { min, max }. Con 2 personas, 1 obligatorio (o 2 para ser 4).
+export function botsRange(humans) {
+  return { min: Math.max(0, TABLE_MIN - humans), max: Math.max(0, TABLE_MAX - humans) };
+}
 export const TURN_TIMES = [0, 30, 45, 60, 90, 120]; // segundos por turno (0 = sin límite)
 
 const fail = (error) => ({ ok: false, error });

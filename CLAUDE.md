@@ -1,6 +1,6 @@
 # Push Gin — guía para trabajar en este repositorio
 
-Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interfaz y los comentarios van en **español**.
+Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el navegador. Todo el texto de la interfaz y los comentarios van en **español**.
 
 ## Estructura
 - `src/logic/` — lógica PURA del juego (sin red ni DOM). La usan el servidor y el cliente.
@@ -9,7 +9,8 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
   - `turn.js` jugada completa de un turno, validada de una vez (`resolveTurn`) · `plan.js` ayudas para agrupar cartas
   - `match.js` la PARTIDA (jugadores, 5 rondas, vistas privadas, temporizador). La usan la sala del servidor y la práctica
   - `bot.js` jugador automático (solo ve su propia vista; nombres y avatares de los bots) · `progress.js` XP, niveles y fichas
-  - `avatars.js` los 8 avatares (`client/public/avatars/avatar-N.webp`, recortados de `docs/referencias/avatares*.png`)
+  - `avatars.js` los 8 avatares (`client/public/avatars/avatar-N.webp`, recortados de `docs/referencias/avatares*.png`
+    por dentro del aro dorado y con el fondo verde pasado a vino tinto, para que no se pierdan en el fieltro)
 - `test/` — pruebas de la lógica (`npm test` en la raíz, `node --test`).
 - `server/` — servidor Colyseus 0.18 (`PushGinRoom`). Pruebas con mocha (`cd server && npm test`).
 - `client/` — Vite + JS sin framework. `table.js` es la mesa; `main.js` las pantallas. Pruebas puras en `client/test` (`cd client && npm test`).
@@ -30,6 +31,10 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
   (`isCompleteMeld`, `Round._commit`; evento `turn` con `cleared`). Incluye plantarse con un cuarteto (ronda 5).
 - Plantarse exige EXACTAMENTE el requisito de la ronda. Tras jugar debes conservar ≥1 carta para descartar:
   se gana descartando la última carta. Puntos de lo que queda en mano: A=15, 2=20, 10/J/Q/K=10, 3–9=5. Gana el menor total.
+- **Jugadores: mínimo 3 y máximo 4 en la mesa** (`TABLE_MIN`/`TABLE_MAX`, `botsRange` en match.js). En juego privado,
+  con 2 personas entra 1 bot obligatorio y el anfitrión puede pedir 2 (para ser 4); con 3 puede sumar 1. Los bots no
+  pagan cuota ni ganan premios (`gameRewards(..., { bots })`); el pozo es cuota × personas y, si gana un bot, no es de
+  nadie. Práctica: 2 o 3 bots. (La lógica acepta 2 jugadores: las pruebas bajan `room.minPlayers` a 2.)
 - Quién empieza la ronda: jugador `roundIndex % nJugadores` (provisional).
 - Mazo agotado: push exige ≥2 cartas en el mazo; si tras un descarte quedan <2, se juega **una vuelta más** (cada
   jugador un turno, solo tomando el descarte; `Round.finalTurnsLeft`) y luego la ronda termina sin ganador y todos
@@ -68,13 +73,12 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
   vacías son los espacios (no hay botón Espacio). Soltar en una casilla vacía la ocupa; sobre otra carta, la empuja
   hasta el siguiente hueco. 789/777 dejan una casilla vacía entre grupos. Hasta 2 filas; luego las casillas se achican.
 - Mesa (UI): cartas de 4 colores (`suitColor`: ♥ rojo, ♠ negro, ♦ azul, ♣ verde), número grande al centro y palo
-  pequeño en la esquina (también la del descarte). Marcador: tus puntos de la ronda y «en mano». Riel: «Pozo»
-  (cuota × jugadores, solo con cuota).
+  pequeño en la esquina (también la del descarte). Riel: «Pozo» (cuota × personas, solo con cuota).
   Botón ☰: menú de la partida (ajustes de sonido, reglas, ayuda, salir al menú de inicio = abandonar).
   Disposición (ref. `docs/referencias/diposicion del tablero.png`, solo disposición): columna de jugadores a la izquierda
-  (avatar, nombre, cartas, puntos; tú abajo), mesa grande con las cartas de cada plante lado a lado, tu mano en un
+  (avatar, nombre, cartas, puntos; tú abajo; repartidos con el mismo espacio entre ellos), mesa grande con las cartas de cada plante lado a lado, tu mano en un
   atril de madera y el riel a la derecha. El jugador EN TURNO lleva un aro dorado alrededor del avatar que se va
-  vaciando: es su reloj (`--t` 1→0). Botón «Terminar turno» dorado. Avisos (toast) justo encima de la mano. Sin botón de tamaño de cartas.
+  vaciando: es su reloj (`--t` 1→0); su asiento no lleva marco. Botón «Terminar turno» dorado. Avisos (toast) justo encima de la mano. Sin botón de tamaño de cartas.
 - Animaciones: reparto y tu carta tras un push (`flyFromDeck`), tomar el descarte (`flyCard`), push en dos tiempos
   (si te lo hacen a ti, las 2 cartas vuelan del descarte a tus casillas), jugadas a la mesa (`applyFlights`,
   `detectRemotePlay`), lo que hacen los demás con el descarte (`detectRemoteDiscard` + `flyBetween`) y el plante
@@ -99,4 +103,9 @@ Juego de cartas multijugador (2 a 4) en el navegador. Todo el texto de la interf
 - **Avatar:** cada cuenta nueva recibe uno al azar (1–8, columna `accounts.avatar`; cuentas viejas: `avatarFor(id)`).
   Se cambia tocando el avatar en el menú de inicio (`POST /api/account/avatar`). Los jugadores lo llevan en la vista.
 - Cliente: `account.js` (API), `menus.js`/`menus.css`, `settings.js`, `sound.js`. Los menús ocupan toda la pantalla.
+- Menú de inicio (ref. `docs/referencias/barra superior.png` y `barra de monedas gratis/activa.png`): barra superior
+  con avatar grande, nombre, XP con barra dorada, caja de fichas con ícono grande y botones grandes. La ficha es
+  `client/public/coin.webp` (`coinImg`, de `ICONO MONEDA.png`). Abajo, la barra de fichas gratis: la ficha sobresale
+  al centro, apagada (gris) mientras corre el tiempo, con la cuenta regresiva y su barra; dorada y con el botón
+  «Recoger 300 fichas» cuando ya se puede.
 

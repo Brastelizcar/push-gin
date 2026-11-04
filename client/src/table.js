@@ -1,10 +1,11 @@
 import "./table.css";
-import { h, toast, fsButton, avatarImg } from "./dom.js";
+import { h, toast, fsButton, avatarImg, coinImg } from "./dom.js";
 import { actions } from "./net.js";
 import { suitColor } from "./format.js";
 import { groupRuns, groupSets } from "./grouping.js";
 import { extendMeld, stealTwo } from "../../src/logic/melds.js";
 import { planHooks } from "../../src/logic/plan.js";
+import { isBot } from "../../src/logic/bot.js";
 import { meldShape, groupAt, previewMelds, addToGroup, buildTurn, emptyStage, stagedIds } from "./staging.js";
 import { syncCells, placeCard, placeGroup, cellsFromGroups, nextFree, gridShape, cellItems } from "./handgrid.js";
 
@@ -54,7 +55,6 @@ export function handleRejected() {
   else resetPending();
 }
 
-const points = (c) => (c.rank === "A" ? 15 : c.rank === "2" ? 20 : ["10", "J", "Q", "K"].includes(c.rank) ? 10 : 5);
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function cardEl(c, extra = "", idx) {
@@ -515,8 +515,6 @@ export function renderTable(app, { view, room, rerender }) {
   ui.prevIds = new Set(view.hand.map((c) => c.id));
   const planted = !!byId[me]?.planted;
   const canMeldAct = mustDiscard || (canTake && !planted); // los plantes responden al toque / al arrastre
-  const stagedPoints = [...ui.stage.groups.flatMap((g) => g.cards), ...ui.stage.hooks.map((x) => x.card)].reduce((s, c) => s + points(c), 0);
-  const handPts = view.handPoints - (pendingCard ? points(pendingCard) : 0) - stagedPoints; // puntos que te quedan en la mano
 
   // --- barra superior ---
   const hint = !myTurn
@@ -548,8 +546,7 @@ export function renderTable(app, { view, room, rerender }) {
       h("div", { class: "seat-meta" },
         h("span", { class: "card-count", title: "Cartas en la mano" }, h("span", { class: "icon" }, ""), p.cards),
         h("span", { class: "seat-total", title: "Puntos acumulados en la partida" }, p.total)),
-      status,
-      p.id === me ? h("div", { class: "hand-pts", title: "Puntos de las cartas que te quedan en la mano (los sumas si otro gana la ronda)" }, `en mano ${handPts}`) : null);
+      status);
   };
   const playersCol = h("div", { class: "players-col" }, seated.map(seat));
 
@@ -629,10 +626,11 @@ export function renderTable(app, { view, room, rerender }) {
   // ✓ siempre responde en tu turno: si la jugada no vale, explica por qué y no la envía.
   const turnCheck = mustDiscard ? buildTurn(view, ui.stage, ui.pending, planted) : null;
   const confirmState = !mustDiscard ? "disabled" : turnCheck.turn ? "active" : pendingCard || hasStage() ? "invalid" : "disabled";
-  const pot = (view.entryFee ?? 0) * view.players.length;   // lo que se lleva el ganador de la partida
+  const payers = view.players.filter((p) => !isBot(p.id)).length;   // los bots no pagan cuota
+  const pot = (view.entryFee ?? 0) * payers;                         // lo que se lleva el ganador de la partida
   const rail = h("div", { class: "action-rail" },
-    pot ? h("div", { class: "rail-pill pot", title: `Cuota de ${view.entryFee} fichas × ${view.players.length} jugadores: se lo lleva el ganador de la partida` },
-      h("div", { class: "val" }, h("span", { class: "coin" }), pot.toLocaleString("es")),
+    pot ? h("div", { class: "rail-pill pot", title: `Cuota de ${view.entryFee} fichas × ${payers} jugadores: se lo lleva el ganador de la partida` },
+      h("div", { class: "val" }, coinImg("coin"), pot.toLocaleString("es")),
       h("div", { class: "sub" }, "Pozo")) : null,
     h("div", { class: "rail-center-group" },
       h("div", { class: "sort-btn", "aria-label": "Ordenar por consecutivos", onclick: () => sortHand("runs") }, h("div", { class: "val" }, "789")),

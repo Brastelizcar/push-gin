@@ -21,7 +21,8 @@ let busy = false;
 let status = null;               // mensaje mientras se conecta / despierta el servidor
 let fee = 0;                     // cuota elegida en "Juego privado"
 let turnTime = 60;               // segundos por turno elegidos (0 = sin límite)
-let bots = 2;                    // rivales en práctica
+let bots = 2;                    // rivales en práctica (2 o 3: mínimo 3 en la mesa)
+let lobbyBots = null;            // bots que pide el anfitrión en la sala de espera (null = los mínimos)
 let leaving = false;             // saliste tú de la sala (no mostrar "te desconectaste")
 
 const setScreen = (s) => { screen = s; modal = null; render(); };
@@ -149,7 +150,7 @@ function leaveRoom() {
   const local = !!room?.practice;                 // práctica sin conexión (sala local)
   const wasPractice = local || !!view?.practice;
   room?.leave();
-  room = null; view = null; screen = wasPractice ? "practice" : "menu";
+  room = null; view = null; lobbyBots = null; screen = wasPractice ? "practice" : "menu";
   if (local) render(); else refreshAccount();
 }
 
@@ -167,7 +168,7 @@ function render() {
     if (over) app.append(over);
     return;
   }
-  if (room && view) return app.replaceChildren(waitingRoom({ view, onStart: () => actions.start(room), onLeave: leaveRoom }));
+  if (room && view) return app.replaceChildren(waitingRoom({ view, bots: lobbyBots, onBots: (n) => { lobbyBots = n; render(); }, onStart: (n) => actions.start(room, n), onLeave: leaveRoom }));
 
   let page;
   if (screen === "loading") page = h("div", { class: "hint" }, "Cargando…");
