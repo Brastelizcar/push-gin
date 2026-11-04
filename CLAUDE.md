@@ -74,7 +74,10 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
   hasta el siguiente hueco. 789/777 dejan una casilla vacía entre grupos. Las cartas que llegan ocupan la PRIMERA
   casilla vacía (también los espacios entre grupos). SIEMPRE 2 filas de alto fijo (`--hwmax`) y al inicio 20 casillas
   (10 por fila, `MIN_COLS`) con las cartas juntas. El atril es FIJO (ancho de 10 casillas normales y alto de 2 filas),
-  centrado y pegado al borde de abajo: baja hasta el marco de madera y forma parte de él. Las casillas vacías no llevan
+  centrado y pegado al borde de abajo: baja hasta el marco de madera y forma parte de él. Estilo compacto (ref.
+  `docs/referencias/idea atril.jpg`): cartas casi pegadas (`CELL_AIR`), las dos filas juntas, sin panel interior, la
+  madera empieza a media altura de la fila de arriba (las cartas sobresalen) y abajo un borde más oscuro. Los avisos
+  de la mano van encima del atril. Las casillas vacías no llevan
   marco. Con más cartas hay más columnas y las cartas se achican para caber en el mismo atril. Tu jugada sin confirmar se ve en su propia fila, debajo de los plantes de la mesa.
   Fin de ronda: la tabla va de menor a mayor total.
 - **Jugada en vivo:** lo que el jugador en turno arma sin confirmar (grupos y enganches) lo ven los demás en tiempo real

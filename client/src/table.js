@@ -91,11 +91,13 @@ function sortHand(mode) {
   cur.rerender();
 }
 
-// Tamaño normal de una casilla en px: la carta de la mano (--hw de table.css) más un poco de aire.
+// Tamaño normal de una casilla en px: la carta de la mano (--hw de table.css) más un poquito de aire (las cartas del
+// atril van casi pegadas).
+const CELL_AIR = 1.05;
 function cellMax() {
   const scale = Number(getComputedStyle(document.documentElement).getPropertyValue("--ui-scale")) || 1;
   const hw = Math.min(84, Math.max(38, Math.min(innerWidth * 0.05, innerHeight * 0.082))) * scale;
-  return hw * 1.1;
+  return hw * CELL_AIR;
 }
 // Casilla de la mano más cercana al puntero, o -1 si estás fuera de la mano.
 function cellAt(x, y) {
@@ -576,14 +578,13 @@ export function renderTable(app, { view, room, rerender }) {
   // El atril es FIJO: el ancho de 10 casillas normales (o lo que quepa); con más cartas, las cartas se achican.
   const rackW = Math.min(ui.handW || Math.max(300, innerWidth * 0.72), MIN_COLS * maxCell);
   const shape = gridShape(items.length, rackW, maxCell);
-  const handLine = h("div", {
-    class: "hand-line", id: "handLine",
-    // --hw: tamaño de las cartas (el normal, o más chicas si la casilla es angosta) · --hwmax: el normal, que fija
-    // el alto de las 2 filas
-    style: `--cols:${shape.cols};--cell:${shape.cell}px;--hw:${(Math.min(shape.cell, maxCell) / 1.1).toFixed(1)}px;--hwmax:${(maxCell / 1.1).toFixed(1)}px`,
-  }, Array.from({ length: shape.rows * shape.cols }, (_, i) => {
+  // --hw: tamaño de las cartas (el normal, o más chicas si la casilla es angosta) · --hwmax: el normal, que fija el alto
+  // de las 2 filas. Van en el atril (también lo usa para su madera).
+  const rackStyle = `--cols:${shape.cols};--cell:${shape.cell}px;--hw:${(Math.min(shape.cell, maxCell) / CELL_AIR).toFixed(1)}px;--hwmax:${(maxCell / CELL_AIR).toFixed(1)}px`;
+  const handLine = h("div", { class: "hand-line", id: "handLine" }, Array.from({ length: shape.rows * shape.cols }, (_, i) => {
     const c = items[i]?.card;
-    const cell = h("div", { class: "hand-cell" + (c ? "" : " empty"), "data-cell": i });
+    // fila de arriba pegada hacia abajo y la de abajo hacia arriba: las dos filas siempre juntas
+    const cell = h("div", { class: "hand-cell" + (i < shape.cols ? " row-top" : " row-bottom") + (c ? "" : " empty"), "data-cell": i });
     if (c) {
       const el = cardEl(c, ui.arriving.has(c.id) ? "arriving" : "");
       el.addEventListener("pointerdown", (e) => beginDrag(e, {
@@ -652,7 +653,7 @@ export function renderTable(app, { view, room, rerender }) {
   // Cuadrícula de la mesa: jugadores a la izquierda; arriba la barra; el tablero al centro con el riel a su derecha
   // (empieza a la misma altura); abajo el atril de madera, pegado al borde. El contenedor del atril da el ancho disponible.
   const felt = h("div", { class: "table-felt" }, playersCol, topbar, mesa, rail,
-    h("div", { class: "hand-dock" }, h("div", { class: "hand-rack" }, handPanel)));
+    h("div", { class: "hand-dock" }, h("div", { class: "hand-rack", style: rackStyle }, handPanel)));
   app.replaceChildren(h("div", { class: "table-frame wide-frame" }, felt));
   fitMesa();
   fitHand();

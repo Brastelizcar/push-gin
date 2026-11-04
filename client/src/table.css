@@ -84,9 +84,10 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
    Las dos filas siempre miden lo mismo (--hwmax): el atril no cambia de tamaño, solo las cartas. */
 .hand-panel{ min-width:0; }
 .hand-line{ display:grid; grid-template-columns:repeat(var(--cols), var(--cell)); width:calc(var(--cols) * var(--cell)); justify-content:start; min-width:0; contain:inline-size;
-  padding-top:calc(var(--hwmax) * .34); row-gap:calc(var(--hwmax) * .1); }
+  row-gap:calc(var(--hwmax) * .05); }
 .hand-cell{ width:var(--cell); height:calc(var(--hwmax) * 1.43); display:flex; align-items:center; justify-content:center; border-radius:calc(var(--hw) * .14); }
 .hand-cell.empty{ box-shadow:none; }
+.hand-cell.row-top{ align-items:flex-end; } .hand-cell.row-bottom{ align-items:flex-start; }
 .hand-cell.drop-cell{ background:rgba(230,198,90,.16); box-shadow:inset 0 0 0 2px var(--gold-light); }
 .hand-line .card, .card.ghost, .card.fly-take{ --cw:var(--hw); }
 .hand-line .card{ touch-action:none; cursor:grab; transition:transform .15s ease-out; }
@@ -342,8 +343,14 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 /* Tu mano en un atril de madera */
 /* El atril, pegado al borde de abajo: baja hasta el marco de madera de la mesa y forma parte de él */
 .hand-dock{ display:flex; justify-content:center; min-width:0; margin-bottom:calc(-1 * (clamp(8px, 1.1vw, 16px) + 2px)); }
-.hand-rack{ max-width:100%; padding:clamp(6px, 1vh, 10px) clamp(8px, 1vw, 14px) calc(clamp(10px, 1.6vh, 16px) + clamp(8px, 1.1vw, 16px)); border-radius:16px 16px 0 0;
-  background:linear-gradient(180deg, #8a5a33 0%, var(--wood) 45%, var(--wood-dark) 100%);
-  box-shadow:inset 0 2px 0 rgba(255,255,255,.18); }
-.hand-rack .hand-panel{ background:rgba(0,0,0,.28); border:1px solid rgba(0,0,0,.35); box-shadow:inset 0 2px 6px rgba(0,0,0,.45); }
+.hand-rack{ position:relative; isolation:isolate; max-width:100%;
+  padding:0 clamp(6px, .7vw, 10px) calc(clamp(8px, 1.2vh, 12px) + clamp(8px, 1.1vw, 16px)); }
+/* La madera del atril (ref. docs/referencias/idea atril.jpg): empieza a media altura de la fila de arriba, así las
+   cartas sobresalen por encima; abajo, un borde más oscuro donde se apoyan. */
+.hand-rack::before{ content:""; position:absolute; z-index:-1; left:0; right:0; bottom:0; top:calc(var(--hwmax) * 1.43 * .4);
+  border-radius:12px 12px 0 0; background:linear-gradient(180deg, #8a5a33 0%, var(--wood) 40%, var(--wood-dark) 100%);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.18), inset 0 calc(-1 * (clamp(8px, 1.2vh, 12px) + clamp(8px, 1.1vw, 16px))) 0 rgba(0,0,0,.28); }
+.hand-rack .hand-panel{ background:none; border:0; box-shadow:none; padding:0; border-radius:0; }
+/* Los avisos de la mano van justo encima del atril */
+.hand-rack .hand-actions{ top:auto; bottom:calc(100% + 6px); left:-22vw; right:-22vw; justify-content:center; }
 @media (max-width:900px) and (orientation:landscape){ .table-felt{ grid-template-columns:88px minmax(0, 1fr) auto; } }
