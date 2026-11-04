@@ -332,6 +332,10 @@ function dropOnMeld(card, target, x) {
   const entry = cur.view.melds.find((m) => m.id === Number(target.meldEl.dataset.meld));
   if (!entry) return;
   if (cur.mustDiscard) {
+    // ¿Quería robar un 2? Solo se puede al empezar el turno (antes de tomar carta): se lo explicamos.
+    const onTwo = isWild(meldCardsOf(entry.meld)[target.idx] ?? {});
+    if (!amPlanted() && onTwo && stealTwo(entry.meld, target.idx, card))
+      return toast("Los 2 se roban al EMPEZAR tu turno, antes de tomar el descarte o hacer push. Inténtalo en tu próximo turno");
     const r = target.meldEl.getBoundingClientRect();     // lado izquierdo del plante → inicio; derecho → final
     stageHooks(entry, [card], x < r.left + r.width / 2 ? "low" : "high");
   } else if (cur.canTake) {

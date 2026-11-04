@@ -86,6 +86,23 @@ test('robo de 2: válido antes de plantarse, bloquea plantarse ese turno', () =>
   const res = r.plant('A', [{ cardIds: [] }, { cardIds: [] }, { cardIds: [] }]);
   assert.equal(res.ok, false);
 });
+test('robo de 2: varios en el mismo turno y otra vez en un turno posterior (sin plantarte), pero nunca después de tomar carta', () => {
+  const r = plantedScenario();
+  const tb = cs('7♥', '7♠', '2♣');
+  r.melds.push({ id: 2, owner: 'B', meld: { kind: 'set', rank: '7', cards: tb } });
+  r.melds.push({ id: 3, owner: 'B', meld: { kind: 'set', rank: '5', cards: [...cs('5♥', '5♠'), c('2♥')] } });
+  const [five, seven, five2] = [c('5♦'), c('7♦'), c('5♣')];
+  r.hands.A = [five, seven, five2, ...cs('K♣', '3♣')];
+  assert.equal(r.steal2('A', 1, 2, five.id).ok, true);          // turno 1: dos robos seguidos
+  assert.equal(r.steal2('A', 2, 2, seven.id).ok, true);
+  r.takeDiscard('A');
+  assert.equal(r.steal2('A', 3, 2, five2.id).ok, false);        // ya tomó carta: no
+  r.discard('A', r.hands.A.find((x) => x.rank === 'K').id);
+  for (const p of ['B', 'C', 'D']) { r.takeDiscard(p); r.discard(p, r.hands[p][0].id); }
+  assert.equal(r.currentPlayer, 'A');
+  assert.equal(r.stoleThisTurn, false);
+  assert.equal(r.steal2('A', 3, 2, five2.id).ok, true);         // turno siguiente: puede robar otra vez
+});
 test('robo de 2: no de plantes de jugadores sin plantar ni si ya te plantaste', () => {
   const r = plantedScenario();
   r.planted.B = false;
