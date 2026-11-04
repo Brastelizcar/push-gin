@@ -191,3 +191,20 @@ test('bots para completar la mesa: mínimo 3 y máximo 4 en total', () => {
   assert.deepEqual(botsRange(3), { min: 0, max: 1 });
   assert.deepEqual(botsRange(4), { min: 0, max: 0 });
 });
+
+test('jugada en vivo: lo que arma el jugador en turno lo ven los DEMÁS, y se olvida al pasar el turno', () => {
+  const { m } = started();
+  const cur = m.game.currentPlayer;
+  const other = m.order.find((id) => id !== cur);
+  assert.equal(m.setLive(cur, { groups: [] }).ok, false);          // antes de tomar carta, no
+  m.handle(cur, 'takeDiscard');
+  const hand = m.game.hands[cur];
+  assert.equal(m.setLive(other, { groups: [{ cardIds: [m.game.hands[other][0].id] }] }).ok, false); // no es su turno
+  assert.equal(m.setLive(cur, { groups: [{ cardIds: ['no-existe'] }] }).ok, false);              // cartas que no tiene
+  assert.equal(m.setLive(cur, { groups: [{ cardIds: [hand[0].id] }], hooks: [{ meldId: 99, cardId: hand[0].id }] }).ok, false);
+  assert.equal(m.setLive(cur, { groups: [{ cardIds: [hand[0].id, hand[1].id] }] }).ok, true);
+  assert.deepEqual(m.viewFor(other).live, { by: cur, groups: [[hand[0], hand[1]]], hooks: [] });
+  assert.equal(m.viewFor(cur).live, null);                         // el que juega ya lo tiene en su pantalla
+  m.handle(cur, 'discard', { cardId: hand.at(-1).id });
+  assert.equal(m.viewFor(other).live, null);                       // pasó el turno: se olvida
+});

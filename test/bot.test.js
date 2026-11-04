@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findPlantInHand, findFreeMeldsInHand, chooseDiscard, planTurn, findSteal, botMove, wantsDiscard } from '../src/logic/bot.js';
+import { findPlantInHand, findFreeMeldsInHand, chooseDiscard, planTurn, findSteal, botMove, wantsDiscard, botAvatars } from '../src/logic/bot.js';
 import { matchPlant, ROUND_REQUIREMENTS } from '../src/logic/rounds.js';
 import { Match } from '../src/logic/match.js';
 import { seededRng } from '../src/logic/cards.js';
@@ -125,3 +125,9 @@ for (const seed of [1, 2, 3, 4, 5, 6]) {
     assert.equal(Object.keys(m.totals).length, 3);
   });
 }
+
+test('avatares de los bots: los suyos de siempre, sin repetir el de ninguna persona', () => {
+  assert.deepEqual(botAvatars(2), [3, 5]);
+  assert.deepEqual(botAvatars(2, [3]), [5, 8]);          // la persona tiene el 3
+  assert.deepEqual(botAvatars(3, [3, 5, 8]), [1, 2, 4]);
+});

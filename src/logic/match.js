@@ -57,6 +57,8 @@ export class Match {
     this.totals = {};
     this.roundScores = null;
     this.turnStartedAt = null;
+    this.turnSeq = 0;         // número de turno (cambia con cada turno; sirve para olvidar la jugada en vivo vieja)
+    this.live = null;         // jugada EN PREPARACIÓN del jugador en turno, que los demás ven en tiempo real
     this.lastDrawn = null;    // carta que tomó el jugador en turno (la descarta si se le acaba el tiempo)
     this.left = new Set();    // abandonaron a media partida: pierden la cuota y el XP; sus turnos se juegan solos
     this.dropped = new Map(); // se les cayó la conexión: id → hasta cuándo (ms) se les guarda el asiento
@@ -161,6 +163,39 @@ export class Match {
     }
   }
 
+  // ---------- jugada en vivo ----------
+  // El jugador en turno (fase 'main') cuenta lo que está armando sin confirmar: grupos que puso en la mesa y cartas
+  // que engancha. No cambia nada del juego; solo se muestra a los demás. m: { groups:[{cardIds}], hooks:[{meldId, cardId, end}] }
+  setLive(pid, m) {
+    const g = this.game;
+    if (this.phase !== 'playing' || !g || g.currentPlayer !== pid || g.phase !== 'main') return fail('No es tu jugada');
+    const groups = m?.groups ?? [], hooks = m?.hooks ?? [];
+    if (!Array.isArray(groups) || !Array.isArray(hooks) || groups.length > 10 || hooks.length > 20) return fail('Mensaje inválido');
+    const hand = new Map(g.hands[pid].map((c) => [c.id, c]));
+    const used = new Set();
+    const take = (id) => (typeof id === 'string' && hand.has(id) && !used.has(id) ? (used.add(id), hand.get(id)) : null);
+    const outGroups = [];
+    for (const gr of groups) {
+      if (!gr || !isIdList(gr.cardIds) || !gr.cardIds.length || gr.cardIds.length > 13) return fail('Mensaje inválido');
+      const cards = gr.cardIds.map(take);
+      if (cards.some((c) => !c)) return fail('Mensaje inválido');
+      outGroups.push(cards);
+    }
+    const outHooks = [];
+    for (const h of hooks) {
+      const card = take(h?.cardId);
+      if (!card || typeof h.meldId !== 'number' || !g.melds.some((e) => e.id === h.meldId)) return fail('Mensaje inválido');
+      outHooks.push({ meldId: h.meldId, card, end: h.end === 'low' || h.end === 'high' ? h.end : undefined });
+    }
+    this.live = { pid, seq: this.turnSeq, groups: outGroups, hooks: outHooks };
+    return { ok: true };
+  }
+  // La jugada en vivo, si sigue siendo del turno actual.
+  get liveStage() {
+    const l = this.live, g = this.game;
+    return l && this.phase === 'playing' && g && l.seq === this.turnSeq && g.currentPlayer === l.pid && g.phase === 'main' ? l : null;
+  }
+
   // ---------- temporizador de turno ----------
   // Momento (ms) en que se acaba el turno actual, o null si no hay límite / no se está jugando.
   get deadline() {
@@ -201,6 +236,7 @@ export class Match {
     this.roundScores = null;
     this.phase = 'playing';
     this.turnStartedAt = this.now();
+    this.turnSeq++;
     this.lastDrawn = null;
   }
   #act(fn, event, onOk) {
@@ -215,7 +251,7 @@ export class Match {
   // Solo el descarte trae roundOver (true/false): si la ronda sigue, empieza el turno del siguiente.
   #after(res) {
     if (res.roundOver) this.#finishRound(res.scores);
-    else if (res.roundOver === false) { this.turnStartedAt = this.now(); this.lastDrawn = null; }
+    else if (res.roundOver === false) { this.turnStartedAt = this.now(); this.turnSeq++; this.lastDrawn = null; }
   }
   #finishRound(scores) {
     this.roundScores = scores;
@@ -258,6 +294,9 @@ export class Match {
       melds: g.melds,
       recentCardIds: g.recentCardIds,
       hand: g.hands[me] ?? [],
+      // lo que el jugador en turno está armando ahora (los demás lo ven en vivo; él ya lo tiene en su pantalla)
+      live: this.liveStage && this.liveStage.pid !== me
+        ? { by: this.liveStage.pid, groups: this.liveStage.groups, hooks: this.liveStage.hooks } : null,
       handPoints: (g.hands[me] ?? []).reduce((s, c) => s + cardPoints(c), 0),
     };
     if (phase === 'roundOver' || phase === 'finished') {

@@ -3,7 +3,7 @@
 import "./menus.css";
 import { h, toast, fsButton, avatarImg, coinImg } from "./dom.js";
 import { AVATAR_COUNT } from "../../src/logic/avatars.js";
-import { BOT_NAMES, BOT_AVATARS } from "../../src/logic/bot.js";
+import { BOT_NAMES, botAvatars } from "../../src/logic/bot.js";
 import { formatCountdown, normalizeSyncCode, formatSyncCode, suitColor } from "./format.js";
 import { settings, setSetting } from "./settings.js";
 import { ENTRY_FEES, DAILY_CHIPS, CLAIM_INTERVAL_MS } from "../../src/logic/progress.js";
@@ -263,7 +263,7 @@ export function practiceMenu({ account, bots, turnTime, onBots, onTurnTime, onPl
           ? "Juega contra la máquina: ganas la MITAD de la experiencia (1.º 50 XP, 2.º 25, 3.º 15, 4.º 5). No se juegan fichas."
           : "Juega contra la máquina para aprender las rondas. Sin cuenta (o sin internet) no da experiencia."),
         h("div", { class: "m-rivals" }, BOT_NAMES.slice(0, bots).map((n, i) =>
-          h("div", { class: "m-rival" }, avatar(n, null, "", BOT_AVATARS[i]), h("span", {}, n)))))),
+          h("div", { class: "m-rival" }, avatar(n, null, "", botAvatars(bots, account?.avatar ? [account.avatar] : [])[i]), h("span", {}, n)))))),
     h("div", { class: "m-bottom" },
       h("button", { class: "m-back", "aria-label": "Volver", onclick: onBack }, "‹"),
       h("button", { class: "m-invite", onclick: onPlay }, "Jugar"),
@@ -302,7 +302,7 @@ export function waitingRoom({ view, bots, onBots, onStart, onLeave }) {
             h("span", { class: "m-wait-name" }, p.name, p.id === view.you ? " (tú)" : ""),
             p.id === view.host ? h("span", { class: "badge" }, "Anfitrión") : null)),
           botList.map((n, i) => h("div", { class: "m-wait-p bot" },
-            avatar(n, null, "small", BOT_AVATARS[i]), h("span", { class: "m-wait-name" }, n), h("span", { class: "badge" }, "Bot")))),
+            avatar(n, null, "small", botAvatars(nBots, view.players.map((p) => p.avatar))[i]), h("span", { class: "m-wait-name" }, n), h("span", { class: "badge" }, "Bot")))),
         botChoice,
         h("div", { class: "m-wait-btns" },
           isHost

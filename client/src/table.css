@@ -269,6 +269,14 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 /* Cartas en la mesa que todavía no confirmaste con ✓ */
 .card.staged-card{ outline:2px dashed var(--confirm-light); outline-offset:-1px; opacity:.92; }
 .meld.staged-meld{ padding:3px; border-radius:8px; background:rgba(127,208,160,.10); }
+/* La jugada en vivo de otro jugador (sin confirmar): borde dorado punteado; aparece suave */
+.card.live-card{ outline:2px dashed rgba(230,198,90,.85); outline-offset:-1px; opacity:.95; }
+.card.live-new{ animation:live-in .28s ease-out; }
+.meld.live-meld{ padding:3px; border-radius:8px; background:rgba(230,198,90,.10); }
+.live-tag{ flex-basis:100%; font-size:clamp(10px, .85vw, 12px); font-weight:700; letter-spacing:.04em; color:var(--gold-light); opacity:.85;
+  animation:live-pulse 1.6s ease-in-out infinite; }
+@keyframes live-in{ from{ transform:translateY(-8px) scale(.92); opacity:0; } }
+@keyframes live-pulse{ 50%{ opacity:.45; } }
 .mesa-panel.droppable.drop-over{ outline:2.5px dashed var(--confirm-light); outline-offset:-4px; }
 
 /* ✓ con una jugada que aún no vale: se puede pulsar (explica el motivo) pero no la envía */

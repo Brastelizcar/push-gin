@@ -75,6 +75,11 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
   casilla vacía (también los espacios entre grupos). SIEMPRE 2 filas de alto fijo (`--hwmax`): si no caben, solo las
   cartas se achican. Tu jugada sin confirmar se ve en su propia fila, debajo de los plantes de la mesa.
   Fin de ronda: la tabla va de menor a mayor total.
+- **Jugada en vivo:** lo que el jugador en turno arma sin confirmar (grupos y enganches) lo ven los demás en tiempo real
+  (mensaje `stage` → `Match.setLive`; la vista de los DEMÁS trae `live`, que se olvida al pasar el turno). Se ve con
+  borde dorado punteado y «X está armando su jugada…»; al confirmar, sus cartas vuelan desde ahí. Revela cartas aunque
+  luego las devuelva a la mano (decidido así). Mensajes `stage` inválidos se ignoran sin rechazo.
+- Los bots usan avatares que no tenga ninguna persona de la mesa (`botAvatars`).
 - Mesa (UI): cartas de 4 colores (`suitColor`: ♥ rojo, ♠ negro, ♦ azul, ♣ verde), número grande al centro y palo
   pequeño en la esquina (también la del descarte). Riel: «Pozo» (cuota × personas, solo con cuota).
   Botón ☰: menú de la partida (ajustes de sonido, reglas, ayuda, salir al menú de inicio = abandonar).

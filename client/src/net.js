@@ -118,4 +118,5 @@ export const actions = {
   // Jugada completa del turno: { plant, melds, hooks, discard }. El servidor la aplica toda o nada.
   playTurn: (room, turn) => room.send("playTurn", turn),
   steal2: (room, meldId, index, cardId) => room.send("steal2", { meldId, index, cardId }),
+  stage: (room, stage) => room.send("stage", stage),   // lo que armas sin confirmar (los demás lo ven en vivo)
 };

@@ -4,6 +4,7 @@
 import { isWild, rankValues, cardPoints } from './cards.js';
 import { buildSet, buildRun, extendMeld, stealTwo, meldCards } from './melds.js';
 import { resolveTurn } from './turn.js';
+import { AVATAR_COUNT } from './avatars.js';
 
 const value = (c) => rankValues(c.rank)[0];
 const without = (cards, used) => cards.filter((c) => !used.has(c.id));
@@ -213,6 +214,15 @@ export function findSteal(view) {
 // Nombres de los bots de práctica (ids bot1, bot2, bot3).
 export const BOT_NAMES = ['Rosa', 'Tomás', 'Lucía'];
 export const BOT_AVATARS = [3, 5, 8];   // sus avatares (client/public/avatars)
+
+// Avatares para `n` bots sin repetir los que ya usan las personas de la mesa (`used`): primero los suyos de siempre
+// y, si alguno está ocupado, otro libre.
+export function botAvatars(n, used = []) {
+  const taken = new Set(used), out = [];
+  const pool = [...BOT_AVATARS, ...Array.from({ length: AVATAR_COUNT }, (_, i) => i + 1)];
+  for (const a of pool) if (out.length < n && !taken.has(a)) { out.push(a); taken.add(a); }
+  return out;
+}
 export const isBot = (id) => /^bot\d$/.test(id);
 
 // Siguiente acción del bot cuando es su turno.

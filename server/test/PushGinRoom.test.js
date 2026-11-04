@@ -125,6 +125,24 @@ describe("PushGinRoom", () => {
     assert.deepEqual(cs[0].view.requirement, [{ kind: "set", size: 3 }, { kind: "set", size: 3 }, { kind: "set", size: 3 }]);
   });
 
+  it("jugada en vivo: los demás ven lo que arma el jugador en turno; mensajes inválidos se ignoran sin rechazo", async () => {
+    const { room, cs } = await setup(3);
+    cs[0].send("start"); await until(() => cs[0].view?.phase === "playing");
+    const cur = cs.find((c) => c.sessionId === room.game.currentPlayer), other = cs.find((c) => c !== cur);
+    cur.send("stage", { groups: [{ cardIds: ["x"] }] }); await tick();   // aún no tomó carta: se ignora
+    assert.equal(cur.rejected, null);
+    cur.send("takeDiscard"); await until(() => room.game.phase === "main");
+    const ids = room.game.hands[cur.sessionId].slice(0, 3).map((c) => c.id);
+    cur.send("stage", { groups: [{ cardIds: ids }] });
+    await until(() => other.view.live);
+    assert.equal(other.view.live.by, cur.sessionId);
+    assert.deepEqual(other.view.live.groups[0].map((c) => c.id), ids);
+    assert.equal(cur.view.live, null);
+    cur.send("stage", { groups: [] });
+    await until(() => other.view.live?.groups.length === 0);
+    assert.deepEqual(other.view.live.groups, []);
+  });
+
   it("mensajes malformados no tumban el servidor", async () => {
     const { cs } = await setup(2);
     cs[0].send("start");
@@ -220,12 +238,13 @@ describe("PushGinRoom", () => {
     g.melds.push({ id: 1, owner: B, meld: { kind: "set", rank: "5", cards: [card("5","♥","m1"), card("5","♠","m2"), card("2","♦","m3")] } });
     g.planted[B] = true;
     g.hands[A] = [card("5","♦","h1"), card("K","♣","h2"), card("3","♣","h3")];
-    cs[0].send("steal2", { meldId: 1, index: 2, cardId: "h1" }); await tick();
+    cs[0].send("steal2", { meldId: 1, index: 2, cardId: "h1" });
+    await until(() => cs[0].view.stoleThisTurn && cs.every((c) => c.events.length));
     assert.ok(cs[0].view.hand.some((x) => x.rank === "2"));
     assert.equal(cs[0].view.stoleThisTurn, true);
     for (const c of cs) assert.deepEqual(c.events.at(-1), { type: "steal", by: A, victim: B });
-    cs[0].send("takeDiscard"); await tick();
-    cs[0].send("steal2", { meldId: 1, index: 2, cardId: "h2" }); await tick();
+    cs[0].send("takeDiscard"); await until(() => room.game.phase === "main");
+    cs[0].send("steal2", { meldId: 1, index: 2, cardId: "h2" }); await until(() => cs[0].rejected);
     assert.match(cs[0].rejected, /antes de tomar/);    // ya tomó carta: mensaje claro
   });
 
@@ -341,6 +360,7 @@ describe("PushGinRoom", () => {
     await until(() => room.game.currentPlayer === "bot1");
     await until(() => room.game.currentPlayer === a.sessionId);   // el bot jugó y le devolvió el turno a Ana
     assert.equal(room.game.currentPlayer, a.sessionId);
+    await until(() => a.view.current === a.sessionId);  // la vista de Ana ya llegó
     assert.equal(a.view.players[2].cards, 10);
   });
 

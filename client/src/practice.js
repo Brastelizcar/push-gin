@@ -3,7 +3,7 @@
 // Usa la misma lógica que el servidor (Match) y una "sala local" con la misma forma que la de Colyseus
 // (send / leave), así la mesa funciona igual que en línea.
 import { Match, TABLE_MIN, TABLE_MAX } from "../../src/logic/match.js";
-import { botMove, BOT_NAMES, BOT_AVATARS } from "../../src/logic/bot.js";
+import { botMove, BOT_NAMES, botAvatars } from "../../src/logic/bot.js";
 
 export { BOT_NAMES };
 const ME = "tú";
@@ -18,7 +18,9 @@ const BOT_DELAY = [1500, 2400]; // ms que "piensa" cada bot antes de cada movimi
 export function startPractice({ name, level = null, avatar = null, bots = 2, turnTime = 0, rng, botDelay = BOT_DELAY }, handlers) {
   const match = new Match({ turnTime, rng });
   match.addPlayer(ME, name, level, avatar);
-  BOT_NAMES.slice(0, Math.max(TABLE_MIN - 1, Math.min(TABLE_MAX - 1, bots))).forEach((n, i) => match.addPlayer(`bot${i + 1}`, n, null, BOT_AVATARS[i]));
+  const nBots = Math.max(TABLE_MIN - 1, Math.min(TABLE_MAX - 1, bots));
+  const avatars = botAvatars(nBots, [...match.avatars.values()]);
+  BOT_NAMES.slice(0, nBots).forEach((n, i) => match.addPlayer(`bot${i + 1}`, n, null, avatars[i]));
   let closed = false;
   let botTimer = null, turnTimer = null;
 
@@ -60,6 +62,7 @@ export function startPractice({ name, level = null, avatar = null, bots = 2, tur
     practice: true,
     send(type, msg) {
       if (closed || type === "requestState") return closed ? undefined : handlers.onState(match.viewFor(ME));
+      if (type === "stage") return;                 // la jugada en vivo es para otras personas: aquí solo hay bots
       // Igual que en red: la respuesta llega "después" (el cliente nunca cambia el estado por su cuenta).
       setTimeout(() => {
         if (closed) return;

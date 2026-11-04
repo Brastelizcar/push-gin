@@ -1,6 +1,6 @@
 import { Room, matchMaker } from "colyseus";
 import {
-  Match, seededRng, ENTRY_FEES, gameRewards, levelInfo, botMove, BOT_NAMES, BOT_AVATARS, isBot, PRACTICE_XP_FACTOR,
+  Match, seededRng, ENTRY_FEES, gameRewards, levelInfo, botMove, BOT_NAMES, botAvatars, isBot, PRACTICE_XP_FACTOR,
   TABLE_MIN, TABLE_MAX,
 } from "../../../src/logic/index.js";
 import { initStore, publicAccount } from "../accounts/store.js";
@@ -61,6 +61,12 @@ export class PushGinRoom extends Room {
     playTurn: (client, m) => this.#handle(client, "playTurn", m),
     // Descartar sin jugar nada: es una jugada completa con solo el descarte.
     discard: (client, m) => this.#handle(client, "discard", m),
+    // Jugada en preparación (sin confirmar) del jugador en turno: los demás la ven en vivo. Si no vale (p. ej. llegó
+    // tarde, cuando el turno ya pasó) se ignora sin avisar: no cambia nada del juego.
+    stage: (client, m) => {
+      if (!this.match.setLive(client.sessionId, m).ok) return;
+      for (const c of this.clients) if (c.sessionId !== client.sessionId) c.send("state", this.#viewFor(c.sessionId));
+    },
     // El cliente puede pedir su vista (útil al recargar o reconectar).
     requestState: (client) => client.send("state", this.#viewFor(client.sessionId)),
   };
@@ -148,7 +154,8 @@ export class PushGinRoom extends Room {
   }
 
   #addBots(n) {
-    BOT_NAMES.slice(0, n).forEach((name, i) => this.match.addPlayer(`bot${i + 1}`, name, null, BOT_AVATARS[i]));
+    const avatars = botAvatars(n, [...this.match.avatars.values()]);   // sin repetir el de ninguna persona
+    BOT_NAMES.slice(0, n).forEach((name, i) => this.match.addPlayer(`bot${i + 1}`, name, null, avatars[i]));
   }
 
   // Si le toca a un bot (práctica, o juego privado completado con bots), juega tras una pausa. Un bot nunca

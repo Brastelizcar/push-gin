@@ -13,7 +13,9 @@ import { syncCells, placeCard, placeGroup, cellsFromGroups, nextFree, gridShape,
 // ui.cells es TU mano como cuadrícula: cada casilla tiene el id de una carta o null (un espacio que dejaste).
 const ui = {
   cells: [],
-  landing: null,        // id de la carta que otro jugador descartó y aún vuela al descarte (mientras, se ve vacío)
+  landing: null,
+  liveSent: null,       // última jugada en preparación que enviaste (para mandar solo los cambios)
+  prevLive: new Map(),  // dónde se veían las cartas de la jugada en vivo de otro (sus cartas vuelan desde ahí)        // id de la carta que otro jugador descartó y aún vuela al descarte (mientras, se ve vacío)
   handW: 0,             // ancho medido de la mano (para calcular cuántas casillas caben)
   incoming: null,       // carta del descarte que arrastraste a tu mano y que el servidor aún no confirma
   pending: null,        // carta arrastrada al descarte, a la espera de ✓
@@ -492,6 +494,7 @@ export function renderTable(app, { view, room, rerender }) {
   const canTake = myTurn && view.turnPhase === "start";
   const mustDiscard = myTurn && view.turnPhase === "main";
   cur = { view, room, rerender, canTake, mustDiscard };
+  ui.prevLive = new Map([...document.querySelectorAll(".mesa-panel .live-card[data-id]")].map((e) => [e.dataset.id, e.getBoundingClientRect()]));
 
   if (ui.round !== view.round) { ui.round = view.round; ui.cells = []; ui.stage = emptyStage(); resetPending(); }
   if (!mustDiscard || !view.hand.some((c) => c.id === ui.pending)) ui.pending = null;
@@ -500,6 +503,7 @@ export function renderTable(app, { view, room, rerender }) {
   if (!mustDiscard || [...stagedIds(ui.stage)].some((id) => !inHand.has(id))) ui.stage = emptyStage();
   const pendingCard = view.hand.find((c) => c.id === ui.pending) ?? null;
   ui.gameAct = false;
+  sendLive(mustDiscard);
   // Reparto: solo cuando la ronda está recién empezada (nadie ha tomado carta ni hecho push).
   if (view.phase === "playing" && ui.dealRound !== view.round && view.deckCount === 156 - 10 * view.players.length - 1) {
     ui.dealRound = view.round;
@@ -560,9 +564,12 @@ export function renderTable(app, { view, room, rerender }) {
 
   // --- plantes en mesa: de todos (sin nombres), con tus enganches sin confirmar ya colocados (en punteado). Tu jugada
   //     sin confirmar va AL FINAL (debajo), para no mover los plantes que ya están. ---
-  const shownMelds = previewMelds(view.melds, ui.stage.hooks);
+  // La jugada en vivo de otro jugador (lo que arma sin confirmar): sus enganches ya colocados y sus grupos abajo.
+  const live = view.live && (view.live.groups.length || view.live.hooks.length) ? view.live : null;
+  const shownMelds = previewMelds(view.melds, [...ui.stage.hooks, ...(live?.hooks ?? [])]);
   const recent = new Set(view.recentCardIds);
   const stagedHookIds = new Set(ui.stage.hooks.map((x) => x.card.id));
+  const liveHookIds = new Set((live?.hooks ?? []).map((x) => x.card.id));
   const stagedMelds = ui.stage.groups.map((g, gi) =>
     h("div", { class: "meld staged-meld tappable", "data-stage": gi, title: "Sin confirmar: toca para devolverlo a tu mano", onclick: () => onStagedClick(gi) },
       g.cards.map((c, i) => cardEl(c, "staged-card " + (isWild(c) ? "wild" : ""), i))));
@@ -570,7 +577,7 @@ export function renderTable(app, { view, room, rerender }) {
     const cards = m.meld.kind === "set" ? m.meld.cards : m.meld.slots.map((s) => s.card);
     const original = view.melds.find((x) => x.id === m.id);
     return h("div", { class: "meld" + (canMeldAct ? " tappable" : ""), "data-meld": m.id, onclick: (e) => onMeldClick(e, original) },
-      cards.map((c, i) => cardEl(c, (stagedHookIds.has(c.id) ? "staged-card " : recent.has(c.id) ? "recent " : "") +
+      cards.map((c, i) => cardEl(c, (stagedHookIds.has(c.id) ? "staged-card " : liveHookIds.has(c.id) ? `live-card ${ui.prevLive.has(c.id) ? "" : "live-new "}` : recent.has(c.id) ? "recent " : "") +
         (isWild(c) ? "wild " : "") + (ui.flying.has(c.id) ? "arriving" : ""), i)));
   });
   for (const [id, c] of ui.clearing) {
@@ -579,8 +586,12 @@ export function renderTable(app, { view, room, rerender }) {
   }
   const mesa = h("div", { class: "mesa-panel" + (mustDiscard ? " droppable" : "") },
     h("div", { class: "mesa-title" }, "Plantes en mesa"),
-    stagedMelds.length || tableMelds.length
-      ? h("div", { class: "melds-line" }, tableMelds, stagedMelds.length ? h("div", { class: "staged-row" }, stagedMelds) : null)
+    stagedMelds.length || tableMelds.length || live
+      ? h("div", { class: "melds-line" }, tableMelds,
+          stagedMelds.length ? h("div", { class: "staged-row" }, stagedMelds) : null,
+          live ? h("div", { class: "staged-row live-row" },
+            h("div", { class: "live-tag" }, `${byId[live.by]?.name ?? "Alguien"} está armando su jugada…`),
+            live.groups.map((g) => h("div", { class: "meld live-meld" }, g.map((c, i) => cardEl(c, "live-card" + (ui.prevLive.has(c.id) ? "" : " live-new") + (isWild(c) ? " wild" : ""), i))))) : null)
       : h("div", { class: "empty-mesa" }, mustDiscard ? "Arrastra aquí tus grupos para plantarte" : "Nadie se ha plantado todavía"));
 
   // --- mano: una cuadrícula de SIEMPRE 2 filas (alto fijo); cada carta en su casilla y las vacías son tus espacios.
@@ -1016,6 +1027,19 @@ function slideMelds(before) {
   }
 }
 
+// Lo que armas sin confirmar lo ven los demás en vivo: se envía cada vez que cambia (solo en tu fase 'main').
+function sendLive(active) {
+  if (!active) { ui.liveSent = null; return; }
+  const stage = {
+    groups: ui.stage.groups.map((g) => ({ cardIds: g.cards.map((c) => c.id) })),
+    hooks: ui.stage.hooks.map((x) => ({ meldId: x.meldId, cardId: x.card.id, ...(x.end && { end: x.end }) })),
+  };
+  const key = JSON.stringify(stage);
+  if (key === ui.liveSent || !cur.room?.send) return;
+  ui.liveSent = key;
+  actions.stage(cur.room, stage);
+}
+
 export function notePlay(by) { ui.remotePlay = { by, at: performance.now() }; }
 function detectRemotePlay(view) {
   const ids = [...document.querySelectorAll(".mesa-panel .card[data-id]")].map((e) => e.dataset.id);
@@ -1024,10 +1048,11 @@ function detectRemotePlay(view) {
     const fresh = ids.filter((id) => !ui.prevMesa.has(id) && !ui.flights.has(id));
     const chip = document.querySelector(`.p-chip[data-pid="${ui.remotePlay.by}"]`)?.getBoundingClientRect();
     if (fresh.length) {
-      if (chip) for (const id of fresh) {
+      for (const id of fresh) {                      // desde donde se veía en vivo; si no, desde su ficha
         const to = document.querySelector(`.mesa-panel .card[data-id="${id}"]`).getBoundingClientRect();
-        const from = new DOMRect(chip.left + chip.width / 2 - to.width / 2, chip.top + chip.height / 2 - to.height / 2, to.width, to.height);
-        ui.flights.set(id, { from, at: performance.now() });
+        const from = ui.prevLive.get(id) ??
+          (chip && new DOMRect(chip.left + chip.width / 2 - to.width / 2, chip.top + chip.height / 2 - to.height / 2, to.width, to.height));
+        if (from) ui.flights.set(id, { from, at: performance.now() });
       }
       ui.remotePlay = null;
     }
