@@ -3,7 +3,7 @@
 // Usa la misma lógica que el servidor (Match) y una "sala local" con la misma forma que la de Colyseus
 // (send / leave), así la mesa funciona igual que en línea.
 import { Match, TABLE_MIN, TABLE_MAX } from "../../src/logic/match.js";
-import { botMove, BOT_NAMES, botAvatars } from "../../src/logic/bot.js";
+import { botMove, BOT_NAMES, botAvatars, liveOfTurn, BOT_SHOW_MS } from "../../src/logic/bot.js";
 
 export { BOT_NAMES };
 const ME = "tú";
@@ -14,8 +14,8 @@ const BOT_DELAY = [1500, 2400]; // ms que "piensa" cada bot antes de cada movimi
  * handlers: los mismos que net.connect ({ onState, onEvent, onRejected, onLeave }).
  * Devuelve la sala local: { roomId, send(type, msg), leave() }.
  */
-// botDelay: [mín, máx] ms que piensa cada bot (las pruebas lo acortan).
-export function startPractice({ name, level = null, avatar = null, bots = 2, turnTime = 0, rng, botDelay = BOT_DELAY }, handlers) {
+// botDelay: [mín, máx] ms que piensa cada bot · botShow: ms que se ve su jugada antes de terminar (las pruebas los acortan).
+export function startPractice({ name, level = null, avatar = null, bots = 2, turnTime = 0, rng, botDelay = BOT_DELAY, botShow = BOT_SHOW_MS }, handlers) {
   const match = new Match({ turnTime, rng });
   match.addPlayer(ME, name, level, avatar);
   const nBots = Math.max(TABLE_MIN - 1, Math.min(TABLE_MAX - 1, bots));
@@ -40,8 +40,8 @@ export function startPractice({ name, level = null, avatar = null, bots = 2, tur
     const pid = match.game.currentPlayer;
     if (pid !== ME) {
       const wait = botDelay[0] + Math.random() * (botDelay[1] - botDelay[0]);
-      botTimer = setTimeout(() => {
-        const mv = botMove(match.viewFor(pid));
+      const play = (mv) => {
+        if (closed || match.phase !== "playing" || match.game.currentPlayer !== pid) return;
         const res = match.handle(pid, mv.type, mv.msg);
         // Un bot nunca debería equivocarse; si pasa, descarta para no trabar la partida.
         if (!res.ok) {
@@ -51,6 +51,15 @@ export function startPractice({ name, level = null, avatar = null, bots = 2, tur
           return emit(match.handle(pid, "discard", { cardId: g.hands[pid][0].id }).event);
         }
         emit(res.event);
+      };
+      botTimer = setTimeout(() => {
+        const mv = botMove(match.viewFor(pid));
+        // Si va a bajar o enganchar, primero se ve su jugada en vivo y un momento después termina el turno.
+        const live = mv.type === "playTurn" ? liveOfTurn(mv.msg) : null;
+        if (live && match.setLive(pid, live).ok) {
+          handlers.onState(match.viewFor(ME));
+          botTimer = setTimeout(() => play(mv), botShow);
+        } else play(mv);
       }, wait);
     } else if (match.deadline != null) {
       turnTimer = setTimeout(() => { const ev = match.timeoutTurn(); ev ? emit(ev) : schedule(); }, Math.max(0, match.deadline - Date.now()) + 30);

@@ -346,7 +346,7 @@ describe("PushGinRoom", () => {
 
   it("juego privado con 2 personas: se agrega 1 bot obligatorio (mínimo 3 en la mesa) y juega solo", async () => {
     const room = await colyseus.createRoom("push_gin", {});
-    room.botDelay = [5, 10];
+    room.botDelay = [5, 10]; room.botShowMs = 10;
     const a = await join(colyseus, room, "Ana"), b = await join(colyseus, room, "Luis");
     await tick();
     a.send("start", { bots: 0 });                       // 0 no alcanza: se sube al mínimo

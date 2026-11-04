@@ -239,3 +239,12 @@ export function botMove(view) {
   }
   return { type: 'playTurn', msg: planTurn(view) };
 }
+
+// Antes de terminar su turno, el bot "muestra" lo que va a bajar o enganchar (como una persona que arma su jugada):
+// la jugada en vivo que ven los demás (Match.setLive). null si solo descarta.
+export const BOT_SHOW_MS = 1500;
+export function liveOfTurn(turn) {
+  const groups = [...(turn?.plant ?? []), ...(turn?.melds ?? [])].map((g) => ({ cardIds: g.cardIds }));
+  const hooks = (turn?.hooks ?? []).map(({ meldId, cardId, end }) => ({ meldId, cardId, end }));
+  return groups.length || hooks.length ? { groups, hooks } : null;
+}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findPlantInHand, findFreeMeldsInHand, chooseDiscard, planTurn, findSteal, botMove, wantsDiscard, botAvatars } from '../src/logic/bot.js';
+import { findPlantInHand, findFreeMeldsInHand, chooseDiscard, planTurn, findSteal, botMove, wantsDiscard, botAvatars, liveOfTurn } from '../src/logic/bot.js';
 import { matchPlant, ROUND_REQUIREMENTS } from '../src/logic/rounds.js';
 import { Match } from '../src/logic/match.js';
 import { seededRng } from '../src/logic/cards.js';
@@ -130,4 +130,11 @@ test('avatares de los bots: los suyos de siempre, sin repetir el de ninguna pers
   assert.deepEqual(botAvatars(2), [3, 5]);
   assert.deepEqual(botAvatars(2, [3]), [5, 8]);          // la persona tiene el 3
   assert.deepEqual(botAvatars(3, [3, 5, 8]), [1, 2, 4]);
+});
+
+test('jugada en vivo del bot: lo que va a bajar o enganchar (nada si solo descarta)', () => {
+  assert.equal(liveOfTurn({ discard: 'x' }), null);
+  assert.deepEqual(liveOfTurn({ plant: [{ cardIds: ['a', 'b', 'c'], ordered: false }], melds: [{ cardIds: ['d', 'e', 'f'] }],
+    hooks: [{ meldId: 2, cardId: 'g', end: 'high' }], discard: 'x' }),
+  { groups: [{ cardIds: ['a', 'b', 'c'] }, { cardIds: ['d', 'e', 'f'] }], hooks: [{ meldId: 2, cardId: 'g', end: 'high' }] });
 });

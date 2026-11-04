@@ -1,6 +1,6 @@
 import { Room, matchMaker } from "colyseus";
 import {
-  Match, seededRng, ENTRY_FEES, gameRewards, levelInfo, botMove, BOT_NAMES, botAvatars, isBot, PRACTICE_XP_FACTOR,
+  Match, seededRng, ENTRY_FEES, gameRewards, levelInfo, botMove, BOT_NAMES, botAvatars, isBot, liveOfTurn, BOT_SHOW_MS, PRACTICE_XP_FACTOR,
   TABLE_MIN, TABLE_MAX,
 } from "../../../src/logic/index.js";
 import { initStore, publicAccount } from "../accounts/store.js";
@@ -34,6 +34,7 @@ export class PushGinRoom extends Room {
   practice = 0;         // práctica contra bots: cuántos bots (0 = partida normal). Da la mitad del XP.
   botDelay = [1500, 2400]; // ms que "piensa" cada bot antes de cada movimiento (las pruebas lo acortan)
   botTimer = null;
+  botShowMs = BOT_SHOW_MS; // cuánto se ve la jugada del bot antes de que termine su turno (las pruebas lo acortan)
   minPlayers = TABLE_MIN; // mínimo en la mesa (personas + bots); faltan → bots (las pruebas de 2 lo bajan a 2)
 
   get game() { return this.match.game; } // la ronda actual (las pruebas la usan)
@@ -170,14 +171,25 @@ export class PushGinRoom extends Room {
       const pid = this.match.game.currentPlayer;
       if (!isBot(pid)) return;
       const mv = botMove(this.match.viewFor(pid));
-      let res = this.match.handle(pid, mv.type, mv.msg);
-      if (!res.ok) {
-        console.warn("Bot rechazado:", res.error);
-        if (this.match.game.phase === "start") this.match.handle(pid, "takeDiscard");
-        res = this.match.handle(pid, "discard", { cardId: this.match.lastDrawn ?? this.match.game.hands[pid][0].id });
+      // Si va a bajar o enganchar, primero se ve su jugada en vivo y un momento después termina el turno.
+      const live = mv.type === "playTurn" ? liveOfTurn(mv.msg) : null;
+      if (live && this.match.setLive(pid, live).ok) {
+        this.#broadcastViews();
+        this.botTimer = this.clock.setTimeout(() => this.#botPlay(pid, mv), this.botShowMs);
+        return;
       }
-      this.#afterChange(res.event);
+      this.#botPlay(pid, mv);
     }, a + Math.random() * (b - a));
+  }
+  #botPlay(pid, mv) {
+    if (this.match.phase !== "playing" || this.match.game.currentPlayer !== pid) return;
+    let res = this.match.handle(pid, mv.type, mv.msg);
+    if (!res.ok) {
+      console.warn("Bot rechazado:", res.error);
+      if (this.match.game.phase === "start") this.match.handle(pid, "takeDiscard");
+      res = this.match.handle(pid, "discard", { cardId: this.match.lastDrawn ?? this.match.game.hands[pid][0].id });
+    }
+    this.#afterChange(res.event);
   }
 
   // Temporizador de turno: si el jugador no termina a tiempo, el turno se juega solo (Match.timeoutTurn).

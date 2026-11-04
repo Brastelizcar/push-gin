@@ -204,7 +204,7 @@ describe("Cuentas: API y salas", () => {
   it("práctica en el servidor: empieza sola contra los bots, que juegan hasta tu turno", async () => {
     const { token } = await store.create("Ana");
     const room = await colyseus.createRoom("push_gin", { practice: 2 });
-    room.botDelay = [5, 10];
+    room.botDelay = [5, 10]; room.botShowMs = 10;
     const a = await join(room, { token });
     await tick(150);
     assert.equal(a.view.phase, "playing");
