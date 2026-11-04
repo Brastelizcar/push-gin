@@ -72,12 +72,12 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
 - Mano = CUADRÍCULA (`client/src/handgrid.js`, `ui.cells`: id o null por casilla). Cada carta en su casilla; las
   vacías son los espacios (no hay botón Espacio). Soltar en una casilla vacía la ocupa; sobre otra carta, la empuja
   hasta el siguiente hueco. 789/777 dejan una casilla vacía entre grupos. Las cartas que llegan ocupan la PRIMERA
-  casilla vacía (también los espacios entre grupos). SIEMPRE 2 filas de alto fijo (`--hwmax`): si no caben, solo las
-  cartas se achican. Tu jugada sin confirmar se ve en su propia fila, debajo de los plantes de la mesa.
+  casilla vacía (también los espacios entre grupos). SIEMPRE 2 filas de alto fijo (`--hwmax`) y al inicio 20 casillas
+  (10 por fila, `MIN_COLS`) repartidas a lo ancho; con más cartas hay más columnas y, si no caben, las cartas se achican. Tu jugada sin confirmar se ve en su propia fila, debajo de los plantes de la mesa.
   Fin de ronda: la tabla va de menor a mayor total.
 - **Jugada en vivo:** lo que el jugador en turno arma sin confirmar (grupos y enganches) lo ven los demás en tiempo real
   (mensaje `stage` → `Match.setLive`; la vista de los DEMÁS trae `live`, que se olvida al pasar el turno). Se ve con
-  borde dorado punteado y «X está armando su jugada…»; al confirmar, sus cartas vuelan desde ahí. Revela cartas aunque
+  borde dorado punteado y «X está armando su jugada…»; al confirmar, sus cartas aparecen de translúcidas a sólidas. Revela cartas aunque
   luego las devuelva a la mano (decidido así). Mensajes `stage` inválidos se ignoran sin rechazo.
 - Los bots usan avatares que no tenga ninguna persona de la mesa (`botAvatars`).
 - Mesa (UI): cartas de 4 colores (`suitColor`: ♥ rojo, ♠ negro, ♦ azul, ♣ verde), número grande al centro y palo
@@ -88,10 +88,11 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
   atril de madera y el riel a la derecha. El jugador EN TURNO lleva un aro dorado alrededor del avatar que se va
   vaciando: es su reloj (`--t` 1→0); su asiento no lleva marco. Botón «Terminar turno» dorado. Avisos (toast) justo encima de la mano. Sin botón de tamaño de cartas.
 - Animaciones: reparto y tu carta tras un push (`flyFromDeck`), tomar el descarte (`flyCard`), push en dos tiempos
-  (si te lo hacen a ti, las 2 cartas vuelan del descarte a tus casillas), jugadas a la mesa (`applyFlights`,
-  `detectRemotePlay`), lo que hacen los demás con el descarte (`detectRemoteDiscard` + `flyBetween`) y el plante
+  (si te lo hacen a ti, las 2 cartas vuelan del descarte a tus casillas), cartas nuevas en la mesa (NO vuelan: aparecen
+  de translúcidas a sólidas, `applyFlights`/`detectRemotePlay`), plantes que se reacomodan o se achican para dar espacio
+  (en cada redibujo, `slideMelds`), lo que hacen los demás con el descarte (`detectRemoteDiscard` + `flyBetween`) y el plante
   completo que sale de la mesa (`noteCleared`/`startClearing`: se voltean una a una y se apagan; la mesa le guarda
-  el lugar con un hueco hasta que desaparecen; luego los demás plantes se deslizan a su lugar nuevo, `slideMelds`). Bots: 1,5–2,4 s por movimiento.
+  el lugar con un hueco hasta que desaparecen; luego los demás plantes se deslizan a su lugar nuevo). Bots: 1,5–2,4 s por movimiento.
 - Lote 3 (cuentas y menús): hecho. Ver "Cuentas" abajo.
 - Lote 4 (práctica con bots, temporizador): hecho. **Con cuenta**, la práctica se juega en el SERVIDOR (sala con la
   opción `practice: nBots`; los bots juegan en `PushGinRoom`) y da la **mitad del XP** (`PRACTICE_XP_FACTOR`), sin fichas.

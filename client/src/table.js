@@ -13,9 +13,9 @@ import { syncCells, placeCard, placeGroup, cellsFromGroups, nextFree, gridShape,
 // ui.cells es TU mano como cuadrícula: cada casilla tiene el id de una carta o null (un espacio que dejaste).
 const ui = {
   cells: [],
-  landing: null,
+  landing: null,        // id de la carta que otro jugador descartó y aún vuela al descarte (mientras, se ve vacío)
   liveSent: null,       // última jugada en preparación que enviaste (para mandar solo los cambios)
-  prevLive: new Map(),  // dónde se veían las cartas de la jugada en vivo de otro (sus cartas vuelan desde ahí)        // id de la carta que otro jugador descartó y aún vuela al descarte (mientras, se ve vacío)
+  prevLive: new Map(),  // cartas que se veían en la jugada en vivo de otro (las que ya estaban no repiten su entrada)
   handW: 0,             // ancho medido de la mano (para calcular cuántas casillas caben)
   incoming: null,       // carta del descarte que arrastraste a tu mano y que el servidor aún no confirma
   pending: null,        // carta arrastrada al descarte, a la espera de ✓
@@ -23,8 +23,7 @@ const ui = {
   fly: null,            // capa de la animación en curso
   round: null,
   stage: emptyStage(),  // jugada sin confirmar: { groups:[{cards, ordered}], hooks:[{meldId, card, end}] }
-  flights: new Map(),   // id de carta → { from: rect, at: ms } para animar mano → mesa cuando llegue el estado
-  flying: new Set(),    // cartas de la mesa que están llegando volando (ocultas hasta que aterricen)
+  flights: new Map(),   // id de carta → { at: ms }: recién jugadas; aparecen de translúcidas a sólidas en la mesa
   gameAct: false,       // acabas de enviar plantarse / bajar / enganchar / robar y esperas respuesta
   prevIds: new Set(),   // cartas que había en tu mano en el render anterior (para detectar las recién llegadas)
   pushWait: null,       // un push acaba de ocurrir: { by, to, anim } (las cartas nuevas esperan a la animación)
@@ -49,12 +48,11 @@ export function resetPending() {
   ui.fly?.remove();
   ui.fly = null;
   ui.flights.clear();
-  ui.flying.clear();
 }
 
 // Si el servidor rechaza una jugada de mesa (plantarse, bajar, enganchar, robar) no se toca tu descarte pendiente.
 export function handleRejected() {
-  if (ui.gameAct) { ui.gameAct = false; ui.flights.clear(); ui.flying.clear(); }
+  if (ui.gameAct) { ui.gameAct = false; ui.flights.clear(); }
   else resetPending();
 }
 
@@ -196,44 +194,20 @@ const meldCardsOf = (m) => (m.kind === "set" ? m.cards : m.slots.map((s) => s.ca
 const amPlanted = () => !!cur.view.players.find((p) => p.id === cur.view.you)?.planted;
 const send = (fn) => { ui.gameAct = true; fn(); };
 
-// Guarda desde dónde sale cada carta (tu mano o tu jugada sin confirmar); cuando el servidor confirme,
-// vuela de ahí a su lugar definitivo en la mesa.
-function recordFlights(cards, fromRect) {
-  for (const c of cards) {
-    const from = fromRect ?? document.querySelector(`.hand-line [data-id="${c.id}"], .staged-card[data-id="${c.id}"]`)?.getBoundingClientRect();
-    if (from) ui.flights.set(c.id, { from, at: performance.now() });
-  }
+// Cartas que acabas de enviar a la mesa: cuando el servidor confirme, aparecen de translúcidas a sólidas.
+function recordFlights(cards) {
+  for (const c of cards) ui.flights.set(c.id, { at: performance.now() });
 }
 function applyFlights() {
   if (!ui.flights.size) return;
   const now = performance.now();
-  let n = 0;
   for (const [id, f] of [...ui.flights]) {
     if (now - f.at > 4000) { ui.flights.delete(id); continue; }
     const el = document.querySelector(`.mesa-panel .card[data-id="${id}"]`);
     if (!el) continue;                              // todavía no llegó el estado con esta carta
     ui.flights.delete(id);
     if (reduceMotion()) continue;
-    const to = el.getBoundingClientRect();
-    const ghost = el.cloneNode(true);
-    ghost.classList.remove("recent", "arriving");
-    ghost.classList.add("fly-flight");
-    // Fuera de la mesa la copia perdería su tamaño de letra: se le da el mismo que tendrá al aterrizar.
-    ghost.style.cssText = `left:${to.left}px;top:${to.top}px;width:${to.width}px;height:${to.height}px;--cw:${to.width}px`;
-    for (const part of [".pip", ".corner"]) ghost.querySelector(part).style.fontSize = getComputedStyle(el.querySelector(part)).fontSize;
-    const layer = h("div", { class: "fly-layer" }, ghost);
-    document.body.append(layer);
-    el.classList.add("arriving");
-    ui.flying.add(id);
-    const dx = f.from.left + f.from.width / 2 - (to.left + to.width / 2);
-    const dy = f.from.top + f.from.height / 2 - (to.top + to.height / 2);
-    ghost.animate(
-      [{ transform: `translate(${dx}px,${dy}px) scale(${f.from.width / to.width})` }, { transform: "none" }],
-      { duration: 520, delay: n++ * 60, easing: "cubic-bezier(.2,.8,.25,1)", fill: "backwards" }
-    ).finished.catch(() => {}).finally(() => {
-      layer.remove();
-      if (ui.flying.delete(id)) cur.rerender();
-    });
+    el.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 650, easing: "ease-out" });
   }
 }
 
@@ -494,6 +468,7 @@ export function renderTable(app, { view, room, rerender }) {
   const canTake = myTurn && view.turnPhase === "start";
   const mustDiscard = myTurn && view.turnPhase === "main";
   cur = { view, room, rerender, canTake, mustDiscard };
+  const meldsBefore = meldRects();                     // para que los plantes se reacomoden con animación
   ui.prevLive = new Map([...document.querySelectorAll(".mesa-panel .live-card[data-id]")].map((e) => [e.dataset.id, e.getBoundingClientRect()]));
 
   if (ui.round !== view.round) { ui.round = view.round; ui.cells = []; ui.stage = emptyStage(); resetPending(); }
@@ -578,7 +553,7 @@ export function renderTable(app, { view, room, rerender }) {
     const original = view.melds.find((x) => x.id === m.id);
     return h("div", { class: "meld" + (canMeldAct ? " tappable" : ""), "data-meld": m.id, onclick: (e) => onMeldClick(e, original) },
       cards.map((c, i) => cardEl(c, (stagedHookIds.has(c.id) ? "staged-card " : liveHookIds.has(c.id) ? `live-card ${ui.prevLive.has(c.id) ? "" : "live-new "}` : recent.has(c.id) ? "recent " : "") +
-        (isWild(c) ? "wild " : "") + (ui.flying.has(c.id) ? "arriving" : ""), i)));
+        (isWild(c) ? "wild " : ""), i)));
   });
   for (const [id, c] of ui.clearing) {
     const ph = h("div", { class: "meld clearing", "data-clearing": id }, c.cards.map((card) => cardEl(card, "ph-hidden")));
@@ -598,11 +573,12 @@ export function renderTable(app, { view, room, rerender }) {
   //     Mantener presionada la 1.ª o última carta de un grupo de cartas juntas lo toma entero. ---
   const items = layoutItems(view);
   const maxCell = cellMax();
-  const shape = gridShape(items.length, ui.handW || Math.max(300, innerWidth * 0.72), maxCell);
+  const shape = gridShape(items.length, ui.handW || Math.max(300, innerWidth * 0.72));
   const handLine = h("div", {
     class: "hand-line", id: "handLine",
-    // --hw: tamaño de las cartas (se achican si no caben) · --hwmax: el normal, que fija el alto de las 2 filas
-    style: `--cols:${shape.cols};--cell:${shape.cell}px;--hw:${(shape.cell / 1.1).toFixed(1)}px;--hwmax:${(maxCell / 1.1).toFixed(1)}px`,
+    // --hw: tamaño de las cartas (el normal, o más chicas si la casilla es angosta) · --hwmax: el normal, que fija
+    // el alto de las 2 filas
+    style: `--cols:${shape.cols};--cell:${shape.cell}px;--hw:${(Math.min(shape.cell, maxCell) / 1.1).toFixed(1)}px;--hwmax:${(maxCell / 1.1).toFixed(1)}px`,
   }, Array.from({ length: shape.rows * shape.cols }, (_, i) => {
     const c = items[i]?.card;
     const cell = h("div", { class: "hand-cell" + (c ? "" : " empty"), "data-cell": i });
@@ -677,6 +653,7 @@ export function renderTable(app, { view, room, rerender }) {
   fitMesa();
   fitHand();
   startClearing();
+  slideMelds(meldsBefore);
   detectRemotePlay(view);
   detectRemoteDiscard(view);
   applyFlights();
@@ -912,7 +889,6 @@ function fitMesa() {
 }
 window.addEventListener("resize", () => { if (cur) fitMesa(); });
 
-// Otro jugador acaba de plantarse / bajar / enganchar: sus cartas viajan desde su ficha hasta la mesa.
 // La cuadrícula de la mano se calcula con el ancho disponible: se mide tras dibujar y, si cambió, se redibuja.
 function fitHand() {
   const line = document.getElementById("handLine");
@@ -1001,26 +977,29 @@ function startClearing() {
       .finished.catch(() => {}).finally(() => {
         layer.remove();
         ui.clearing.delete(id);
-        const before = meldRects();
-        cur.rerender();                                // recién ahora los demás plantes ocupan su lugar…
-        slideMelds(before);                            // …deslizándose desde donde estaban
+        cur.rerender();                                // recién ahora los demás plantes ocupan su lugar (deslizándose)
       });
   }
 }
 
 // Posición de cada plante de la mesa (por id).
+// (esquina y ancho de su primera carta: el ancho del plante cambia también al enganchar, el de la carta no)
 function meldRects() {
-  return new Map([...document.querySelectorAll(".mesa-panel .meld[data-meld]")].map((e) => [e.dataset.meld, e.getBoundingClientRect()]));
+  return new Map([...document.querySelectorAll(".mesa-panel .meld[data-meld]")].map((e) => {
+    const r = e.getBoundingClientRect();
+    return [e.dataset.meld, { left: r.left, top: r.top, cw: e.querySelector(".card")?.getBoundingClientRect().width ?? 0 }];
+  }));
 }
-// Tras redibujar, cada plante que cambió de lugar (o de tamaño, si la mesa se agrandó) viaja suave desde su posición
-// anterior hasta la nueva.
+// Tras redibujar, cada plante que cambió de lugar o de tamaño (la mesa achica las cartas para dar espacio a las nuevas,
+// o las agranda cuando salen) viaja suave desde como se veía hasta como queda.
 const SLIDE_MS = 520;
 function slideMelds(before) {
+  if (reduceMotion()) return;
   for (const el of document.querySelectorAll(".mesa-panel .meld[data-meld]")) {
     const old = before.get(el.dataset.meld);
     if (!old) continue;
-    const now = el.getBoundingClientRect();
-    const dx = old.left - now.left, dy = old.top - now.top, sc = now.width ? old.width / now.width : 1;
+    const now = el.getBoundingClientRect(), cw = el.querySelector(".card")?.getBoundingClientRect().width ?? 0;
+    const dx = old.left - now.left, dy = old.top - now.top, sc = cw && old.cw ? old.cw / cw : 1;
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(sc - 1) < 0.01) continue;
     el.animate([{ transformOrigin: "0 0", transform: `translate(${dx}px, ${dy}px) scale(${sc})` },
                 { transformOrigin: "0 0", transform: "none" }], { duration: SLIDE_MS, easing: "cubic-bezier(.3,.7,.3,1)" });
@@ -1041,19 +1020,14 @@ function sendLive(active) {
 }
 
 export function notePlay(by) { ui.remotePlay = { by, at: performance.now() }; }
+// Otro jugador acaba de plantarse / bajar / enganchar: sus cartas nuevas aparecen de translúcidas a sólidas.
 function detectRemotePlay(view) {
   const ids = [...document.querySelectorAll(".mesa-panel .card[data-id]")].map((e) => e.dataset.id);
   if (ui.remotePlay && performance.now() - ui.remotePlay.at > 6000) ui.remotePlay = null;
   if (ui.remotePlay) {
     const fresh = ids.filter((id) => !ui.prevMesa.has(id) && !ui.flights.has(id));
-    const chip = document.querySelector(`.p-chip[data-pid="${ui.remotePlay.by}"]`)?.getBoundingClientRect();
     if (fresh.length) {
-      for (const id of fresh) {                      // desde donde se veía en vivo; si no, desde su ficha
-        const to = document.querySelector(`.mesa-panel .card[data-id="${id}"]`).getBoundingClientRect();
-        const from = ui.prevLive.get(id) ??
-          (chip && new DOMRect(chip.left + chip.width / 2 - to.width / 2, chip.top + chip.height / 2 - to.height / 2, to.width, to.height));
-        if (from) ui.flights.set(id, { from, at: performance.now() });
-      }
+      for (const id of fresh) ui.flights.set(id, { at: performance.now() });   // aparecen de translúcidas a sólidas
       ui.remotePlay = null;
     }
   }

@@ -232,7 +232,6 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .meld{ border-radius:8px; }
 .meld.tappable{ cursor:pointer; }
 .meld.drop-over{ outline:2.5px dashed var(--gold-light); outline-offset:5px; }
-.card.fly-flight{ position:fixed; margin:0; z-index:150; pointer-events:none; box-shadow:0 8px 20px rgba(0,0,0,.5); }
 
 /* ---------- botones de la barra superior ---------- */
 .top-btns{ display:flex; gap:6px; flex-shrink:0; }
