@@ -73,11 +73,12 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
   vacías son los espacios (no hay botón Espacio). Soltar en una casilla vacía la ocupa; sobre otra carta, la empuja
   hasta el siguiente hueco. 789/777 dejan una casilla vacía entre grupos. Las cartas que llegan ocupan la PRIMERA
   casilla vacía (también los espacios entre grupos). SIEMPRE 2 filas de alto fijo (`--hwmax`) y al inicio 20 casillas
-  (10 por fila, `MIN_COLS`) con las cartas casi pegadas (`CELL_AIR`). Atril de madera (ref. `docs/referencias/atril 20 espacios.png`
-  y `atril agrandado.png`): un RESPALDO detrás de la fila de arriba (las cartas sobresalen apenas) y una TABLA DELANTERA
-  más clara donde se apoya la fila de abajo, que se monta un poco sobre la de arriba (row-gap negativo). Alto fijo;
-  con más cartas CRECE a lo ancho y las cartas conservan su tamaño; solo si ya no cabe entre los jugadores y el riel,
-  se achican. Centrado, pegado al borde de abajo (forma parte del marco). Los avisos de la mano van encima del atril.
+  (10 por fila, `MIN_COLS`) con las cartas casi pegadas (`CELL_AIR`). Atril de madera de una pieza (diseño de
+  `docs/referencias/idea atril.jpg`): empieza a un cuarto de la fila de arriba (las cartas sobresalen) y abajo un borde
+  más oscuro. La fila de abajo se monta un poco sobre la de arriba (margen negativo en `.row-bottom`: `row-gap` no
+  admite negativos). Alto fijo; con más cartas CRECE a lo ancho (como `atril agrandado.png`) y las cartas conservan su
+  tamaño; solo si ya no cabe entre los jugadores y el riel, se achican. Centrado y al ras del borde de abajo de la mesa
+  (sin pasar sobre el marco). Los avisos de la mano van encima del atril.
   Las casillas vacías no llevan marco. Tu jugada sin confirmar se ve en su propia fila, debajo de los plantes de la mesa.
   Fin de ronda: la tabla va de menor a mayor total.
 - **Jugada en vivo:** lo que el jugador en turno arma sin confirmar (grupos y enganches) lo ven los demás en tiempo real
