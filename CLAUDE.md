@@ -73,8 +73,9 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
   vacías son los espacios (no hay botón Espacio). Soltar en una casilla vacía la ocupa; sobre otra carta, la empuja
   hasta el siguiente hueco. 789/777 dejan una casilla vacía entre grupos. Las cartas que llegan ocupan la PRIMERA
   casilla vacía (también los espacios entre grupos). SIEMPRE 2 filas de alto fijo (`--hwmax`) y al inicio 20 casillas
-  (10 por fila, `MIN_COLS`) con las cartas juntas; el atril (centrado) mide justo eso y las casillas vacías no llevan
-  marco. Con más cartas hay más columnas y, si no caben en el ancho disponible (`.hand-dock`), las cartas se achican. Tu jugada sin confirmar se ve en su propia fila, debajo de los plantes de la mesa.
+  (10 por fila, `MIN_COLS`) con las cartas juntas. El atril es FIJO (ancho de 10 casillas normales y alto de 2 filas),
+  centrado y pegado al borde de abajo: baja hasta el marco de madera y forma parte de él. Las casillas vacías no llevan
+  marco. Con más cartas hay más columnas y las cartas se achican para caber en el mismo atril. Tu jugada sin confirmar se ve en su propia fila, debajo de los plantes de la mesa.
   Fin de ronda: la tabla va de menor a mayor total.
 - **Jugada en vivo:** lo que el jugador en turno arma sin confirmar (grupos y enganches) lo ven los demás en tiempo real
   (mensaje `stage` → `Match.setLive`; la vista de los DEMÁS trae `live`, que se olvida al pasar el turno). Se ve con
@@ -84,7 +85,8 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
 - Mesa (UI): cartas de 4 colores (`suitColor`: ♥ rojo, ♠ negro, ♦ azul, ♣ verde), número grande al centro y palo
   pequeño en la esquina (también la del descarte). Riel: «Pozo» (cuota × personas, solo con cuota).
   Botón ☰: menú de la partida (ajustes de sonido, reglas, ayuda, salir al menú de inicio = abandonar).
-  Disposición (ref. `docs/referencias/diposicion del tablero.png`, solo disposición): columna de jugadores a la izquierda
+  Disposición (cuadrícula en `.table-felt`: barra arriba a todo lo ancho, tablero sin recuadro, riel que empieza a la
+  altura del tablero; ref. `docs/referencias/diposicion del tablero.png`, solo disposición): columna de jugadores a la izquierda
   (avatar, nombre, cartas, puntos; tú abajo; repartidos con el mismo espacio entre ellos), mesa grande con las cartas de cada plante lado a lado, tu mano en un
   atril de madera y el riel a la derecha. El jugador EN TURNO lleva un aro dorado alrededor del avatar que se va
   vaciando: es su reloj (`--t` 1→0); su asiento no lleva marco. Botón «Terminar turno» dorado. Avisos (toast) justo encima de la mano. Sin botón de tamaño de cartas.

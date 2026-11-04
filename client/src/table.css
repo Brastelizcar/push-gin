@@ -14,7 +14,6 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
   background:radial-gradient(ellipse at 50% 20%, var(--felt-mid), var(--felt-dark) 78%);
   border-radius:14px; border:2px solid rgba(0,0,0,.35);
 }
-.main-col{ flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; gap:clamp(6px,1vh,12px); }
 
 .topbar{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:6px 12px; background:rgba(0,0,0,.25); border-radius:10px; padding:8px 14px; border:1px solid rgba(201,162,39,.3); }
 .r-title{ font-family:'Fraunces',serif; font-weight:700; font-size:clamp(14px,1.35vw,20px); color:var(--gold-light); white-space:nowrap; }
@@ -128,9 +127,9 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .unified-slot .drop-icon{ color:var(--gold-light); font-size:calc(var(--sw) * .32); opacity:.8; }
 .slot-label{ font-size:clamp(8.5px,.7vw,11px); letter-spacing:.05em; text-transform:uppercase; color:var(--gold-light); font-weight:800; text-align:center; }
 
-.push-btn{ width:100%; display:flex; align-items:center; justify-content:center; gap:5px; background:rgba(0,0,0,.28); border:1px solid rgba(201,162,39,.4); border-radius:20px; padding:clamp(6px,1vh,10px) 4px; cursor:pointer; }
-.push-btn .p-badge{ width:clamp(18px,1.5vw,24px); height:clamp(18px,1.5vw,24px); border-radius:50%; background:var(--gold); color:var(--wood-dark); font-family:'Fraunces',serif; font-weight:800; font-size:clamp(11px,.95vw,14px); display:flex; align-items:center; justify-content:center; }
-.push-btn .p-text{ font-size:clamp(9.5px,.85vw,13px); color:var(--gold-light); font-weight:700; }
+.push-btn{ width:100%; display:flex; align-items:center; justify-content:center; gap:7px; background:rgba(0,0,0,.28); border:1.5px solid rgba(201,162,39,.5); border-radius:22px; padding:clamp(9px,1.5vh,14px) 6px; cursor:pointer; }
+.push-btn .p-badge{ width:clamp(22px,2vw,30px); height:clamp(22px,2vw,30px); border-radius:50%; background:var(--gold); color:var(--wood-dark); font-family:'Fraunces',serif; font-weight:800; font-size:clamp(13px,1.2vw,17px); display:flex; align-items:center; justify-content:center; }
+.push-btn .p-text{ font-size:clamp(12px,1.1vw,16px); color:var(--gold-light); font-weight:700; }
 .push-btn.disabled{ opacity:.35; pointer-events:none; }
 
 /* Terminar turno: botón dorado como el resto de la mesa (apagado, listo o con una jugada que aún no vale) */
@@ -288,18 +287,25 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 @keyframes clock-blink{ 50%{ opacity:.45; } }
 
 /* ============ Disposición de la mesa: jugadores a la izquierda, mesa grande, tu mano en un atril de madera ============ */
-.table-felt{ display:grid; grid-template-columns:clamp(96px, 9vw, 130px) minmax(0, 1fr) auto; }
+.table-felt{ display:grid; grid-template-columns:clamp(112px, 11vw, 160px) minmax(0, 1fr) auto; grid-template-rows:auto minmax(0, 1fr) auto;
+  grid-template-areas:"players top top" "players mesa rail" "players hand hand"; padding-bottom:0; }
+.table-felt > .players-col{ grid-area:players; } .table-felt > .topbar{ grid-area:top; } .table-felt > .mesa-panel{ grid-area:mesa; }
+.table-felt > .action-rail{ grid-area:rail; } .table-felt > .hand-dock{ grid-area:hand; }
+/* El tablero sin recuadro: del mismo verde del fieltro y sin marco */
+.mesa-panel{ background:none; border:0; }
+/* El riel empieza justo donde empieza el tablero */
+.action-rail .rail-center-group{ flex:none; justify-content:flex-start; }
 /* Los asientos repartidos a lo alto con el mismo espacio entre ellos (sean 3 o 4) */
-.players-col{ display:flex; flex-direction:column; align-items:stretch; justify-content:space-between; gap:clamp(6px, 1.4vh, 14px);
-  min-height:0; overflow:hidden; padding:2px 0; }
+.players-col{ display:flex; flex-direction:column; align-items:center; justify-content:space-between; gap:clamp(6px, 1.4vh, 14px);
+  min-height:0; overflow:hidden; padding:6px 0 clamp(8px, 1vw, 14px); }
 .seat{ flex:none; display:flex; flex-direction:column; align-items:center; gap:2px; padding:4px 2px; text-align:center;
   background:none; border:0; box-shadow:none; border-radius:12px; min-width:0; }
-.seat-av{ position:relative; width:clamp(50px, min(5.6vw, 10vh), 78px); aspect-ratio:1; border-radius:50%; flex-shrink:0; }
+.seat-av{ position:relative; width:clamp(58px, min(6.8vw, 12.5vh), 96px); aspect-ratio:1; border-radius:50%; flex-shrink:0; }
 .seat-av .avatar-img, .seat-av .avatar{ width:100%; height:100%; border-radius:50%; font-size:22px; box-shadow:0 0 0 2px rgba(0,0,0,.35), 0 3px 8px rgba(0,0,0,.45); }
 .seat-level{ position:absolute; right:-6px; top:-4px; width:24px; height:24px; display:flex; align-items:center; justify-content:center;
   font-size:10px; font-weight:800; color:var(--wood-dark); background:var(--gold-light);
   clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%); }
-.seat-name{ font-weight:700; font-size:clamp(11px, .95vw, 14px); color:var(--ivory-shade); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.seat-name{ font-weight:700; font-size:clamp(12px, 1.05vw, 16px); color:var(--ivory-shade); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .seat.you .seat-name{ color:var(--gold-light); }
 .seat-meta{ display:flex; align-items:center; gap:8px; font-size:clamp(11px, .9vw, 13px); }
 .seat .card-count{ margin:0; font-size:inherit; }
@@ -322,9 +328,10 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 /* Tu jugada sin confirmar: en su propia fila, debajo de los plantes de la mesa */
 .staged-row{ flex-basis:100%; display:flex; flex-wrap:wrap; gap:inherit; }
 /* Tu mano en un atril de madera */
-.hand-dock{ display:flex; justify-content:center; min-width:0; }
-.hand-rack{ max-width:100%; padding:clamp(6px, 1vh, 10px) clamp(8px, 1vw, 14px) clamp(10px, 1.6vh, 16px); border-radius:14px;
+/* El atril, pegado al borde de abajo: baja hasta el marco de madera de la mesa y forma parte de él */
+.hand-dock{ display:flex; justify-content:center; min-width:0; margin-bottom:calc(-1 * (clamp(8px, 1.1vw, 16px) + 2px)); }
+.hand-rack{ max-width:100%; padding:clamp(6px, 1vh, 10px) clamp(8px, 1vw, 14px) calc(clamp(10px, 1.6vh, 16px) + clamp(8px, 1.1vw, 16px)); border-radius:16px 16px 0 0;
   background:linear-gradient(180deg, #8a5a33 0%, var(--wood) 45%, var(--wood-dark) 100%);
   box-shadow:inset 0 2px 0 rgba(255,255,255,.18), inset 0 -3px 0 rgba(0,0,0,.35), 0 6px 14px rgba(0,0,0,.45); }
 .hand-rack .hand-panel{ background:rgba(0,0,0,.28); border:1px solid rgba(0,0,0,.35); box-shadow:inset 0 2px 6px rgba(0,0,0,.45); }
-@media (max-width:900px) and (orientation:landscape){ .table-felt{ grid-template-columns:78px minmax(0, 1fr) auto; } }
+@media (max-width:900px) and (orientation:landscape){ .table-felt{ grid-template-columns:88px minmax(0, 1fr) auto; } }
