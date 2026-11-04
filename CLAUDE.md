@@ -73,7 +73,8 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
   vacías son los espacios (no hay botón Espacio). Soltar en una casilla vacía la ocupa; sobre otra carta, la empuja
   hasta el siguiente hueco. 789/777 dejan una casilla vacía entre grupos. Las cartas que llegan ocupan la PRIMERA
   casilla vacía (también los espacios entre grupos). SIEMPRE 2 filas de alto fijo (`--hwmax`) y al inicio 20 casillas
-  (10 por fila, `MIN_COLS`) repartidas a lo ancho; con más cartas hay más columnas y, si no caben, las cartas se achican. Tu jugada sin confirmar se ve en su propia fila, debajo de los plantes de la mesa.
+  (10 por fila, `MIN_COLS`) con las cartas juntas; el atril (centrado) mide justo eso y las casillas vacías no llevan
+  marco. Con más cartas hay más columnas y, si no caben en el ancho disponible (`.hand-dock`), las cartas se achican. Tu jugada sin confirmar se ve en su propia fila, debajo de los plantes de la mesa.
   Fin de ronda: la tabla va de menor a mayor total.
 - **Jugada en vivo:** lo que el jugador en turno arma sin confirmar (grupos y enganches) lo ven los demás en tiempo real
   (mensaje `stage` → `Match.setLive`; la vista de los DEMÁS trae `live`, que se olvida al pasar el turno). Se ve con

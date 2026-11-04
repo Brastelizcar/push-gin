@@ -30,13 +30,13 @@ test("789 / 777: una casilla vacía entre grupos (sin línea divisoria)", () => 
   assert.equal(nextFree([]), 0);
 });
 
-test("gridShape: siempre dos filas, al inicio 20 casillas (10 por fila); con más cartas, más columnas", () => {
-  assert.deepEqual(gridShape(10, 1000), { rows: 2, cols: 10, cell: 100 });
-  assert.deepEqual(gridShape(19, 1000), { rows: 2, cols: 10, cell: 100 });
-  assert.deepEqual(gridShape(20, 1000), { rows: 2, cols: 11, cell: 1000 / 11 }); // queda una libre
-  const big = gridShape(40, 1000);
+test("gridShape: siempre dos filas, al inicio 20 casillas (10 por fila) juntas; con más cartas, más columnas", () => {
+  assert.deepEqual(gridShape(10, 1000, 60), { rows: 2, cols: 10, cell: 60 });      // juntas: no se estiran
+  assert.deepEqual(gridShape(19, 1000, 60), { rows: 2, cols: 10, cell: 60 });
+  assert.deepEqual(gridShape(20, 1000, 60), { rows: 2, cols: 11, cell: 60 });      // queda una libre
+  const big = gridShape(40, 1000, 60);
   assert.equal(big.cols, 21);
-  assert.ok(big.cell * big.cols <= 1000);
+  assert.ok(big.cell < 60 && big.cell * big.cols <= 1000);                       // ya no caben: se achican
 });
 
 test("cellItems: los huecos y las cartas ocultas cortan los grupos", () => {

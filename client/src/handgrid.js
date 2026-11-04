@@ -44,14 +44,14 @@ export function nextFree(cells) {
   return hole >= 0 ? hole : cells.length;
 }
 
-// Forma de la cuadrícula: SIEMPRE dos filas (el atril no cambia de alto) y al inicio 20 casillas, 10 por fila.
-// Las casillas se reparten a lo ancho del atril; con más cartas hay más columnas, más angostas (y las cartas se
-// achican cuando ya no caben con su tamaño normal: ver table.js).
-// used: casillas en uso (hasta la última carta). width: ancho disponible.
+// Forma de la cuadrícula: SIEMPRE dos filas (el atril no cambia de alto) y al inicio 20 casillas, 10 por fila, con
+// las cartas juntas (casillas de tamaño normal; el atril mide justo eso). Con más cartas hay más columnas y, si ya no
+// caben en el ancho disponible, las casillas (y las cartas) se achican.
+// used: casillas en uso (hasta la última carta). width: ancho disponible. cellMax: tamaño normal de una casilla.
 export const MIN_COLS = 10;
-export function gridShape(used, width) {
+export function gridShape(used, width, cellMax) {
   const cols = Math.max(MIN_COLS, Math.ceil((used + 1) / 2)); // siempre queda al menos una casilla libre
-  return { rows: 2, cols, cell: width / cols };
+  return { rows: 2, cols, cell: Math.min(cellMax, width / cols) };
 }
 
 // Las casillas como [{card}|{gap}] (para buscar grupos de cartas juntas). hidden: ids que no se muestran.

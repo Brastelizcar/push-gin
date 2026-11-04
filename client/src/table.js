@@ -573,7 +573,7 @@ export function renderTable(app, { view, room, rerender }) {
   //     Mantener presionada la 1.ª o última carta de un grupo de cartas juntas lo toma entero. ---
   const items = layoutItems(view);
   const maxCell = cellMax();
-  const shape = gridShape(items.length, ui.handW || Math.max(300, innerWidth * 0.72));
+  const shape = gridShape(items.length, ui.handW || Math.max(300, innerWidth * 0.72), maxCell);
   const handLine = h("div", {
     class: "hand-line", id: "handLine",
     // --hw: tamaño de las cartas (el normal, o más chicas si la casilla es angosta) · --hwmax: el normal, que fija
@@ -647,7 +647,8 @@ export function renderTable(app, { view, room, rerender }) {
         onclick: (e) => confirmTurn(e.currentTarget),
       }, h("span", { class: "ck" }, "✓"), h("span", { class: "ck-lbl" }, "Terminar turno"))));
 
-  const main = h("div", { class: "main-col" }, topbar, mesa, h("div", { class: "hand-rack" }, handPanel));
+  // El atril (madera) mide justo lo que ocupan las casillas; el contenedor de afuera da el ancho disponible.
+  const main = h("div", { class: "main-col" }, topbar, mesa, h("div", { class: "hand-dock" }, h("div", { class: "hand-rack" }, handPanel)));
   const felt = h("div", { class: "table-felt" }, playersCol, main, rail);
   app.replaceChildren(h("div", { class: "table-frame wide-frame" }, felt));
   fitMesa();
@@ -895,7 +896,9 @@ function fitHand() {
   if (!line) return;
   const panel = document.querySelector(".hand-panel").getBoundingClientRect();
   document.documentElement.style.setProperty("--toast-bottom", `${Math.round(innerHeight - panel.top + 8)}px`); // avisos sobre tu mano
-  const w = line.clientWidth;
+  // Ancho disponible para las casillas = ancho del contenedor − marco del atril (madera, bordes y relleno).
+  const dock = document.querySelector(".hand-dock"), rack = document.querySelector(".hand-rack");
+  const w = Math.floor(dock.clientWidth - (rack.offsetWidth - line.clientWidth));
   if (Math.abs(w - ui.handW) > 2) { ui.handW = w; cur.rerender(); }
 }
 window.addEventListener("resize", () => requestAnimationFrame(() => cur && cur.rerender()));
