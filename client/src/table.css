@@ -292,7 +292,7 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 @keyframes clock-blink{ 50%{ opacity:.45; } }
 
 /* ============ Disposición de la mesa: jugadores a la izquierda, mesa grande, tu mano en un atril de madera ============ */
-.table-felt{ display:grid; grid-template-columns:clamp(112px, 11vw, 160px) minmax(0, 1fr) auto; grid-template-rows:auto minmax(0, 1fr) auto;
+.table-felt{ display:grid; grid-template-columns:clamp(92px, 8.4vw, 128px) minmax(0, 1fr) auto; grid-template-rows:auto minmax(0, 1fr) auto;
   padding-top:0; padding-bottom:0; }
 /* Barra arriba a TODO lo ancho y pegada al borde; jugadores, tablero y riel debajo. El atril va centrado en la mesa
    entera (su fila se superpone a las columnas de jugadores y riel, que siguen hasta abajo). */
@@ -312,11 +312,19 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .action-rail .rail-center-group{ flex:none; justify-content:flex-start; gap:clamp(12px, 2.4vh, 22px); }
 /* Los asientos repartidos a lo alto con el mismo espacio entre ellos (sean 3 o 4) */
 .players-col{ display:flex; flex-direction:column; align-items:center; justify-content:space-between; gap:clamp(6px, 1.4vh, 14px);
-  min-height:0; overflow:hidden; padding:6px 0 clamp(8px, 1vw, 14px); }
+  min-height:0; overflow:hidden; padding:6px 0 clamp(8px, 1vw, 14px); container-type:size; }
 .seat{ flex:none; display:flex; flex-direction:column; align-items:center; gap:2px; padding:4px 2px; text-align:center;
   background:none; border:0; box-shadow:none; border-radius:12px; min-width:0; }
-.seat-av{ position:relative; width:clamp(58px, min(6.8vw, 12.5vh), 96px); aspect-ratio:1; border-radius:50%; flex-shrink:0; }
+/* El avatar se achica si los --n asientos no caben a lo alto (ventana normal, no pantalla completa): a cada asiento
+   le toca 1/n del alto de la columna (menos la separación entre asientos), menos lo que ocupan nombre, cartas,
+   estado y relleno (~66 px). */
+.seat-av{ position:relative; width:clamp(36px, min(6.8vw, 13vh, calc((100cqh - (var(--n, 4) - 1) * 14px) / var(--n, 4) - 66px)), 96px); aspect-ratio:1; border-radius:50%; flex-shrink:0; }
 .seat-av .avatar-img, .seat-av .avatar{ width:100%; height:100%; border-radius:50%; font-size:22px; box-shadow:0 0 0 2px rgba(0,0,0,.35), 0 3px 8px rgba(0,0,0,.45); }
+/* Ventana muy baja: sin la etiqueta de estado, para que los asientos quepan */
+@container (max-height:440px){
+  .seat .status-chip{ display:none; }
+  .seat-av{ width:clamp(28px, calc((100cqh - (var(--n, 4) - 1) * 14px) / var(--n, 4) - 50px), 96px); }
+}
 .seat-level{ position:absolute; right:-6px; top:-4px; width:24px; height:24px; display:flex; align-items:center; justify-content:center;
   font-size:10px; font-weight:800; color:var(--wood-dark); background:var(--gold-light);
   clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%); }
@@ -345,13 +353,14 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 /* Tu mano en un atril de madera */
 /* El atril, al ras del borde de abajo de la mesa (sin pasar sobre el marco) */
 .hand-dock{ display:flex; justify-content:center; min-width:0; }
-.hand-rack{ position:relative; isolation:isolate; max-width:100%; padding:0 clamp(6px, .7vw, 10px) clamp(10px, 1.5vh, 14px); }
+.hand-rack{ position:relative; isolation:isolate; max-width:100%; padding:0 clamp(6px, .7vw, 10px) clamp(10px, 1.5vh, 14px);
+  margin-bottom:-2px; }   /* tapa el filo del fieltro: queda pegado al marco de madera */
 /* La madera del atril (ref. docs/referencias/idea atril.jpg): una sola pieza que empieza a un cuarto de la fila de
-   arriba (las cartas sobresalen) y abajo un borde más oscuro donde se apoyan. Al crecer a lo ancho no cambia. */
+   arriba (las cartas sobresalen); su degradé termina en el mismo color del marco de la mesa, al que va pegado. */
 .hand-rack{ --ch:calc(var(--hwmax) * 1.43); }
 .hand-rack::before{ content:""; position:absolute; z-index:-1; left:0; right:0; bottom:0; top:calc(var(--ch) * .25);
-  border-radius:12px 12px 0 0; background:linear-gradient(180deg, #8a5a33 0%, var(--wood) 35%, var(--wood-dark) 100%);
-  box-shadow:inset 0 2px 0 rgba(255,255,255,.18), inset 0 calc(-1 * clamp(10px, 1.5vh, 14px)) 0 rgba(0,0,0,.3); }
+  border-radius:12px 12px 0 0; background:linear-gradient(180deg, #8a5a33 0%, var(--wood) 35%, color-mix(in srgb, var(--wood-dark) 97%, var(--wood)) 100%);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.18); }
 .hand-rack .hand-panel{ background:none; border:0; box-shadow:none; padding:0; border-radius:0; }
 /* Los avisos de la mano van justo encima del atril */
 .hand-rack .hand-actions{ top:auto; bottom:calc(100% + 6px); left:50%; right:auto; transform:translateX(-50%); width:max-content; max-width:min(92vw, 900px); justify-content:center; }

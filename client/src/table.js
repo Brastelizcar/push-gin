@@ -537,7 +537,7 @@ export function renderTable(app, { view, room, rerender }) {
         h("span", { class: "seat-total", title: "Puntos acumulados en la partida" }, p.total)),
       status);
   };
-  const playersCol = h("div", { class: "players-col" }, seated.map(seat));
+  const playersCol = h("div", { class: "players-col", style: `--n:${seated.length}` }, seated.map(seat));
 
   // --- plantes en mesa: de todos (sin nombres), con tus enganches sin confirmar ya colocados (en punteado). Tu jugada
   //     sin confirmar va AL FINAL (debajo), para no mover los plantes que ya están. ---

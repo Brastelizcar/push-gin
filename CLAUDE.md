@@ -77,8 +77,10 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
   `docs/referencias/idea atril.jpg`): empieza a un cuarto de la fila de arriba (las cartas sobresalen) y abajo un borde
   más oscuro. La fila de abajo se monta un poco sobre la de arriba (margen negativo en `.row-bottom`: `row-gap` no
   admite negativos). Alto fijo; con más cartas CRECE a lo ancho (como `atril agrandado.png`) y las cartas conservan su
-  tamaño; solo si ya no cabe entre los jugadores y el riel, se achican. Centrado y al ras del borde de abajo de la mesa
-  (sin pasar sobre el marco). Los avisos de la mano van encima del atril.
+  tamaño; solo si ya no cabe entre los jugadores y el riel, se achican. Centrado y pegado al marco de madera de abajo
+  (tapa el filo del fieltro), sin franja oscura; su degradé termina en el color del marco.
+  Columna de jugadores angosta; el avatar se ajusta al ALTO disponible y al número de asientos (`--n`, container query):
+  en ventana normal (no pantalla completa) con 4 jugadores todos caben; si la columna mide <440 px se oculta el estado. Los avisos de la mano van encima del atril.
   Las casillas vacías no llevan marco. Tu jugada sin confirmar se ve en su propia fila, debajo de los plantes de la mesa.
   Fin de ronda: la tabla va de menor a mayor total.
 - **Jugada en vivo:** lo que el jugador en turno arma sin confirmar (grupos y enganches) lo ven los demás en tiempo real
