@@ -974,8 +974,29 @@ function startClearing() {
       .finished.catch(() => {}).finally(() => {
         layer.remove();
         ui.clearing.delete(id);
-        cur.rerender();                                // recién ahora los demás plantes ocupan su lugar
+        const before = meldRects();
+        cur.rerender();                                // recién ahora los demás plantes ocupan su lugar…
+        slideMelds(before);                            // …deslizándose desde donde estaban
       });
+  }
+}
+
+// Posición de cada plante de la mesa (por id).
+function meldRects() {
+  return new Map([...document.querySelectorAll(".mesa-panel .meld[data-meld]")].map((e) => [e.dataset.meld, e.getBoundingClientRect()]));
+}
+// Tras redibujar, cada plante que cambió de lugar (o de tamaño, si la mesa se agrandó) viaja suave desde su posición
+// anterior hasta la nueva.
+const SLIDE_MS = 520;
+function slideMelds(before) {
+  for (const el of document.querySelectorAll(".mesa-panel .meld[data-meld]")) {
+    const old = before.get(el.dataset.meld);
+    if (!old) continue;
+    const now = el.getBoundingClientRect();
+    const dx = old.left - now.left, dy = old.top - now.top, sc = now.width ? old.width / now.width : 1;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(sc - 1) < 0.01) continue;
+    el.animate([{ transformOrigin: "0 0", transform: `translate(${dx}px, ${dy}px) scale(${sc})` },
+                { transformOrigin: "0 0", transform: "none" }], { duration: SLIDE_MS, easing: "cubic-bezier(.3,.7,.3,1)" });
   }
 }
 

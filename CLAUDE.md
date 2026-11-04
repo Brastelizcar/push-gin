@@ -83,7 +83,7 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
   (si te lo hacen a ti, las 2 cartas vuelan del descarte a tus casillas), jugadas a la mesa (`applyFlights`,
   `detectRemotePlay`), lo que hacen los demás con el descarte (`detectRemoteDiscard` + `flyBetween`) y el plante
   completo que sale de la mesa (`noteCleared`/`startClearing`: se voltean una a una y se apagan; la mesa le guarda
-  el lugar con un hueco hasta que desaparecen). Bots: 1,5–2,4 s por movimiento.
+  el lugar con un hueco hasta que desaparecen; luego los demás plantes se deslizan a su lugar nuevo, `slideMelds`). Bots: 1,5–2,4 s por movimiento.
 - Lote 3 (cuentas y menús): hecho. Ver "Cuentas" abajo.
 - Lote 4 (práctica con bots, temporizador): hecho. **Con cuenta**, la práctica se juega en el SERVIDOR (sala con la
   opción `practice: nBots`; los bots juegan en `PushGinRoom`) y da la **mitad del XP** (`PRACTICE_XP_FACTOR`), sin fichas.
