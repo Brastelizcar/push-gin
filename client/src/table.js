@@ -62,21 +62,20 @@ export function handleRejected() {
 
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// El 2 (comodín) se ve igual sea cual sea su palo: una P azul grande y los 4 palos en las esquinas
-// (ref. docs/referencias/Comodin.png).
+// El 2 (comodín): una P grande y los 4 palos en las esquinas (ref. docs/referencias/Comodin.png), del color de su palo.
 const WILD_CORNERS = [["tl", "♥"], ["tr", "♣"], ["bl", "♦"], ["br", "♠"]];
 const wildCorners = () => WILD_CORNERS.map(([pos, s]) => h("span", { class: "wc " + pos }, s));
 
 function cardEl(c, extra = "", idx) {
   const attrs = { "data-id": c.id, ...(idx !== undefined ? { "data-idx": idx } : {}) };
-  if (c.rank === "2") return h("div", { class: `card blue wild-card ${extra}`, ...attrs, title: t("Comodín (2)") }, wildCorners(), h("div", { class: "pip" }, "P"));
+  if (c.rank === "2") return h("div", { class: `card ${suitColor(c.suit)} wild-card ${extra}`, ...attrs, title: t("Comodín (2)") }, wildCorners(), h("div", { class: "pip" }, "P"));
   return h("div", { class: `card ${suitColor(c.suit)} ${extra}`, ...attrs },
     h("div", { class: "corner" }, c.suit),            // palo pequeño arriba a la izquierda
     h("div", { class: "pip" }, c.rank));              // número grande al centro
 }
 // Cara de la carta del descarte (y de la animación del push): igual que las demás, palo pequeño y número grande.
 function faceEl(c) {
-  if (c.rank === "2") return h("div", { class: "face blue wild-face" }, wildCorners(), h("div", { class: "f-rank" }, "P"));
+  if (c.rank === "2") return h("div", { class: `face ${suitColor(c.suit)} wild-face` }, wildCorners(), h("div", { class: "f-rank" }, "P"));
   return h("div", { class: "face " + suitColor(c.suit) },
     h("div", { class: "f-suit" }, c.suit),
     h("div", { class: "f-rank" }, c.rank));

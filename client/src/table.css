@@ -74,7 +74,7 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 .card .pip{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding-top:calc(var(--cw) * .1);
   font-size:calc(var(--cw) * .56); font-weight:800; letter-spacing:-.06em; line-height:1; }   /* número, grande */
 .card.recent{ box-shadow:0 0 0 2px var(--recent), 0 3px 6px rgba(0,0,0,.35); }  /* sin z-index: no debe tapar la esquina de la carta vecina */
-/* Comodín (el 2): P grande al centro y los 4 palos en las esquinas, todo azul (ref. docs/referencias/Comodin.png). */
+/* Comodín (el 2): P grande al centro y los 4 palos en las esquinas, del color de su palo (ref. docs/referencias/Comodin.png). */
 .card.wild-card .pip{ padding-top:0; font-size:calc(var(--cw) * .6); letter-spacing:0; }
 .wild-card .wc, .wild-face .wc{ position:absolute; line-height:1; }
 .card.wild-card .wc{ font-size:calc(var(--cw) * .2); }
