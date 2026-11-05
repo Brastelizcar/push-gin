@@ -42,10 +42,13 @@ document.addEventListener("fullscreenchange", () => {
 });
 
 
-// Imagen de un avatar (1 a 8, en client/public/avatars): retrato redondo con fondo vino tinto, sin aro.
-export const avatarSrc = (n) => `${import.meta.env.BASE_URL}avatars/avatar-${n}.webp`;
+// Imagen de un avatar (1 a 10, en client/public/avatars): retrato redondo con fondo vino tinto, sin aro.
+// ASSETS_V va en la dirección: súbelo cada vez que cambies una imagen, para que el navegador no muestre la vieja
+// (GitHub Pages deja guardadas las imágenes 10 minutos).
+export const ASSETS_V = 2;
+export const avatarSrc = (n) => `${import.meta.env.BASE_URL}avatars/avatar-${n}.webp?v=${ASSETS_V}`;
 export const avatarImg = (n, alt = "") => h("img", { class: "avatar-img", src: avatarSrc(n), alt, draggable: "false" });
 
 // La ficha (moneda) del juego: client/public/coin.webp (de docs/referencias/ICONO MONEDA.png).
 export const coinImg = (cls = "chip-coin") =>
-  h("img", { class: cls, src: `${import.meta.env.BASE_URL}coin.webp`, alt: "", "aria-hidden": "true", draggable: "false" });
+  h("img", { class: cls, src: `${import.meta.env.BASE_URL}coin.webp?v=${ASSETS_V}`, alt: "", "aria-hidden": "true", draggable: "false" });
