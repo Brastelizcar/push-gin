@@ -18,7 +18,7 @@ Ser el primer jugador en quedarse sin cartas en la mano, cumpliendo en cada rond
 
 ## Estructura de la partida: 5 rondas
 
-Cada ronda exige una combinación distinta para poder plantarte. No puedes bajar tu jugada hasta tener **exactamente** lo que la ronda pide.
+Cada ronda exige una combinación distinta para poder plantarte. No puedes bajar tu jugada hasta tener lo que la ronda pide. Es el **mínimo**: cada grupo puede ser más grande (por ejemplo, en la ronda 1 puedes plantarte con 2 tríos y un cuarteto, y un consecutivo de 7 cumple uno de 5) y al plantarte puedes bajar grupos de más.
 
 | Ronda | Requisito para plantarse |
 |---|---|
@@ -29,15 +29,16 @@ Cada ronda exige una combinación distinta para poder plantarte. No puedes bajar
 | **5** | 1 cuarteto + 1 consecutivo de 8 cartas |
 
 **Definiciones:**
-- **Trío:** 3 cartas del mismo número, distinto palo.
-- **Cuarteto:** 4 cartas del mismo número, una de cada palo.
+- **Trío:** 3 cartas del mismo número, de cualquier palo (con 3 barajas el palo se puede repetir). Puede crecer a más de 4 cartas.
+- **Cuarteto:** 4 cartas del mismo número, de cualquier palo.
 - **Consecutivo:** cartas en secuencia numérica del mismo palo (la cantidad de cartas la define la ronda, ej. "consecutivo de 5" = 5 cartas seguidas del mismo palo).
+- **Orden de las cartas:** A, K, Q, J, 10 … 3. El As va después de la K (Q-K-A) y no da la vuelta (no hay A-3 ni K-A-3). El consecutivo más largo va del 3 al As (12 cartas).
 
 ---
 
 ## El comodín: el 2
 
-- El **2** es comodín y puede sustituir a cualquier carta, en cualquier trío, cuarteto o consecutivo.
+- El **2** es solo comodín (no es un número) y puede sustituir a cualquier carta, en cualquier trío, cuarteto o consecutivo. Cada grupo necesita al menos una carta que no sea 2.
 - Ver más abajo la sección **"Robo del 2"** — existe una mecánica especial para recuperar 2s que ya están en juego en la mesa.
 
 ---
@@ -85,7 +86,7 @@ Una vez plantado, en tus turnos siguientes puedes:
 
 1. **Formar nuevos tríos, cuartetos o consecutivos** con las cartas que te van quedando, para deshacerte de ellas.
 2. **Agregar cartas a un plante que ya existe en la mesa** (tuyo o de otro jugador), siempre que:
-   - Solo **extiendas** el plante (alargar el consecutivo por cualquier extremo, o agrandar el trío hasta cuarteto).
+   - Solo **extiendas** el plante (alargar el consecutivo por cualquier extremo, o agrandar el trío con más cartas del mismo número, sin límite).
    - **Nunca dividas** un plante existente en dos partes separadas.
 
 ---
@@ -116,10 +117,10 @@ Mecánica exclusiva de tu variante, aplicable en tu turno:
    - Si la carta de descarte te sirve → la tomas.
    - Si no te sirve → aplicas el "push": cubres la carta de descarte con una del mazo sin ver, pasas ambas al siguiente jugador, y tomas tu propia carta del mazo.
 3. **Jugar (si corresponde):**
-   - Si es tu primera vez y tienes la combinación exacta de la ronda → te plantas.
+   - Si es tu primera vez y tienes la combinación de la ronda (como mínimo) → te plantas.
    - Si ya estás plantado → puedes bajar nuevas combinaciones o enganchar cartas en plantes existentes (sin dividirlos).
    - En el turno en que te plantas **no puedes enganchar**: primero te plantas y enganchas desde tu próximo turno.
-   - Cuando un plante se **completa** (un cuarteto, o un consecutivo de la A a la K), **sale de la mesa**.
+   - Cuando un consecutivo se **completa** (del 3 al As), **sale de la mesa**. Los grupos del mismo número no salen.
 4. **Descartar** una carta de tu mano — obligatorio en todos los casos.
 
 ---

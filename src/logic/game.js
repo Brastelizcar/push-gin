@@ -105,7 +105,7 @@ export class Round {
     }, pid, turn);
     if (!res.ok) return res;
     this.hands[pid] = res.hand;
-    // Los plantes que quedan completos (cuarteto, o consecutivo de A a K) salen de la mesa.
+    // Los consecutivos que quedan completos (de 3 a A) salen de la mesa.
     const cleared = res.melds.filter((e) => isCompleteMeld(e.meld));
     this.melds = res.melds.filter((e) => !isCompleteMeld(e.meld));
     this.nextMeldId = res.nextMeldId;

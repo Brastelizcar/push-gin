@@ -1,27 +1,25 @@
 // Plantes (melds). Dos tipos:
-//   set: { kind:'set', rank, cards:[...] }            (trío = 3, cuarteto = 4)
-//   run: { kind:'run', suit, slots:[{card, value}] }  (value 1..14, ascendente)
-import { isWild, rankValues } from './cards.js';
+//   set: { kind:'set', rank, cards:[...] }            (3 o más cartas del mismo número, de cualquier palo)
+//   run: { kind:'run', suit, slots:[{card, value}] }  (mismo palo, value 3..14 ascendente: 3…K, A)
+// El 2 es SOLO comodín: en un set vale el número del set; en un consecutivo, el de la posición donde se coloca.
+import { isWild, rankValues, RUN_LOW, RUN_HIGH } from './cards.js';
 
-// Mínimo de cartas naturales (no-2) por plante. Regla no definida aún: ver preguntas abiertas.
+// Mínimo de cartas naturales (no-2) por plante.
 export const MIN_NATURALS = 1;
-export const MAX_RUN_LENGTH = 13;
+export const MAX_RUN_LENGTH = RUN_HIGH - RUN_LOW + 1;   // 3…A = 12 cartas
 
 const split = (cards) => ({
   naturals: cards.filter((c) => !isWild(c)),
   wilds: cards.filter(isWild),
 });
 
+// Trío, cuarteto o más: mismo número, el palo no importa (con 3 barajas puede repetirse). Sin máximo de cartas.
 export function buildSet(cards) {
-  if (cards.length < 3 || cards.length > 4) return null;
+  if (cards.length < 3) return null;
   const { naturals } = split(cards);
-  if (naturals.length === 0) {                       // todo son 2: el 2 también es un número (trío/cuarteto de 2s)
-    if (new Set(cards.map((c) => c.suit)).size !== cards.length) return null;
-    return { kind: 'set', rank: '2', cards: [...cards] };
-  }
-  const rank = naturals[0].rank;                     // con otro número, los 2 hacen de comodín (valen ese número)
+  if (naturals.length < MIN_NATURALS) return null;
+  const rank = naturals[0].rank;
   if (!naturals.every((c) => c.rank === rank)) return null;
-  if (new Set(naturals.map((c) => c.suit)).size !== naturals.length) return null; // palos distintos
   return { kind: 'set', rank, cards: [...cards] };
 }
 
@@ -42,9 +40,20 @@ function assignValues(naturals, s, e) {
   return go(0) ? out : null;
 }
 
-// El 2 vale por el número de la posición donde se coloca.
-//  · ordered:true → las cartas vienen EN ORDEN ascendente (A,2,3…K) y cada 2 vale lo que le toca por su
-//    posición (ej. 5♥ 6♥ 2 → el 2 es un 7; 2 5♥ 6♥ → el 2 es un 4).
+// Cartas EN ORDEN (ascendente) → plante con cada 2 valiendo lo de su posición, o null.
+function orderedRun(cards, suit) {
+  const n = cards.length;
+  const k = cards.findIndex((c) => !isWild(c));
+  const s = rankValues(cards[k].rank)[0] - k;
+  if (s < RUN_LOW || s + n - 1 > RUN_HIGH) return null;
+  for (let i = 0; i < n; i++) if (!isWild(cards[i]) && rankValues(cards[i].rank)[0] !== s + i) return null;
+  return { kind: 'run', suit, slots: cards.map((card, i) => ({ card, value: s + i })) };
+}
+
+// Consecutivo: mismo palo, números seguidos de 3 a A. El 2 vale por el número de la posición donde se coloca.
+//  · ordered:true → las cartas vienen EN ORDEN, ascendente (3,4…K,A) o descendente (A,K…3), y cada 2 vale lo que le
+//    toca por su posición (ej. 5♥ 6♥ 2 → el 2 es un 7; 2 5♥ 6♥ → el 2 es un 4). Si valen los dos sentidos, gana el
+//    ascendente.
 //  · sin ordered → se acomodan solas; `start` (opcional) fija el valor de la primera posición cuando es
 //    ambiguo; sin start, se usa la más baja.
 export function buildRun(cards, { start, ordered } = {}) {
@@ -56,16 +65,16 @@ export function buildRun(cards, { start, ordered } = {}) {
   if (!naturals.every((c) => c.suit === suit)) return null;
 
   if (ordered) {
-    const k = cards.findIndex((c) => !isWild(c));
-    const s = rankValues(cards[k].rank)[0] - k;
-    if (s < 1 || s + n - 1 > 13) return null;
-    for (let i = 0; i < n; i++) if (!isWild(cards[i]) && rankValues(cards[i].rank)[0] !== s + i) return null;
-    return { kind: 'run', suit, slots: cards.map((card, i) => ({ card, value: s + i })) };
+    const up = orderedRun(cards, suit);
+    if (up) return up;
+    const down = orderedRun([...cards].reverse(), suit);
+    return down;
   }
 
-  const starts = start !== undefined ? [start] : Array.from({ length: 13 - n + 1 }, (_, i) => i + 1);
+  const last = RUN_HIGH - n + 1;
+  const starts = start !== undefined ? [start] : Array.from({ length: last - RUN_LOW + 1 }, (_, i) => RUN_LOW + i);
   for (const s of starts) {
-    if (s < 1 || s + n - 1 > 13) continue;
+    if (s < RUN_LOW || s > last) continue;
     const m = assignValues(naturals, s, s + n - 1);
     if (!m) continue;
     const pool = [...wilds];
@@ -81,24 +90,20 @@ export function buildRun(cards, { start, ordered } = {}) {
 
 export const meldCards = (m) => (m.kind === 'set' ? m.cards : m.slots.map((s) => s.card));
 
-// Plante COMPLETO: un cuarteto, o un consecutivo de la A a la K (13 cartas). Al completarse sale de la mesa.
-export const isCompleteMeld = (m) => (m.kind === 'set' ? m.cards.length === 4 : m.slots.length === MAX_RUN_LENGTH);
+// Plante COMPLETO: un consecutivo de 3 a A (12 cartas). Al completarse sale de la mesa. Los grupos del mismo número
+// nunca se completan: siguen creciendo en la mesa.
+export const isCompleteMeld = (m) => m.kind === 'run' && m.slots.length === MAX_RUN_LENGTH;
 
-// Enganche: solo EXTIENDE. Set → hasta cuarteto. Run → por cualquiera de los extremos.
+// Enganche: solo EXTIENDE. Set → cualquier carta del mismo número (o un 2), sin límite. Run → por cualquiera de los
+// extremos.
 export function extendMeld(meld, card, end) {
   if (meld.kind === 'set') {
-    if (meld.cards.length >= 4) return null;
-    if (meld.rank === '2') {                         // set de 2s: solo 2s y de palo nuevo
-      if (card.rank !== '2' || meld.cards.some((c) => c.suit === card.suit)) return null;
-    } else if (!isWild(card)) {
-      if (card.rank !== meld.rank) return null;
-      if (meld.cards.some((c) => !isWild(c) && c.suit === card.suit)) return null;
-    }
+    if (!isWild(card) && card.rank !== meld.rank) return null;
     return { ...meld, cards: [...meld.cards, card] };
   }
   if (meld.slots.length >= MAX_RUN_LENGTH) return null;
   const fits = (v) =>
-    v >= 1 && v <= 13 && (isWild(card) || (card.suit === meld.suit && rankValues(card.rank).includes(v)));
+    v >= RUN_LOW && v <= RUN_HIGH && (isWild(card) || (card.suit === meld.suit && rankValues(card.rank).includes(v)));
   const low = meld.slots[0].value - 1;
   const high = meld.slots.at(-1).value + 1;
   const ends = end ? [end] : ['high', 'low'];
@@ -116,8 +121,6 @@ export function stealTwo(meld, index, card) {
   if (meld.kind === 'set') {
     const wild = meld.cards[index];
     if (!wild || !isWild(wild) || card.rank !== meld.rank) return null;
-    const others = meld.cards.filter((_, i) => i !== index);
-    if (others.some((c) => !isWild(c) && c.suit === card.suit)) return null;
     return { meld: { ...meld, cards: meld.cards.map((c, i) => (i === index ? card : c)) }, stolen: wild };
   }
   const slot = meld.slots[index];

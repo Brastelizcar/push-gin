@@ -21,8 +21,10 @@ function interpretations(group) {
   return out;
 }
 
-// groups: [{ cards, start? }]. Devuelve los plantes (en el orden de groups) o null
-// si los grupos NO cumplen exactamente el requisito de la ronda.
+// El requisito es el MÍNIMO: cada grupo pedido puede ser más grande (un cuarteto cumple un trío, un consecutivo de 7
+// cumple uno de 5). Los grupos de más se bajan aparte como combinaciones nuevas en el mismo turno (turn.melds).
+// groups: [{ cards, start? }], uno por cada grupo pedido. Devuelve los plantes (en el orden de groups) o null
+// si los grupos NO cumplen el requisito de la ronda.
 export function matchPlant(groups, roundIndex) {
   const reqs = ROUND_REQUIREMENTS[roundIndex];
   if (!reqs || groups.length !== reqs.length) return null;
@@ -33,7 +35,7 @@ export function matchPlant(groups, roundIndex) {
     if (i === groups.length) return true;
     for (const o of opts[i])
       for (let j = 0; j < reqs.length; j++) {
-        if (used[j] || reqs[j].kind !== o.req.kind || reqs[j].size !== o.req.size) continue;
+        if (used[j] || reqs[j].kind !== o.req.kind || o.req.size < reqs[j].size) continue;
         used[j] = true; chosen[i] = o.meld;
         if (go(i + 1)) return true;
         used[j] = false;

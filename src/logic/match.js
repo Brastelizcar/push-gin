@@ -176,7 +176,7 @@ export class Match {
     const take = (id) => (typeof id === 'string' && hand.has(id) && !used.has(id) ? (used.add(id), hand.get(id)) : null);
     const outGroups = [];
     for (const gr of groups) {
-      if (!gr || !isIdList(gr.cardIds) || !gr.cardIds.length || gr.cardIds.length > 13) return fail('Mensaje inválido');
+      if (!gr || !isIdList(gr.cardIds) || !gr.cardIds.length || gr.cardIds.length > 60) return fail('Mensaje inválido');
       const cards = gr.cardIds.map(take);
       if (cards.some((c) => !c)) return fail('Mensaje inválido');
       outGroups.push(cards);

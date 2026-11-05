@@ -47,10 +47,12 @@ test("groupAt: mantener presionada la 1.ª o última carta de un grupo de cartas
 
 test("pairShape: dúo o consecutivo de 2 del mismo palo; nada más", () => {
   assert.deepEqual(pairShape(cs("7♠", "7♥")), { ordered: false });
-  assert.deepEqual(pairShape(cs("2♥", "3♥")), { ordered: true });           // el 2 como número
+  assert.deepEqual(pairShape(cs("7♠", "7♠")), { ordered: false });           // el palo no importa
+  assert.equal(pairShape(cs("2♥", "3♥")), null);                            // el 2 no es número
   assert.deepEqual(pairShape(cs("K♦", "Q♦")), { ordered: true });
   assert.equal(pairShape(cs("5♥", "6♠")), null);
-  assert.equal(pairShape(cs("A♣", "K♣")), null);                            // el As no va después de la K
+  assert.deepEqual(pairShape(cs("A♣", "K♣")), { ordered: true });           // el As va después de la K
+  assert.equal(pairShape(cs("A♣", "3♣")), null);
   assert.equal(pairShape(cs("5♥", "6♥", "7♥")), null);
 });
 

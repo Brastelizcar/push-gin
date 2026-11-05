@@ -1,12 +1,16 @@
-// Cartas: { id, rank, suit }. El 2 es comodín.
+// Cartas: { id, rank, suit }. El 2 es SOLO comodín (no es un número).
 export const SUITS = ['♠', '♥', '♦', '♣'];
 export const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 
 export const isWild = (card) => card.rank === '2';
 
-// Valor de un rango en una escalera. El orden es A,2,3…K: el As solo vale 1 (no hay Q-K-A).
+// Valor de un rango en una escalera. El orden es 3,4…10,J,Q,K,A: el As va DESPUÉS de la K (vale 14) y no da la
+// vuelta (no hay A-3 ni K-A-3). El 2 no tiene valor propio: es comodín y vale lo de la posición donde se coloca.
+export const RUN_LOW = 3;
+export const RUN_HIGH = 14;
 export function rankValues(rank) {
-  if (rank === 'A') return [1];
+  if (rank === '2') return [];
+  if (rank === 'A') return [14];
   if (rank === 'J') return [11];
   if (rank === 'Q') return [12];
   if (rank === 'K') return [13];

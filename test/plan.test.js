@@ -45,7 +45,7 @@ test('plantarse: el 2 vale por la posición en que lo tienes en la mano', () => 
   assert.deepEqual(buildRun(g2.find((x) => x.cards.length === 5).cards, { ordered: true }).slots.map((s) => s.value), [4, 5, 6, 7, 8]);
 });
 test('plantarse: devuelve null si no cumple o la cantidad no es exacta', () => {
-  assert.equal(findPlantGroups(cs('5♥', '5♠', '5♦', '7♥', '7♠', '7♦', '9♥', '9♠', '9♥'), ROUND_REQUIREMENTS[0]), null); // 9♥ repetido
+  assert.equal(findPlantGroups(cs('5♥', '5♠', '5♦', '7♥', '7♠', '7♦', '9♥', '9♠', '8♥'), ROUND_REQUIREMENTS[0]), null); // 8♥ suelto
   assert.equal(findPlantGroups(cs('5♥', '5♠', '5♦'), ROUND_REQUIREMENTS[0]), null);
 });
 test('bajar: reparte en tríos y consecutivos libres', () => {
@@ -60,11 +60,12 @@ test('enganchar varias cartas a un consecutivo, en el orden correcto', () => {
   assert.equal(plan.length, 3);
   assert.deepEqual(plan.map((p) => p.card.rank), ['8', '9', '4']);
 });
-test('enganchar a un trío: solo hasta cuarteto y con palo nuevo', () => {
+test('enganchar a un trío: cualquier palo y sin límite de cartas', () => {
   const set = buildSet(cs('5♥', '5♠', '5♦'));
   assert.ok(planHooks(set, [c('5♣')]));
-  assert.equal(planHooks(set, [c('5♥')]), null);
-  assert.equal(planHooks(set, [c('5♣'), c('2♣')]), null); // ya sería de 5
+  assert.ok(planHooks(set, [c('5♥')]));
+  assert.equal(planHooks(set, [c('5♣'), c('2♣'), c('5♥')]).length, 3);
+  assert.equal(planHooks(set, [c('6♣')]), null);
 });
 
 test('jugada en mesa: separa el plante de las combinaciones extra', () => {

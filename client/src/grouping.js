@@ -1,7 +1,8 @@
 // Agrupación de la mano para los botones 789 / 777. Funciones puras (se prueban sin navegador).
-// Con 3 barajas hay cartas idénticas (dos 5♠): NUNCA van en el mismo grupo, porque un trío
-// necesita palos distintos y un consecutivo no repite número.
-const VAL = (r) => ({ A: 1, J: 11, Q: 12, K: 13 }[r] ?? parseInt(r, 10));
+// Con 3 barajas hay cartas idénticas (dos 5♠): en un trío pueden ir juntas (el palo no importa), pero un
+// consecutivo no repite número. Los 2 son comodines: no entran en ningún grupo y quedan con las sueltas.
+const VAL = (r) => ({ A: 14, J: 11, Q: 12, K: 13 }[r] ?? parseInt(r, 10));
+const isWild = (c) => c.rank === "2";
 const SUITS = ["♠", "♥", "♦", "♣"];
 const bySuitOrder = (a, b) => SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit);
 const byRankThenSuit = (a, b) => VAL(a.rank) - VAL(b.rank) || bySuitOrder(a, b);
@@ -13,27 +14,19 @@ function finish(groups) {
   return tail.length ? [...multi, tail] : multi;
 }
 
-// 777: mismo número, palos distintos.
+// 777: todas las cartas del mismo número juntas (de cualquier palo).
 export function groupSets(cards) {
   const byRank = {};
-  cards.forEach((c) => (byRank[c.rank] ??= []).push(c));
-  const groups = [];
-  for (const list of Object.values(byRank)) {
-    const bySuit = {};
-    list.forEach((c) => (bySuit[c.suit] ??= []).push(c));
-    const cols = Object.values(bySuit);
-    const n = Math.max(...cols.map((l) => l.length));
-    // el grupo i toma la i-ésima copia de cada palo → ningún grupo repite palo
-    for (let i = 0; i < n; i++) groups.push(cols.map((l) => l[i]).filter(Boolean).sort(bySuitOrder));
-  }
+  cards.filter((c) => !isWild(c)).forEach((c) => (byRank[c.rank] ??= []).push(c));
+  const groups = Object.values(byRank).map((list) => list.sort(bySuitOrder));
   groups.sort((a, b) => b.length - a.length || VAL(a[0].rank) - VAL(b[0].rank));
-  return finish(groups);
+  return finish([...groups, ...cards.filter(isWild).map((c) => [c])]);
 }
 
-// 789: seguidas del mismo palo. El orden es A,2,3…K (el As solo va al principio).
+// 789: seguidas del mismo palo. El orden es 3,4…K,A (el As solo va después de la K).
 export function groupRuns(cards) {
   const bySuit = {};
-  cards.forEach((c) => (bySuit[c.suit] ??= []).push(c));
+  cards.filter((c) => !isWild(c)).forEach((c) => (bySuit[c.suit] ??= []).push(c));
   const groups = [];
   for (const suit of SUITS) {
     const list = (bySuit[suit] ?? []).sort((a, b) => VAL(a.rank) - VAL(b.rank));
@@ -56,5 +49,5 @@ export function groupRuns(cards) {
     }
   }
   groups.sort((a, b) => b.length - a.length || SUITS.indexOf(a[0].suit) - SUITS.indexOf(b[0].suit) || VAL(a[0].rank) - VAL(b[0].rank));
-  return finish(groups);
+  return finish([...groups, ...cards.filter(isWild).map((c) => [c])]);
 }

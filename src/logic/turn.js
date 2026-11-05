@@ -1,7 +1,7 @@
 // Jugada completa de un turno (fase 'main'), validada de UNA vez. Función pura: no modifica el estado recibido.
 //
 // turn = {
-//   plant?:  [{ cardIds, ordered?, start? }],  // grupos con los que te plantas (requisito exacto de la ronda)
+//   plant?:  [{ cardIds, ordered?, start? }],  // grupos con los que te plantas (uno por grupo pedido; pueden ser más grandes)
 //   melds?:  [{ cardIds, ordered?, start? }],  // combinaciones nuevas (ya plantado, o plantándote en este turno)
 //   hooks?:  [{ meldId, cardId, end? }],       // enganches, en el orden en que se aplican
 //   discard?: cardId,                          // carta que descartas (obligatoria en playTurn)
@@ -49,7 +49,7 @@ export function resolveTurn(state, pid, turn = {}) {
     if (planted) return fail('Ya te plantaste');
     if (state.stoleThisTurn) return fail('Robaste un 2: no puedes plantarte este turno');
     const melds = matchPlant(plant.map((g) => parseGroup(g, byId)), state.roundIndex);
-    if (!melds) return fail('Las cartas no cumplen exactamente el requisito de la ronda');
+    if (!melds) return fail('Las cartas no cumplen el requisito de la ronda');
     newMelds.push(...melds);
     planted = true;
   }

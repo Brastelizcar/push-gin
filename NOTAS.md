@@ -1,23 +1,26 @@
 # Notas de la lógica (decisiones tomadas)
 
 1. **Push**: la carta ciega + el descarte viejo pasan a la MANO del siguiente jugador (no al pozo).
-2. **Orden de las cartas: A,2,3…K.** El As solo vale 1: no existe Q-K-A, ni K-A-2, ni se engancha un As tras la K.
-3. **El 2 es número y comodín.**
-   - Como número: forma tríos/cuartetos de 2s (palos distintos) y va en su sitio en un consecutivo (A-2-3).
-   - Como comodín: en un trío de otro número vale ese número; en un consecutivo vale el número de la
-     POSICIÓN donde se ubica (5♥ 6♥ 2 → el 2 es un 7; 2 5♥ 6♥ → el 2 es un 4). Para eso las cartas se
-     envían en orden (`ordered:true`) y el orden de tu mano decide la posición.
-   - Un 2 que está haciendo de sí mismo (en su lugar, o en un trío de 2s) NO se puede robar.
-4. Cada plante necesita ≥1 carta que no sea 2 (salvo los tríos/cuartetos de 2s).
+2. **Orden de las cartas: A,K,Q,J,10…3** (corregido con el usuario, 4-nov-2026). Un consecutivo va de 3 a A (valores
+   3…14, `RUN_LOW`/`RUN_HIGH`): el As solo va después de la K; no hay A-3 ni K-A-3. El más largo tiene 12 cartas.
+3. **El 2 es SOLO comodín** (4-nov-2026; antes también era número). En un trío vale el número del trío; en un
+   consecutivo vale el número de la POSICIÓN donde se ubica (5♥ 6♥ 2 → el 2 es un 7; 2 5♥ 6♥ → el 2 es un 4). Para
+   eso las cartas se envían en orden (`ordered:true`, ascendente o descendente) y el orden de tu mano decide la
+   posición. No hay tríos de 2s. Cualquier 2 de la mesa se puede robar.
+4. Cada plante necesita ≥1 carta que no sea 2.
+4b. **Tríos y cuartetos: mismo número, el palo NO importa** (con 3 barajas se repiten) y pueden tener más de 4 cartas.
+   Los consecutivos sí son del mismo palo.
+4c. **El requisito de la ronda es el MÍNIMO** (4-nov-2026): cada grupo pedido puede ser más grande (2 tríos y un
+   cuarteto cumplen "3 tríos"; un consecutivo de 7 cumple uno de 5) y al plantarte puedes bajar grupos de más.
 5. **Tras plantarte/bajar/enganchar debes conservar ≥1 carta** para el descarte obligatorio.
 6. **Robo de 2s** solo antes de tomar carta; si robas, no puedes plantarte ese turno.
 7. **Enganchar/bajar** solo después de tomar carta (descarte o push).
 8. **Jugada validada:** plantarse, bajar y enganchar se arman en local y se envían junto con el descarte (`playTurn`).
    **No se puede plantar y enganchar en el mismo turno** (decidido con el usuario, 30-oct-2026): primero te plantas y
    enganchas desde tu próximo turno. Al plantarte sí puedes bajar combinaciones extra en ese mismo turno.
-10. **Plantes completos salen de la mesa** (decidido 2-nov-2026): un cuarteto o un consecutivo de A a K desaparece en
-    cuanto se completa (también si te plantas con un cuarteto), para que la mesa no se llene. La mesa ya no muestra
-    de quién es cada plante (sirven para todos).
+10. **Plantes completos salen de la mesa** (decidido 2-nov-2026; desde el 4-nov-2026 solo los consecutivos): un
+    consecutivo de 3 a A desaparece en cuanto se completa, para que la mesa no se llene. Los grupos del mismo número
+    ya no salen (crecen sin límite). La mesa no muestra de quién es cada plante (sirven para todos).
 9. Quién empieza la ronda: jugador `roundIndex % nJugadores` (provisional).
 
 ## Pendientes decididos con el usuario (lotes siguientes)

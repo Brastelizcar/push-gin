@@ -19,17 +19,20 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
 ## Reglas del juego (decididas; no cambiarlas sin preguntar)
 - 3 barajas, 10 cartas por jugador, 1 carta boca arriba en el descarte. 5 rondas:
   1) 3 tríos · 2) trío + consecutivo de 5 · 3) 2 consecutivos de 6 · 4) 4 tríos · 5) cuarteto + consecutivo de 8.
-- Orden A,2,3…K. El As solo vale 1: no hay Q-K-A ni K-A-2.
-- **El 2 es número y comodín.** Como número forma tríos de 2s y va en su lugar (A-2-3). Como comodín vale el número
-  de la POSICIÓN donde se coloca (las cartas viajan con `ordered:true`). Un 2 que hace de sí mismo no se puede robar.
-- Cada plante necesita ≥1 carta que no sea 2 (salvo tríos/cuartetos de 2s).
+- Orden A,K,Q,J,10…3: un consecutivo va de 3 a A (valores 3…14, `RUN_LOW`/`RUN_HIGH`); el As solo va después de la
+  K, sin vuelta (no hay A-3 ni K-A-3). Consecutivos: mismo palo, 12 cartas como máximo.
+- **El 2 es SOLO comodín.** Vale el número del trío, o en un consecutivo el de la POSICIÓN donde se coloca (las cartas
+  viajan con `ordered:true`, ascendente o descendente). No hay tríos de 2s; cualquier 2 de la mesa se puede robar.
+- Tríos/cuartetos: mismo número, **el palo no importa** y pueden tener más de 4 cartas (se enganchan sin límite).
+- Cada plante necesita ≥1 carta que no sea 2.
 - Turno: (robar 2s opcional, solo si no te has plantado) → tomar el descarte o hacer **push** (carta ciega + descarte
   viejo van a la MANO del siguiente; tú robas una) → plantarte / bajar / enganchar → **descartar** (obligatorio).
 - Enganchar y bajar solo **después de tomar carta**. Robar 2s solo **antes** de tomar carta; si robas, no te plantas ese turno.
 - **No se planta y engancha en el mismo turno:** primero te plantas; enganchas desde tu próximo turno (bajar extra sí).
-- **Plante completo sale de la mesa:** un cuarteto, o un consecutivo de A a K (13 cartas), desaparece al completarse
-  (`isCompleteMeld`, `Round._commit`; evento `turn` con `cleared`). Incluye plantarse con un cuarteto (ronda 5).
-- Plantarse exige EXACTAMENTE el requisito de la ronda. Tras jugar debes conservar ≥1 carta para descartar:
+- **Plante completo sale de la mesa:** solo un consecutivo de 3 a A (12 cartas) desaparece al completarse
+  (`isCompleteMeld`, `Round._commit`; evento `turn` con `cleared`). Los grupos del mismo número nunca salen.
+- El requisito de la ronda es el **MÍNIMO** (`matchPlant`): un grupo pedido puede ser más grande (un cuarteto cumple
+  un trío) y al plantarte puedes bajar grupos de más (van en `melds` del mismo `playTurn`). Tras jugar debes conservar ≥1 carta para descartar:
   se gana descartando la última carta. Puntos de lo que queda en mano: A=15, 2=20, 10/J/Q/K=10, 3–9=5. Gana el menor total.
 - **Jugadores: mínimo 3 y máximo 4 en la mesa** (`TABLE_MIN`/`TABLE_MAX`, `botsRange` en match.js). En juego privado,
   con 2 personas entra 1 bot obligatorio y el anfitrión puede pedir 2 (para ser 4); con 3 puede sumar 1. Los bots no

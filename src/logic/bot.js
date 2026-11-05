@@ -1,7 +1,7 @@
 // Jugador automático para el modo práctica. Solo usa SU vista (su mano y la mesa; nunca las manos ajenas)
 // y las mismas reglas que el servidor. Devuelve la siguiente acción: { type, msg }.
 //   'steal2' → robar un 2   ·  'takeDiscard' / 'push' → tomar carta  ·  'playTurn' → jugada completa + descarte
-import { isWild, rankValues, cardPoints } from './cards.js';
+import { isWild, rankValues, cardPoints, RUN_LOW, RUN_HIGH } from './cards.js';
 import { buildSet, buildRun, extendMeld, stealTwo, meldCards } from './melds.js';
 import { resolveTurn } from './turn.js';
 import { AVATAR_COUNT } from './avatars.js';
@@ -9,37 +9,26 @@ import { AVATAR_COUNT } from './avatars.js';
 const value = (c) => rankValues(c.rank)[0];
 const without = (cards, used) => cards.filter((c) => !used.has(c.id));
 
-function* combos(arr, k, start = 0) {
-  if (k === 0) { yield []; return; }
-  for (let i = start; i <= arr.length - k; i++) for (const rest of combos(arr, k - 1, i + 1)) yield [arr[i], ...rest];
-}
-
 // Posibles plantes de tamaño exacto con estas cartas, de menos a más comodines. Los consecutivos salen en orden.
+// En un trío el palo no importa: basta tomar las primeras cartas de cada número.
 function setCandidates(cards, size) {
   const wilds = cards.filter(isWild), out = [];
   const byRank = new Map();
-  for (const c of cards.filter((c) => !isWild(c))) {
-    const bySuit = byRank.get(c.rank) ?? new Map();
-    if (!bySuit.has(c.suit)) bySuit.set(c.suit, c);           // una copia por palo
-    byRank.set(c.rank, bySuit);
-  }
-  for (const bySuit of byRank.values()) {
-    const nat = [...bySuit.values()];
+  for (const c of cards.filter((c) => !isWild(c))) byRank.set(c.rank, [...(byRank.get(c.rank) ?? []), c]);
+  for (const nat of byRank.values())
     for (let j = Math.min(size, nat.length); j >= 1 && size - j <= wilds.length; j--)
-      for (const pick of combos(nat, j)) out.push([...pick, ...wilds.slice(0, size - j)]);
-  }
+      out.push([...nat.slice(0, j), ...wilds.slice(0, size - j)]);
   return out.filter((g) => buildSet(g));
 }
 function runCandidates(cards, size) {
   const wilds = cards.filter(isWild), out = [];
   for (const suit of ['♠', '♥', '♦', '♣']) {
     const own = cards.filter((c) => c.suit === suit);
-    for (let s = 1; s + size - 1 <= 13; s++) {
+    for (let s = RUN_LOW; s + size - 1 <= RUN_HIGH; s++) {
       const used = new Set(), slots = [];
       let w = 0, naturals = 0;
       for (let v = s; v < s + size; v++) {
-        const nat = own.find((c) => !used.has(c.id) && !isWild(c) && value(c) === v)
-          ?? (v === 2 ? own.find((c) => !used.has(c.id) && isWild(c)) : null);
+        const nat = own.find((c) => !used.has(c.id) && !isWild(c) && value(c) === v);
         if (nat) { used.add(nat.id); slots.push(nat); if (!isWild(nat)) naturals++; }
         else slots.push(null);
       }
@@ -57,7 +46,7 @@ const wildsIn = (g) => g.filter(isWild).length;
 const candidates = (cards, req) =>
   (req.kind === 'set' ? setCandidates(cards, req.size) : runCandidates(cards, req.size)).sort((a, b) => wildsIn(a) - wildsIn(b));
 
-// Busca en la mano el plante EXACTO que pide la ronda. Devuelve [[cartas], ...] (en el orden del requisito) o null.
+// Busca en la mano el plante que pide la ronda (con los tamaños justos). Devuelve [[cartas], ...] (en el orden del requisito) o null.
 export function findPlantInHand(hand, requirement) {
   const total = requirement.reduce((s, r) => s + r.size, 0);
   if (hand.length - total < 1) return null;                    // hay que conservar una carta para descartar
@@ -80,8 +69,8 @@ export function findFreeMeldsInHand(hand, keep = 1) {
   let left = [...hand];
   for (;;) {
     let best = null;
-    for (let size = Math.min(13, left.length - keep); size >= 3 && !best; size--) {
-      const opts = [...(size <= 4 ? setCandidates(left, size) : []), ...runCandidates(left, size)]
+    for (let size = left.length - keep; size >= 3 && !best; size--) {
+      const opts = [...setCandidates(left, size), ...runCandidates(left, size)]
         .sort((a, b) => wildsIn(a) - wildsIn(b));
       best = opts[0] ?? null;
     }
@@ -92,15 +81,15 @@ export function findFreeMeldsInHand(hand, keep = 1) {
   }
 }
 
-// Qué tan útil es una carta para este jugador: 2s muy útiles; si no, cuenta "vecinas" (mismo número, o mismo palo
-// a distancia ≤ 2).
+// Qué tan útil es una carta para este jugador: 2s muy útiles; si no, cuenta "vecinas" (mismo número de cualquier
+// palo, o mismo palo a distancia ≤ 2).
 export function usefulness(card, hand) {
   if (isWild(card)) return 100;
   let n = 0;
   for (const o of hand) {
     if (o.id === card.id || isWild(o)) continue;
-    if (o.rank === card.rank && o.suit !== card.suit) n += 2;
-    else if (o.suit === card.suit && Math.abs(value(o) - value(card)) <= 2 && o.rank !== card.rank) n += 1;
+    if (o.rank === card.rank) n += 2;
+    else if (o.suit === card.suit && Math.abs(value(o) - value(card)) <= 2) n += 1;
   }
   return n;
 }

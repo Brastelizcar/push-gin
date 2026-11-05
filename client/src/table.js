@@ -804,9 +804,10 @@ function infoButton() {
   return h("span", { class: "info", tabindex: "0", "aria-label": "Qué es un trío, un cuarteto y un consecutivo" },
     "i",
     h("div", { class: "info-pop" },
-      row("Trío:", "3 cartas del mismo número y de distinto palo."),
-      row("Cuarteto:", "4 cartas del mismo número, una de cada palo."),
-      row("Consecutivo:", "cartas seguidas del mismo palo (ej. 4♣ 5♣ 6♣ 7♣ 8♣)."),
+      row("Trío:", "3 cartas del mismo número, de cualquier palo."),
+      row("Cuarteto:", "4 cartas del mismo número, de cualquier palo."),
+      row("Consecutivo:", "cartas seguidas del mismo palo (ej. 4♣ 5♣ 6♣ 7♣ 8♣). Orden 3…K, A."),
+      row("Mínimo:", "los grupos pueden ser más grandes de lo que se pide."),
       row("El 2:", "es comodín y reemplaza cualquier carta.")));
 }
 
@@ -968,7 +969,7 @@ function flyBetween(card, from, to, T, size) {
     { duration: T, easing: "cubic-bezier(.3,.7,.3,1)", fill: "forwards" }).finished.catch(() => {}).finally(() => layer.remove());
 }
 
-// Un plante COMPLETO (cuarteto, o consecutivo de A a K) sale de la mesa: sus cartas se dan vuelta una por una (quedan
+// Un plante COMPLETO (consecutivo de 3 a A) sale de la mesa: sus cartas se dan vuelta una por una (quedan
 // boca abajo) y luego el grupo se desvanece. Mientras tanto la mesa le guarda su lugar (un hueco invisible del mismo
 // tamaño): los demás plantes se reacomodan solo cuando desaparece.
 export function noteCleared(list) {

@@ -20,7 +20,7 @@ function* combinations(arr, k, start = 0) {
 }
 const without = (arr, used) => arr.filter((c) => !used.includes(c));
 
-// Plantarse: reparte TODAS las cartas dadas en los grupos que pide la ronda.
+// Plantarse: reparte TODAS las cartas dadas en los grupos que pide la ronda (con los tamaños justos).
 // requirement: [{ kind:'set'|'run', size }]. Devuelve [{ cards }] o null.
 export function findPlantGroups(cards, requirement) {
   const total = requirement.reduce((s, r) => s + r.size, 0);
@@ -53,10 +53,10 @@ export function findFreeMelds(cards) {
   const solve = (rem) => {
     if (!rem.length) return [];
     const [first, ...rest] = rem;
-    for (let size = 3; size <= Math.min(rem.length, 13); size++)
+    for (let size = 3; size <= rem.length; size++)
       for (const combo of combinations(rest, size - 1)) {
         const group = [first, ...combo];
-        const hit = (size <= 4 && buildSet(group) && { ordered: false }) || asRun(group);
+        const hit = (buildSet(group) && { ordered: false }) || asRun(group);
         if (!hit) continue;
         const sub = solve(without(rest, combo));
         if (sub) return [{ cards: group, ordered: hit.ordered }, ...sub];

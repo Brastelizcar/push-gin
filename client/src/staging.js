@@ -10,14 +10,14 @@ import { resolveTurn } from "../../src/logic/turn.js";
 // Devuelve { ordered } o null.
 export function meldShape(cards) {
   if (cards.length < 3) return null;
-  if (cards.length <= 4 && buildSet(cards)) return { ordered: false };
+  if (buildSet(cards)) return { ordered: false };
   if (buildRun(cards, { ordered: true })) return { ordered: true };
   if (buildRun(cards)) return { ordered: false };
   return null;
 }
 
-// ¿Dos cartas que van juntas? Un DÚO (mismo número) o un consecutivo de 2 (mismo palo, números seguidos; aquí el 2
-// cuenta como número). Sirve para tomarlas juntas de la mano. Devuelve { ordered } o null.
+// ¿Dos cartas que van juntas? Un DÚO (mismo número) o un consecutivo de 2 (mismo palo, números seguidos; en
+// cualquier sentido, el As va después de la K). Sirve para tomarlas juntas de la mano. Devuelve { ordered } o null.
 export function pairShape(cards) {
   if (cards.length !== 2) return null;
   const [a, b] = cards;
@@ -41,9 +41,9 @@ export function groupAt(items, id) {
   for (const seg of handSegments(items)) {
     const i = seg.findIndex((c) => c.id === id);
     if (i < 0) continue;
-    // El más largo de 2 a 13 cartas: hacia la derecha (empieza en la carta) o hacia la izquierda (termina en ella).
+    // El más largo de 2 cartas en adelante: hacia la derecha (empieza en la carta) o hacia la izquierda (termina en ella).
     const longest = (maxLen, slice) => {
-      for (let len = Math.min(13, maxLen); len >= 2; len--) {
+      for (let len = maxLen; len >= 2; len--) {
         const cards = slice(len), shape = len >= 3 ? meldShape(cards) : pairShape(cards);
         if (shape) return { cards, ordered: shape.ordered };
       }
@@ -75,7 +75,7 @@ export function previewMelds(melds, hooks) {
 export function addToGroup(group, card) {
   const tries = [[...group.cards, card], [card, ...group.cards]];
   for (const cards of tries) {
-    if (cards.length <= 4 && buildSet(cards)) return { cards, ordered: false };
+    if (buildSet(cards)) return { cards, ordered: false };
     if (buildRun(cards, { ordered: true })) return { cards, ordered: true };
   }
   const run = buildRun(tries[0]);                  // encaja acomodándolo: se guarda ya en orden

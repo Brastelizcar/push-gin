@@ -30,9 +30,14 @@ test('no se planta si no tiene la combinación o si se quedaría sin carta para 
   assert.equal(findPlantInHand(cs('5♥', '5♠', '5♦', '7♥', '7♠', '7♦', '9♥', '9♠', '9♦'), ROUND_REQUIREMENTS[0]), null);
 });
 
-test('las copias idénticas (3 barajas) nunca van juntas en un trío', () => {
-  const g = findPlantInHand(cs('5♥', '5♥', '5♠', '5♦', '6♣', '6♥', '6♦', '7♣', '7♥', '7♦', 'K♠'), ROUND_REQUIREMENTS[0]);
-  assert.ok(g.every((t) => new Set(t.map((x) => x.suit)).size === 3));
+test('en un trío el palo no importa: usa copias idénticas (3 barajas)', () => {
+  const g = findPlantInHand(cs('5♥', '5♥', '5♥', '6♣', '6♣', '6♦', '7♣', '7♥', '7♦', 'K♠'), ROUND_REQUIREMENTS[0]);
+  assert.deepEqual(g.map((t) => t.length), [3, 3, 3]);
+});
+
+test('ya plantado: baja un grupo de más de 4 cartas iguales y consecutivos con el As arriba', () => {
+  const free = findFreeMeldsInHand(cs('8♥', '8♠', '8♦', '8♣', '8♥', 'Q♠', 'K♠', 'A♠', '3♦'), 1);
+  assert.deepEqual(free.map((g) => g.length).sort(), [3, 5]);
 });
 
 test('ya plantado: baja combinaciones libres y conserva una carta', () => {
