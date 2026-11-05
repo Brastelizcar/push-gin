@@ -6,7 +6,7 @@ import { renderTable, handleRejected, playPushAnimation, notePush, notePlay, not
 import { loadAccount, createAccount, requestSyncCode, redeemSyncCode, claimChips, accountFromServer, savedToken, setAvatar } from "./account.js";
 import { welcomeScreen, mainMenu, privateMenu, practiceMenu, waitingRoom, renderModal, tickCountdowns } from "./menus.js";
 import { startPractice } from "./practice.js";
-import { tutorialSetup, resetTutorial, coach } from "./tutorial.js";
+import { tutorialSetup, resetTutorial, coach, tutorialLocks } from "./tutorial.js";
 import { play } from "./sound.js";
 
 const app = document.getElementById("app");
@@ -185,7 +185,7 @@ function render() {
   app.classList.toggle("wide", !!inTable);
   app.classList.toggle("menu", !inTable && screen !== "welcome");
   if (inTable) {
-    renderTable(app, { view, room, rerender: render, onSkip: tutorial ? endTutorial : null });
+    renderTable(app, { view, room, rerender: render, onSkip: tutorial ? endTutorial : null, locks: tutorial ? tutorialLocks : null });
     if (tutorial) {
       app.querySelector(".coach")?.remove();          // (si la mesa no se redibujó porque arrastras una carta)
       const c = coach(view, stageInfo(), { onFinish: endTutorial, rerender: render });

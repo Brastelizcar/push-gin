@@ -224,7 +224,7 @@ export function rulesModal({ onClose }) {
         t("Si se acaba el mazo se juega una vuelta más tomando el descarte; luego todos suman su mano."),
         t("Un consecutivo completo (del 3 al As) sale de la mesa."),
         t("Siempre terminas descartando una carta. Ganas la ronda al descartar la última.")),
-      sec(t("Robo del 2"), t("Antes de tomar carta, si aún no te plantaste, puedes cambiar un 2 de un plante ajeno por la carta que va en su lugar. Ese turno ya no te puedes plantar.")),
+      sec(t("Robo del 2"), t("Antes de tomar carta, si aún no te plantaste, puedes cambiar un 2 de un plante ajeno (de un jugador ya plantado) por la carta que va en su lugar. Puedes robar todos los que quieras en el mismo turno, siempre que tengas la carta de cada uno. Ese turno ya no te puedes plantar.")),
       sec(t("Puntos en contra"), t("A = 15 · 2 = 20 · 10, J, Q, K = 10 · 3 a 9 = 5")),
       sec(t("Experiencia y fichas"), t("Al terminar una partida: 1.º 100 XP, 2.º 50, 3.º 30, 4.º 10 (contra bots, la mitad). Del nivel N al N+1 hacen falta 100×N XP."),
         t("Cada 24 horas puedes reclamar {n} fichas gratis. En juego privado con cuota, el ganador se lleva el pozo.", { n: DAILY_CHIPS }))));

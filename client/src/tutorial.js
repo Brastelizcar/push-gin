@@ -51,6 +51,15 @@ let shown = null;                 // último paso dibujado (la entrada animada s
 export const resetTutorial = () => { step = "intro"; shown = null; };
 export const tutorialStep = () => step;
 
+// Acciones que el tutorial no deja hacer en el paso actual (si no, el recorrido ya no se podría terminar): el aviso
+// explica qué hacer. Solo en el primer turno: antes de robar el comodín no se toma carta, y después se toma el 9♦.
+export function tutorialLocks(at = step) {
+  const steal = t("Primero roba el comodín: arrastra tu 5♠ y suéltalo sobre la P del trío de 5 de Rosa");
+  if (at === "intro" || at === "goal" || at === "wild" || at === "steal") return { take: steal, push: steal };
+  if (at === "take") return { push: t("En este paso toma el 9♦ del descarte: lo necesitas para tu trío de 9") };
+  return {};
+}
+
 // Siguiente paso según la vista y tu jugada sin confirmar (stage = stageInfo() de la mesa). Función pura.
 // Los pasos con botón «Siguiente» (intro, goal, wild, won, over) solo avanzan con el botón.
 export function nextStep(step, view, stage = { groups: 0 }) {
@@ -114,6 +123,7 @@ function content(view) {
     case "steal": return { title: t("Roba el comodín"), body: [
       t("Rosa ya se plantó, y en su trío de 5 usó un comodín (la P)."),
       t("Mientras no te hayas plantado, al EMPEZAR tu turno puedes robar un comodín de un jugador plantado: arrastra tu 5♠ y suéltalo sobre la P. El comodín pasa a tu mano."),
+      t("Puedes robar todos los comodines que quieras en ese mismo turno, de uno o varios plantes, siempre que tengas la carta que va en el lugar de cada uno."),
       t("Ojo: el turno en que robas no te puedes plantar.")] };
     case "take": return { title: t("Toma una carta"), body: [
       t("Ahora toma una carta. El 9♦ del descarte te sirve (ya tienes dos 9): tócalo o arrástralo a tu mano."),
@@ -148,7 +158,7 @@ function content(view) {
     case "over": return { title: t("Terminó la ronda"), center: true, next: next("tips"), body: [POINTS(), t("En cada ronda cambia lo que se pide para plantarte.")] };
     case "tips": return { title: t("Últimos consejos"), center: true, finish: true, body: [
       t("Consecutivo: cartas seguidas del mismo palo, en orden A, K, Q … 3. El comodín (P) puede ocupar cualquier lugar."),
-      t("Solo puedes robar comodines de jugadores que ya se plantaron, antes de tomar carta y mientras tú no te hayas plantado."),
+      t("Robo del comodín: al empezar tu turno, antes de tomar carta y mientras no te hayas plantado, puedes robar todos los que quieras de jugadores ya plantados, siempre que tengas la carta que va en su lugar."),
       t("Las reglas completas están en el botón ? del menú de inicio. ¡Buena suerte!")] };
     default: return { title: t("Sigue jugando"), body: [
       t("Juega a tu ritmo: cuando tengas lo que pide la ronda, plántate. Puedes salir cuando quieras con «Saltar».")] };

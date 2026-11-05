@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { startPractice } from "../src/practice.js";
-import { tutorialSetup, TUTORIAL_HAND, nextStep } from "../src/tutorial.js";
+import { tutorialSetup, TUTORIAL_HAND, nextStep, tutorialLocks } from "../src/tutorial.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const until = async (fn, ms = 3000) => { const end = Date.now() + ms; while (!fn()) { if (Date.now() > end) throw new Error("tiempo agotado"); await sleep(5); } };
@@ -92,4 +92,11 @@ test("tutorial: los pasos avanzan con lo que pasa en la mesa", () => {
   // si toma carta sin robar, sigue por el camino de plantarse; si termina el turno sin plantarse, juega libre
   assert.equal(nextStep("steal", view({ turnPhase: "main" })), "stage");
   assert.equal(nextStep("stage", view({ current: "bot1" })), "free");
+});
+
+test("tutorial: en el primer turno no deja tomar carta antes de robar, ni hacer push en vez de tomar el 9♦", () => {
+  for (const step of ["intro", "goal", "wild", "steal"]) assert.ok(tutorialLocks(step).take && tutorialLocks(step).push, step);
+  assert.equal(tutorialLocks("take").take, undefined);                 // tomar el 9♦ sí
+  assert.match(tutorialLocks("take").push, /9♦/);                     // push no: sin el 9♦ no hay trío de 9
+  for (const step of ["endturn", "wait", "push", "stage", "hook", "free"]) assert.deepEqual(tutorialLocks(step), {}, step);
 });

@@ -137,7 +137,9 @@ van en **español**; la interfaz está en español e inglés (ver "Idiomas").
   explica cada paso (`nextStep`, función pura que avanza con lo que pasa en la mesa; usa `stageInfo()` de table.js),
   en 3 turnos: 1) robas el comodín de Rosa, tomas el descarte y descartas (no te plantas porque robaste); 2) push y
   te plantas; 3) enganchas el 7♣ y ganas la ronda. Antes, un paso muestra el 2 de siempre → la carta P (`cardEl(...,
-  plain)` en `cardview.js`, que dibuja todas las cartas). Puntos y consejos al final. «Saltar» va en la barra de la mesa,
+  plain)` en `cardview.js`, que dibuja todas las cartas). Puntos y consejos al final.
+  En el primer turno el tutorial bloquea lo que lo haría imposible de terminar (`tutorialLocks` → `renderTable(...,
+  { locks })`): tomar carta antes de robar el comodín y hacer push en vez de tomar el 9♦ (avisa qué hacer). «Saltar» va en la barra de la mesa,
   a la izquierda de pantalla completa (`renderTable(..., { onSkip })`).
 
 ## Cuentas (Lote 3)

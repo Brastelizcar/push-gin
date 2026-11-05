@@ -143,14 +143,24 @@ function endOfHandRect() {
   return cellRect(nextFree(ui.cells)) ?? document.getElementById("handLine").getBoundingClientRect();
 }
 
+// Acción bloqueada por el tutorial (locks() → { take?, push? }: el aviso que explica qué hacer en ese paso).
+function locked(action) {
+  const msg = cur.locks?.()?.[action];
+  if (msg) { toast(msg); hooks.play("bad"); }
+  return !!msg;
+}
+
 // Con clic (sin `index`) la carta viaja animada a tu mano. Si la arrastraste a una casilla, queda ahí sin animación.
+// Devuelve false si no se pudo tomar (bloqueado en el tutorial).
 function takeDiscard(card, toRect, index) {
+  if (locked("take")) return false;
   const at = index ?? nextFree(ui.cells);
   const dest = toRect ?? cellRect(at) ?? endOfHandRect();
   ui.cells = placeCard(ui.cells, card.id, at);
   ui.incoming = card;
   if (index === undefined) flyCard(card, document.getElementById("unifiedSlot").getBoundingClientRect(), dest);
   actions.takeDiscard(cur.room);
+  return true;
 }
 
 // Devolver a tu mano la carta que habías puesto en el descarte: con clic viaja animada; arrastrándola, no.
@@ -455,8 +465,8 @@ function beginDrag(e, { kind, mode, card, el, onTap, group, findGroup }) {
     // kind 'slot'
     if (target < 0) return;
     if (mode === "take" && cur.canTake) {
-      takeDiscard(card, undefined, target);                       // arrastrada: queda en esa casilla, sin animación
-      document.getElementById("unifiedSlot")?.classList.add("taken");
+      if (takeDiscard(card, undefined, target))                   // arrastrada: queda en esa casilla, sin animación
+        document.getElementById("unifiedSlot")?.classList.add("taken");
       cur.rerender();
     } else if (mode === "undo") undoDiscard(card, target);
   };
@@ -470,7 +480,8 @@ export const stageInfo = () => ({ groups: ui.stage.groups.length, hooks: ui.stag
 
 // ---------- render de la mesa ----------
 // onSkip: estás en el tutorial (la barra lleva el botón «Saltar» a la izquierda de pantalla completa).
-export function renderTable(app, { view, room, rerender, onSkip }) {
+// locks: () => { take?, push? } — el tutorial bloquea tomar el descarte o hacer push en algunos pasos.
+export function renderTable(app, { view, room, rerender, onSkip, locks }) {
   // Mientras arrastras una carta no se toca la mesa (si no, la carta que agarraste desaparecería y el movimiento se
   // perdería); al soltar se dibuja con el estado más reciente.
   if (ui.dragging) { ui.deferred = true; return; }
@@ -480,7 +491,7 @@ export function renderTable(app, { view, room, rerender, onSkip }) {
   const myTurn = view.phase === "playing" && view.current === me;
   const canTake = myTurn && view.turnPhase === "start";
   const mustDiscard = myTurn && view.turnPhase === "main";
-  cur = { view, room, rerender, canTake, mustDiscard };
+  cur = { view, room, rerender, canTake, mustDiscard, locks };
   const meldsBefore = meldRects();                     // para que los plantes se reacomoden con animación
   ui.prevLive = new Map([...document.querySelectorAll(".mesa-panel .live-card[data-id]")].map((e) => [e.dataset.id, e.getBoundingClientRect()]));
 
@@ -653,7 +664,7 @@ export function renderTable(app, { view, room, rerender, onSkip }) {
       h("button", {
         class: "push-btn" + (canTake && view.deckCount >= 2 ? "" : " disabled"),
         title: view.deckCount < 2 ? t("Se acabó el mazo: solo puedes tomar el descarte") : "",
-        onclick: () => canTake && (view.deckCount < 2 ? toast("Se acabó el mazo: solo puedes tomar el descarte") : actions.push(room)),
+        onclick: () => canTake && !locked("push") && (view.deckCount < 2 ? toast("Se acabó el mazo: solo puedes tomar el descarte") : actions.push(room)),
       },
         h("span", { class: "p-badge" }, "P"), h("span", { class: "p-text" }, t("Push"))),
       slotEl,
