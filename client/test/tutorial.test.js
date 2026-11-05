@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { startPractice } from "../src/practice.js";
-import { tutorialSetup, TUTORIAL_HAND, nextStep, tutorialLocks } from "../src/tutorial.js";
+import { tutorialSetup, TUTORIAL_HAND, nextStep, tutorialLock } from "../src/tutorial.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const until = async (fn, ms = 3000) => { const end = Date.now() + ms; while (!fn()) { if (Date.now() > end) throw new Error("tiempo agotado"); await sleep(5); } };
@@ -94,9 +94,48 @@ test("tutorial: los pasos avanzan con lo que pasa en la mesa", () => {
   assert.equal(nextStep("stage", view({ current: "bot1" })), "free");
 });
 
-test("tutorial: en el primer turno no deja tomar carta antes de robar, ni hacer push en vez de tomar el 9♦", () => {
-  for (const step of ["intro", "goal", "wild", "steal"]) assert.ok(tutorialLocks(step).take && tutorialLocks(step).push, step);
-  assert.equal(tutorialLocks("take").take, undefined);                 // tomar el 9♦ sí
-  assert.match(tutorialLocks("take").push, /9♦/);                     // push no: sin el 9♦ no hay trío de 9
-  for (const step of ["endturn", "wait", "push", "stage", "hook", "free"]) assert.deepEqual(tutorialLocks(step), {}, step);
+test("tutorial: en cada paso solo se puede hacer lo que pide el entrenador", () => {
+  const c = (x) => ({ id: x, rank: x.slice(0, -1), suit: x.slice(-1) });
+  const cs = (...l) => l.map(c);
+  const allowed = (action, info, step) => tutorialLock(action, info, step) === null;
+  const ALL = ["take", "push", "steal", "group", "addToGroup", "hook", "discard", "confirm", "sort"];
+  const info = { card: c("K♠"), cards: cs("7♥", "7♠", "7♦"), view: { turnPhase: "main", hand: [], drawn: null }, stage: { hooks: [] } };
+  // pasos de lectura y de espera: nada
+  for (const step of ["intro", "goal", "wild", "wait", "planted"]) for (const a of ALL) assert.equal(allowed(a, info, step), false, `${step} ${a}`);
+  // robar: solo con el 5♠
+  assert.ok(allowed("steal", { card: c("5♠") }, "steal"));
+  assert.equal(allowed("steal", { card: c("9♥") }, "steal"), false);
+  for (const a of ["take", "push", "sort"]) assert.equal(allowed(a, info, "steal"), false, a);
+  // tomar: solo el descarte (push no)
+  assert.ok(allowed("take", info, "take"));
+  assert.match(tutorialLock("push", info, "take"), /9♦/);
+  // terminar el primer turno: solo descartar la K♠
+  assert.ok(allowed("discard", { card: c("K♠") }, "endturn"));
+  assert.equal(allowed("discard", { card: c("7♣") }, "endturn"), false);
+  assert.equal(allowed("group", info, "endturn"), false);
+  assert.ok(allowed("confirm", info, "endturn"));
+  // push: solo push
+  assert.ok(allowed("push", info, "push"));
+  assert.equal(allowed("take", info, "push"), false);
+  // plantarse: solo los 3 tríos indicados (el comodín robado puede ser de cualquier palo)
+  assert.ok(allowed("group", { cards: cs("7♥", "7♠", "7♦") }, "stage"));
+  assert.ok(allowed("group", { cards: cs("Q♣", "2♦", "Q♦") }, "stage"));
+  assert.ok(allowed("group", { cards: cs("9♣", "9♥", "9♦") }, "stage"));
+  assert.equal(allowed("group", { cards: cs("7♥", "7♠", "7♦", "7♣") }, "stage"), false);   // el 7♣ es para enganchar
+  for (const a of ["discard", "addToGroup", "confirm", "sort"]) assert.equal(allowed(a, info, "stage"), false, a);
+  // descartar tras plantarse: solo la carta robada del mazo
+  const v = { turnPhase: "main", hand: cs("7♣", "6♣"), drawn: "6♣" };
+  assert.ok(allowed("discard", { card: c("6♣"), view: v }, "discard"));
+  assert.equal(allowed("discard", { card: c("7♣"), view: v }, "discard"), false);
+  // último turno: tomar carta; enganchar solo el 7♣ y después descartar la otra
+  assert.ok(allowed("take", { view: { turnPhase: "start" } }, "hook"));
+  assert.ok(allowed("push", { view: { turnPhase: "start" } }, "hook"));
+  const main = { turnPhase: "main", hand: cs("7♣", "4♥") };
+  assert.ok(allowed("hook", { cards: cs("7♣"), view: main }, "hook"));
+  assert.equal(allowed("hook", { cards: cs("4♥"), view: main }, "hook"), false);
+  assert.equal(allowed("discard", { card: c("4♥"), view: main, stage: { hooks: [] } }, "hook"), false);   // primero engancha
+  assert.ok(allowed("discard", { card: c("4♥"), view: main, stage: { hooks: [{ card: c("7♣") }] } }, "hook"));
+  assert.equal(allowed("discard", { card: c("7♣"), view: main, stage: { hooks: [{ card: c("7♣") }] } }, "hook"), false);
+  // jugando libre: todo
+  for (const a of ALL) assert.ok(allowed(a, info, "free"), a);
 });

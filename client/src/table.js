@@ -78,6 +78,7 @@ const visibleCards = () => layoutItems(cur.view).filter((i) => i.card).map((i) =
 
 // Botones 789 / 777: ordenan UNA vez y dejan una casilla vacía entre grupo y grupo.
 function sortHand(mode) {
+  if (locked("sort")) return;
   const groups = (mode === "runs" ? groupRuns : groupSets)(visibleCards());
   const hidden = [...hiddenIds()].filter((id) => cur.view.hand.some((c) => c.id === id));
   ui.cells = [...cellsFromGroups(groups), ...(hidden.length ? [null, ...hidden] : [])];
@@ -143,9 +144,10 @@ function endOfHandRect() {
   return cellRect(nextFree(ui.cells)) ?? document.getElementById("handLine").getBoundingClientRect();
 }
 
-// Acción bloqueada por el tutorial (locks() → { take?, push? }: el aviso que explica qué hacer en ese paso).
-function locked(action) {
-  const msg = cur.locks?.()?.[action];
+// Acción bloqueada por el tutorial: locks(acción, datos) devuelve el aviso que explica qué hacer en ese paso, o null.
+// Acciones: take, push, steal {card}, group {cards}, addToGroup, hook {cards}, discard {card}, confirm, sort.
+function locked(action, info = {}) {
+  const msg = cur.locks?.(action, { ...info, view: cur.view, stage: ui.stage });
   if (msg) { toast(msg); hooks.play("bad"); }
   return !!msg;
 }
@@ -179,6 +181,7 @@ function undoDiscard(card, index) {
 // Intercambio: sueltas una carta de tu mano sobre la que ya pusiste en el descarte.
 // La del descarte vuela a tu mano y ocupa JUSTO el lugar de la carta que pusiste en su lugar.
 function swapWithPending(card) {
+  if (locked("discard", { card })) return cur.rerender();
   const old = cur.view.hand.find((c) => c.id === ui.pending);
   const from = document.getElementById("unifiedSlot").getBoundingClientRect();
   const a = ui.cells.indexOf(card.id), b = ui.cells.indexOf(old.id);
@@ -223,6 +226,7 @@ const hasStage = () => ui.stage.groups.length > 0 || ui.stage.hooks.length > 0;
 const previewOf = (meldId) => previewMelds(cur.view.melds, ui.stage.hooks).find((m) => m.id === meldId);
 
 function stageGroups(groups) {
+  if (groups.some((g) => locked("group", { cards: g.cards }))) return;
   if (keptAfter(groups.reduce((s, g) => s + g.cards.length, 0)) < 1) return toast("Debes quedarte con una carta para descartar");
   ui.stage.groups.push(...groups.map((g) => ({ cards: [...g.cards], ordered: g.ordered === true })));
   hooks.play("card");
@@ -231,6 +235,7 @@ function stageGroups(groups) {
 // Enganchar una o varias cartas a un plante de la mesa (propio o ajeno), en el orden que encaje.
 // `prefer` ('low'|'high') decide el lado cuando una sola carta cabe por ambos extremos.
 function stageHooks(entry, cards, prefer) {
+  if (locked("hook", { cards, meldId: entry.id })) return;
   const meld = previewOf(entry.id)?.meld ?? entry.meld;
   let plan = planHooks(meld, cards);
   if (cards.length === 1 && meld.kind === "run") {
@@ -245,6 +250,7 @@ function stageHooks(entry, cards, prefer) {
   cur.rerender();
 }
 function stageIntoGroup(i, cards) {
+  if (locked("addToGroup", { cards })) return;
   let g = ui.stage.groups[i];
   for (const c of cards) g = g && addToGroup(g, c);
   if (!g) return toast("No encaja en ese grupo");
@@ -258,7 +264,7 @@ function clearStage() { ui.stage = emptyStage(); cur.rerender(); }
 
 // ✓ Fin de turno: valida TODA la jugada con la misma lógica del servidor. Si es inválida, no se envía y el turno no pasa.
 function confirmTurn(btn) {
-  if (!cur.mustDiscard) return;
+  if (!cur.mustDiscard || locked("confirm")) return;
   const res = buildTurn(cur.view, ui.stage, ui.pending, amPlanted());
   if (res.error) {
     toast(res.error);
@@ -273,6 +279,7 @@ function confirmTurn(btn) {
 
 // Robar un 2: la carta de tu mano reemplaza al 2 (antes de tomar carta y sin haberte plantado). Es inmediato.
 function stealWith(entry, idx, card) {
+  if (locked("steal", { card })) return;
   if (amPlanted()) return toast("Ya te plantaste: solo puedes robar 2s antes de plantarte");
   if (!cur.view.players.find((p) => p.id === entry.owner)?.planted) return toast("Solo puedes robar de jugadores que ya se plantaron");
   if (!isWild(meldCardsOf(entry.meld)[idx] ?? {})) return toast("Toca o suelta la carta sobre un 2");
@@ -438,6 +445,7 @@ function beginDrag(e, { kind, mode, card, el, onTap, group, findGroup }) {
       groupEls().forEach((x) => x.classList.remove("lifted"));
       if (ok && cur.mustDiscard && overSlot(ev)) {                // al descarte va solo la carta que tomaste
         if (ui.pending && ui.pending !== card.id) return swapWithPending(card);
+        if (locked("discard", { card })) return cur.rerender();
         ui.pending = card.id;
         return cur.rerender();
       }
@@ -455,6 +463,7 @@ function beginDrag(e, { kind, mode, card, el, onTap, group, findGroup }) {
       }
       if (ok && cur.mustDiscard && overSlot(ev)) {
         if (ui.pending && ui.pending !== card.id) return swapWithPending(card); // intercambio animado
+        if (locked("discard", { card })) return cur.rerender();
         ui.pending = card.id;                                     // descartar (se confirma con ✓)
         hooks.play("card");
       } else if (target >= 0) {
@@ -480,7 +489,7 @@ export const stageInfo = () => ({ groups: ui.stage.groups.length, hooks: ui.stag
 
 // ---------- render de la mesa ----------
 // onSkip: estás en el tutorial (la barra lleva el botón «Saltar» a la izquierda de pantalla completa).
-// locks: () => { take?, push? } — el tutorial bloquea tomar el descarte o hacer push en algunos pasos.
+// locks: (acción, datos) => aviso | null — el tutorial solo deja hacer lo que pide cada paso (ver locked()).
 export function renderTable(app, { view, room, rerender, onSkip, locks }) {
   // Mientras arrastras una carta no se toca la mesa (si no, la carta que agarraste desaparecería y el movimiento se
   // perdería); al soltar se dibuja con el estado más reciente.

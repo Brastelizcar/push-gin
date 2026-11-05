@@ -51,13 +51,58 @@ let shown = null;                 // último paso dibujado (la entrada animada s
 export const resetTutorial = () => { step = "intro"; shown = null; };
 export const tutorialStep = () => step;
 
-// Acciones que el tutorial no deja hacer en el paso actual (si no, el recorrido ya no se podría terminar): el aviso
-// explica qué hacer. Solo en el primer turno: antes de robar el comodín no se toma carta, y después se toma el 9♦.
-export function tutorialLocks(at = step) {
-  const steal = t("Primero roba el comodín: arrastra tu 5♠ y suéltalo sobre la P del trío de 5 de Rosa");
-  if (at === "intro" || at === "goal" || at === "wild" || at === "steal") return { take: steal, push: steal };
-  if (at === "take") return { push: t("En este paso toma el 9♦ del descarte: lo necesitas para tu trío de 9") };
-  return {};
+const cardName = (c) => c.rank + c.suit;
+
+// En cada paso SOLO se puede hacer lo que pide el entrenador (si no, el recorrido ya no se podría terminar). La mesa
+// pregunta antes de cada acción: tutorialLock(acción, { card, cards, view, stage }) devuelve null si se permite, o el
+// aviso que explica qué hacer. Acciones: take, push, steal, group, addToGroup, hook, discard, confirm, sort. Mover
+// cartas dentro de tu mano siempre se puede. Al jugar libre ("free") no hay bloqueos.
+const TRIOS = [["7♥", "7♠", "7♦"], ["Q♦", "Q♣", "2"], ["9♣", "9♥", "9♦"]];   // "2": el comodín robado (cualquier palo)
+const isTrio = (cards) => TRIOS.some((trio) => {
+  const left = cards.map(cardName);
+  return trio.length === left.length && trio.every((want) => {
+    const i = left.findIndex((n) => (want === "2" ? n.startsWith("2") : n === want));
+    return i >= 0 && left.splice(i, 1);
+  });
+});
+
+function hint(at, view, stage) {
+  const drawn = view?.hand.find((c) => c.id === view.drawn);
+  switch (at) {
+    case "steal": return t("Primero roba el comodín: arrastra tu 5♠ y suéltalo sobre la P del trío de 5 de Rosa");
+    case "take": return t("En este paso toma el 9♦ del descarte: lo necesitas para tu trío de 9");
+    case "endturn": return t("Arrastra la K♠ al descarte y pulsa ✓ Terminar turno");
+    case "wait": case "planted": return t("Espera tu turno: ahora juegan los demás");
+    case "push": return t("En este paso pulsa Push");
+    case "stage": return t("Lleva a la mesa solo tus tres tríos: 7♥ 7♠ 7♦, Q♦ Q♣ con el comodín y 9♣ 9♥ 9♦");
+    case "discard": return drawn ? t("Arrastra al descarte la carta que robaste del mazo ({card}) y pulsa ✓", { card: cardName(drawn) })
+      : t("Arrastra una carta al descarte y pulsa ✓");
+    case "hook":
+      if (view?.turnPhase === "start") return t("Toma una carta: toca el descarte o haz push");
+      return stage?.hooks?.some((h) => cardName(h.card) === "7♣") ? t("Ahora arrastra tu última carta al descarte y pulsa ✓")
+        : t("Primero engancha tu 7♣: arrástralo sobre tu trío de 7");
+    default: return t("Primero lee la explicación y pulsa «Siguiente»");
+  }
+}
+
+export function tutorialLock(action, { card, cards, view, stage } = {}, at = step) {
+  if (at === "free") return null;
+  let ok = false;
+  switch (at) {
+    case "steal": ok = action === "steal" && cardName(card) === "5♠"; break;
+    case "take": ok = action === "take"; break;
+    case "endturn": ok = (action === "discard" && cardName(card) === "K♠") || action === "confirm"; break;
+    case "push": ok = action === "push"; break;
+    case "stage": ok = action === "group" && isTrio(cards); break;
+    case "discard": ok = (action === "discard" && card.id === view?.drawn) || action === "confirm"; break;
+    case "hook":
+      if (view?.turnPhase === "start") ok = action === "take" || action === "push";
+      else if (action === "hook") ok = cards.length === 1 && cardName(cards[0]) === "7♣";
+      else if (action === "discard") ok = !!stage?.hooks?.some((h) => cardName(h.card) === "7♣") && cardName(card) !== "7♣";
+      else ok = action === "confirm";
+      break;
+  }
+  return ok ? null : hint(at, view, stage);
 }
 
 // Siguiente paso según la vista y tu jugada sin confirmar (stage = stageInfo() de la mesa). Función pura.
@@ -95,7 +140,6 @@ function hookable(view) {
     if (view.melds.some((e) => extendMeld(e.meld, c, "high") || extendMeld(e.meld, c, "low"))) return c;
   return null;
 }
-const cardName = (c) => c.rank + c.suit;
 const POINTS = () => t("Las cartas que les quedaron a los demás suman puntos en contra: A = 15 · 2 = 20 · 10, J, Q, K = 10 · 3 a 9 = 5. Gana la partida quien sume menos al final de las 5 rondas.");
 
 // El 2 de antes → el comodín de ahora (la misma carta), con una flecha.

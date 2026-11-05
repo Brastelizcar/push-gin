@@ -138,8 +138,9 @@ van en **español**; la interfaz está en español e inglés (ver "Idiomas").
   en 3 turnos: 1) robas el comodín de Rosa, tomas el descarte y descartas (no te plantas porque robaste); 2) push y
   te plantas; 3) enganchas el 7♣ y ganas la ronda. Antes, un paso muestra el 2 de siempre → la carta P (`cardEl(...,
   plain)` en `cardview.js`, que dibuja todas las cartas). Puntos y consejos al final.
-  En el primer turno el tutorial bloquea lo que lo haría imposible de terminar (`tutorialLocks` → `renderTable(...,
-  { locks })`): tomar carta antes de robar el comodín y hacer push en vez de tomar el 9♦ (avisa qué hacer). «Saltar» va en la barra de la mesa,
+  En cada paso SOLO se puede hacer lo que pide el entrenador (`tutorialLock(acción, datos)` → `renderTable(...,
+  { locks })`; la mesa pregunta antes de tomar, push, robar, bajar, añadir a un grupo, enganchar, descartar, ✓ y
+  789/777): si no, avisa qué hacer. Mover cartas dentro de la mano siempre se puede; jugando libre no hay bloqueos. «Saltar» va en la barra de la mesa,
   a la izquierda de pantalla completa (`renderTable(..., { onSkip })`).
 
 ## Cuentas (Lote 3)
