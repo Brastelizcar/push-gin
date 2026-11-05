@@ -15,7 +15,7 @@ function tutorial() {
   return { room, log, last: () => log.views.at(-1) };
 }
 
-test("tutorial: reparto preparado — empiezas tú, con tu mano fija y el 9♦ en el descarte", async () => {
+test("tutorial: reparto preparado — empiezas tú, Rosa ya está plantada con un comodín en su trío de 5", async () => {
   const { room, last } = tutorial();
   await until(() => last());
   const v = last();
@@ -23,31 +23,43 @@ test("tutorial: reparto preparado — empiezas tú, con tu mano fija y el 9♦ e
   assert.equal(name(v.discardTop), "9♦");
   assert.equal(v.current, v.you);
   assert.equal(v.deckCount, 156 - 30 - 1);                          // como un reparto normal (se anima igual)
-  const ids = [...v.hand.map((c) => c.id), v.discardTop.id];
+  assert.deepEqual(v.players.map((p) => p.planted), [false, true, false]);
+  assert.deepEqual(v.melds.map((m) => m.meld.cards.map(name).join(" ")), ["5♥ 5♣ 2♦", "8♠ 8♥ 8♦", "J♣ J♦ J♠"]);
+  const ids = [...v.hand.map((c) => c.id), v.discardTop.id, ...v.melds.flatMap((m) => m.meld.cards.map((c) => c.id))];
   assert.equal(new Set(ids).size, ids.length);                       // cartas de verdad, sin ids repetidos
   room.leave();
 });
 
-test("tutorial: el recorrido completo se puede jugar y termina ganando la ronda", async () => {
+test("tutorial: el recorrido completo (robar, push, plantarse, enganchar) termina ganando la ronda", async () => {
   const { room, log, last } = tutorial();
   await until(() => last());
   const byName = (s) => last().hand.find((c) => name(c) === s).id;
+  const myStart = () => last().current === last().you && last().turnPhase === "start";
+  // Turno 1: roba el comodín de Rosa con el 5♠, toma el 9♦ y descarta la K♠ (no se puede plantar).
+  const fives = last().melds.find((m) => m.meld.rank === "5");
+  room.send("steal2", { meldId: fives.id, index: 2, cardId: byName("5♠") });
+  await until(() => last().stoleThisTurn);
+  assert.ok(last().hand.some((c) => name(c) === "2♦"));
   room.send("takeDiscard");
   await until(() => last().turnPhase === "main");
+  room.send("playTurn", { discard: byName("K♠") });
+  await until(() => last().current !== last().you);
+  // Turno 2: push y se planta con 7♥ 7♠ 7♦, Q♦ Q♣ 2♦ y 9♣ 9♥ 9♦; descarta la carta robada del mazo.
+  await until(myStart);
+  assert.equal(last().players.some((p) => p.id === "bot2" && p.planted), false);
+  room.send("push");
+  await until(() => last().turnPhase === "main");
+  const drawn = last().drawn;
   const group = (...s) => ({ cardIds: s.map(byName) });
-  room.send("playTurn", {
-    plant: [group("7♥", "7♠", "7♦"), { ...group("Q♦", "Q♣", "2♠"), ordered: false }, group("9♣", "9♥", "9♦")],
-    discard: byName("K♠"),
-  });
+  room.send("playTurn", { plant: [group("7♥", "7♠", "7♦"), group("Q♦", "Q♣", "2♦"), group("9♣", "9♥", "9♦")], discard: drawn });
   await until(() => last().players[0].planted);
   assert.deepEqual(last().hand.map(name), ["7♣"]);
-  // los bots juegan y vuelve tu turno: push, enganchas el 7♣ y descartas la última carta
-  await until(() => last().current === last().you && last().turnPhase === "start");
-  assert.equal(last().players.some((p) => p.id !== last().you && p.planted), false);   // nadie se plantó antes
-  room.send("push");
-  await until(() => last().turnPhase === "main" && last().hand.length === 2);
+  // Turno 3: toma el descarte, engancha el 7♣ y descarta la última carta.
+  await until(myStart);
+  room.send("takeDiscard");
+  await until(() => last().turnPhase === "main");
   const seven = byName("7♣"), other = last().hand.find((c) => c.id !== seven).id;
-  const trio = last().melds.find((m) => m.meld.kind === "set" && m.meld.rank === "7");
+  const trio = last().melds.find((m) => m.owner === last().you && m.meld.rank === "7");
   room.send("playTurn", { hooks: [{ meldId: trio.id, cardId: seven }], discard: other });
   await until(() => last().phase === "roundOver");
   assert.equal(last().winner, last().you);
@@ -57,21 +69,27 @@ test("tutorial: el recorrido completo se puede jugar y termina ganando la ronda"
 
 test("tutorial: los pasos avanzan con lo que pasa en la mesa", () => {
   const me = "tú";
-  const view = (o = {}) => ({ phase: "playing", you: me, current: me, turnPhase: "start",
-    players: [{ id: me, planted: false }, { id: "bot1", planted: false }], ...o });
+  const view = (o = {}) => ({ phase: "playing", you: me, current: me, turnPhase: "start", stoleThisTurn: false,
+    players: [{ id: me, planted: false }, { id: "bot1", planted: true }], ...o });
+  const planted = { players: [{ id: me, planted: true }, { id: "bot1", planted: true }] };
   assert.equal(nextStep("intro", view()), "intro");                                  // con «Siguiente»
-  assert.equal(nextStep("take", view()), "take");
-  assert.equal(nextStep("take", view({ turnPhase: "main" })), "stage");
-  assert.equal(nextStep("stage", view({ turnPhase: "main" }), { groups: 2 }), "stage");
+  assert.equal(nextStep("wild", view()), "wild");
+  assert.equal(nextStep("steal", view()), "steal");
+  assert.equal(nextStep("steal", view({ stoleThisTurn: true })), "take");
+  assert.equal(nextStep("take", view({ stoleThisTurn: true, turnPhase: "main" })), "endturn");
+  assert.equal(nextStep("endturn", view({ current: "bot1" })), "wait");
+  assert.equal(nextStep("wait", view({ current: "bot1" })), "wait");
+  assert.equal(nextStep("wait", view()), "push");
+  assert.equal(nextStep("push", view({ turnPhase: "main" })), "stage");
   assert.equal(nextStep("stage", view({ turnPhase: "main" }), { groups: 3 }), "discard");
   assert.equal(nextStep("discard", view({ turnPhase: "main" }), { groups: 1 }), "stage");   // devolviste un grupo
-  const planted = { players: [{ id: me, planted: true }, { id: "bot1", planted: false }] };
   assert.equal(nextStep("discard", view({ ...planted, current: "bot1" })), "planted");
   assert.equal(nextStep("planted", view({ ...planted, current: "bot1" })), "planted");
-  assert.equal(nextStep("planted", view(planted)), "push");
-  assert.equal(nextStep("push", view({ ...planted, turnPhase: "main" })), "hook");
+  assert.equal(nextStep("planted", view(planted)), "hook");
   assert.equal(nextStep("hook", view({ phase: "roundOver", winner: me })), "won");
   assert.equal(nextStep("hook", view({ phase: "roundOver", winner: "bot1" })), "over");
   assert.equal(nextStep("tips", view({ phase: "roundOver", winner: me })), "tips");
-  assert.equal(nextStep("stage", view({ current: "bot1" })), "free");                // terminó el turno sin plantarse
+  // si toma carta sin robar, sigue por el camino de plantarse; si termina el turno sin plantarse, juega libre
+  assert.equal(nextStep("steal", view({ turnPhase: "main" })), "stage");
+  assert.equal(nextStep("stage", view({ current: "bot1" })), "free");
 });

@@ -133,9 +133,11 @@ van en **español**; la interfaz está en español e inglés (ver "Idiomas").
   arriba a la izquierda en la bienvenida y en Ajustes; al tocarlo cambia al otro idioma y se redibuja todo.
 - **Tutorial** (`client/src/tutorial.js`): al crear la cuenta se entra directo (también desde Ajustes → Tutorial, fuera
   de partida). Es una ronda de práctica local con reparto preparado (`tutorialSetup`, opción `setup` de startPractice)
-  y bots que nunca hacen push (`noPush`). Un "entrenador" explica cada paso (`nextStep`, función pura que avanza con
-  lo que pasa en la mesa; usa `stageInfo()` de table.js): objetivo, plantarse, tomar el descarte, armar tríos (el 2
-  comodín), descartar, push, enganchar y ganar la ronda; puntos y consejos al final. «Saltar» va en la barra de la mesa,
+  y bots que nunca hacen push (`noPush`). Rosa empieza ya plantada con un comodín en su trío de 5. Un "entrenador"
+  explica cada paso (`nextStep`, función pura que avanza con lo que pasa en la mesa; usa `stageInfo()` de table.js),
+  en 3 turnos: 1) robas el comodín de Rosa, tomas el descarte y descartas (no te plantas porque robaste); 2) push y
+  te plantas; 3) enganchas el 7♣ y ganas la ronda. Antes, un paso muestra el 2 de siempre → la carta P (`cardEl(...,
+  plain)` en `cardview.js`, que dibuja todas las cartas). Puntos y consejos al final. «Saltar» va en la barra de la mesa,
   a la izquierda de pantalla completa (`renderTable(..., { onSkip })`).
 
 ## Cuentas (Lote 3)
