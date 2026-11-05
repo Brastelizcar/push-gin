@@ -1,5 +1,6 @@
 import "./table.css";
 import { h, toast, fsButton, avatarImg, coinImg } from "./dom.js";
+import { t, num } from "./i18n.js";
 import { actions } from "./net.js";
 import { suitColor } from "./format.js";
 import { groupRuns, groupSets } from "./grouping.js";
@@ -285,8 +286,8 @@ function onMeldClick(e, entry) {
   if (!cur.mustDiscard && !cur.canTake) return;
   if (ui.stage.hooks.some((x) => x.meldId === entry.id)) return unstageHooks(entry.id);
   toast(cur.canTake && !amPlanted()
-    ? "Para robar un 2, arrastra la carta de tu mano que va en su lugar y suéltala sobre el 2"
-    : "Arrastra una carta de tu mano sobre el plante para engancharla");
+    ? t("Para robar un 2, arrastra la carta de tu mano que va en su lugar y suéltala sobre el 2")
+    : t("Arrastra una carta de tu mano sobre el plante para engancharla"));
 }
 // Clic en un grupo sin confirmar: lo devuelve a tu mano.
 function onStagedClick(i) { unstageGroup(i); }
@@ -330,7 +331,7 @@ function dropOnMeld(card, target, x) {
 }
 // Soltar un GRUPO entero en la mesa: sobre un plante → enganchar todas; en otro lugar de la mesa → plante nuevo.
 function dropGroup(cards, x, y) {
-  if (!cur.mustDiscard) return toast(cur.canTake ? "Primero toma una carta (el descarte o push)" : "Espera tu turno");
+  if (!cur.mustDiscard) return toast(cur.canTake ? t("Primero toma una carta (el descarte o push)") : t("Espera tu turno"));
   const target = meldAt(x, y);
   if (target && target.stage !== null) return stageIntoGroup(target.stage, cards);
   if (target) {
@@ -339,7 +340,7 @@ function dropGroup(cards, x, y) {
   }
   const shape = meldShape(cards);
   if (shape) stageGroups([{ cards, ordered: shape.ordered }]);
-  else toast(cards.length < 3 ? "Un plante necesita al menos 3 cartas" : "Esas cartas no forman un plante");
+  else toast(cards.length < 3 ? t("Un plante necesita al menos 3 cartas") : t("Esas cartas no forman un plante"));
 }
 
 // Barra sobre tu mano: qué puedes hacer y cómo va tu jugada.
@@ -349,12 +350,12 @@ function actionBar(view, planted) {
   if (cur.mustDiscard) {
     if (hasStage()) {
       const res = buildTurn(view, ui.stage, ui.pending, planted);
-      kids.push(text(res.turn ? "Jugada lista: pulsa ✓ para terminar el turno" : res.error, res.turn ? "good" : ""));
-      kids.push(h("button", { class: "act-clear", title: "Devolver a tu mano todo lo que pusiste en la mesa", onclick: clearStage }, "↶ Deshacer"));
+      kids.push(text(res.turn ? t("Jugada lista: pulsa ✓ para terminar el turno") : t(res.error), res.turn ? "good" : ""));
+      kids.push(h("button", { class: "act-clear", title: t("Devolver a tu mano todo lo que pusiste en la mesa"), onclick: clearStage }, t("↶ Deshacer")));
     } else {
       kids.push(text(planted
-        ? "Arrastra cartas a la mesa · mantén presionada la 1.ª o última carta de un grupo para llevarlo entero · termina con ✓"
-        : "Para plantarte, mantén presionada la 1.ª o última carta de cada grupo y arrástralo a la mesa · termina con ✓"));
+        ? t("Arrastra cartas a la mesa · mantén presionada la 1.ª o última carta de un grupo para llevarlo entero · termina con ✓")
+        : t("Para plantarte, mantén presionada la 1.ª o última carta de cada grupo y arrástralo a la mesa · termina con ✓")));
     }
   } else if (cur.canTake && !planted && view.melds.some((m) => meldCardsOf(m.meld).some(isWild))) {
     kids.push(text("Puedes robar un 2 antes de tomar carta: arrastra una carta que encaje sobre un 2 de la mesa"));
@@ -475,8 +476,12 @@ function beginDrag(e, { kind, mode, card, el, onTap, group, findGroup }) {
   window.addEventListener("pointercancel", end);
 }
 
+// Cuántos grupos y enganches llevas armados sin confirmar (lo usa el tutorial para saber en qué paso vas).
+export const stageInfo = () => ({ groups: ui.stage.groups.length, hooks: ui.stage.hooks.length, pending: !!ui.pending });
+
 // ---------- render de la mesa ----------
-export function renderTable(app, { view, room, rerender }) {
+// onSkip: estás en el tutorial (la barra lleva el botón «Saltar» a la izquierda de pantalla completa).
+export function renderTable(app, { view, room, rerender, onSkip }) {
   // Mientras arrastras una carta no se toca la mesa (si no, la carta que agarraste desaparecería y el movimiento se
   // perdería); al soltar se dibuja con el estado más reciente.
   if (ui.dragging) { ui.deferred = true; return; }
@@ -524,16 +529,18 @@ export function renderTable(app, { view, room, rerender }) {
 
   // --- barra superior ---
   const hint = !myTurn
-    ? `Turno de ${byId[view.current]?.name ?? "…"}`
-    : canTake ? "Tu turno: toma el descarte o haz push" : pendingCard ? "Termina con ✓" : "Arma tu jugada y descarta";
+    ? t("Turno de {name}", { name: byId[view.current]?.name ?? "…" })
+    : canTake ? t("Tu turno: toma el descarte o haz push") : pendingCard ? t("Termina con ✓") : t("Arma tu jugada y descarta");
   const topbar = h("div", { class: "topbar" },
-    h("div", { class: "r-title" }, `Ronda ${view.round} de ${view.totalRounds}`,
-      view.finalTurnsLeft != null ? h("span", { class: "last-lap", title: "Se acabó el mazo: cada jugador juega un turno más y se cuentan las manos" },
-        ` · Última vuelta (${view.finalTurnsLeft})`) : null),
+    h("div", { class: "r-title" }, t("Ronda {n} de {total}", { n: view.round, total: view.totalRounds }),
+      view.finalTurnsLeft != null ? h("span", { class: "last-lap", title: t("Se acabó el mazo: cada jugador juega un turno más y se cuentan las manos") },
+        " · " + t("Última vuelta ({n})", { n: view.finalTurnsLeft })) : null),
     goalInline(view, byId[me]),
     h("div", { class: "turn-flag" + (myTurn ? "" : " wait") }, hint, turnClock(view)),
-    h("div", { class: "top-btns" }, fsButton(),
-      h("button", { class: "fs-btn menu-btn", title: "Menú: ajustes, reglas y salir", "aria-label": "Menú", onclick: () => hooks.onMenu?.() }, "☰")));
+    h("div", { class: "top-btns" },
+      onSkip ? h("button", { class: "skip-btn", onclick: onSkip }, t("Saltar")) : null,
+      fsButton(),
+      h("button", { class: "fs-btn menu-btn", title: t("Menú: ajustes, reglas y salir"), "aria-label": t("Menú"), onclick: () => hooks.onMenu?.() }, "☰")));
 
   // --- columna de jugadores (izquierda): los demás en orden de turno y tú abajo. El que tiene el turno lleva el aro
   //     dorado alrededor del avatar: es su reloj (se va vaciando). ---
@@ -542,16 +549,16 @@ export function renderTable(app, { view, room, rerender }) {
   const seat = (p) => {
     const turn = p.id === view.current && view.phase === "playing";
     const status = p.reconnectMsLeft != null && !p.left
-      ? h("span", { class: "status-chip off reconnecting", "data-reconnect": reconnectEnds(view, p), title: "Se desconectó: si no vuelve a tiempo, abandona" }, reconnectText(reconnectEnds(view, p)))
-      : h("span", { class: "status-chip" + (p.planted ? "" : " off") }, p.left ? "Abandonó" : p.planted ? "Plantado" : p.connected ? "Sin plantar" : "Desconectado");
+      ? h("span", { class: "status-chip off reconnecting", "data-reconnect": reconnectEnds(view, p), title: t("Se desconectó: si no vuelve a tiempo, abandona") }, reconnectText(reconnectEnds(view, p)))
+      : h("span", { class: "status-chip" + (p.planted ? "" : " off") }, p.left ? t("Abandonó") : p.planted ? t("Plantado") : p.connected ? t("Sin plantar") : t("Desconectado"));
     return h("div", { class: "p-chip seat" + (p.id === me ? " you" : "") + (turn ? " turn" : ""), "data-pid": p.id, ...(turn && turnFill(view)) },
       h("div", { class: "seat-av" },
         p.avatar ? avatarImg(p.avatar, p.name) : h("div", { class: "avatar" }, (p.name || "?")[0].toUpperCase()),
-        p.level ? h("span", { class: "seat-level", title: `Nivel ${p.level}` }, p.level) : null),
+        p.level ? h("span", { class: "seat-level", title: t("Nivel {n}", { n: p.level }) }, p.level) : null),
       h("div", { class: "seat-name" }, p.name),
       h("div", { class: "seat-meta" },
-        h("span", { class: "card-count", title: "Cartas en la mano" }, h("span", { class: "icon" }, ""), p.cards),
-        h("span", { class: "seat-total", title: "Puntos acumulados en la partida" }, p.total)),
+        h("span", { class: "card-count", title: t("Cartas en la mano") }, h("span", { class: "icon" }, ""), p.cards),
+        h("span", { class: "seat-total", title: t("Puntos acumulados en la partida") }, p.total)),
       status);
   };
   const playersCol = h("div", { class: "players-col", style: `--n:${seated.length}` }, seated.map(seat));
@@ -565,7 +572,7 @@ export function renderTable(app, { view, room, rerender }) {
   const stagedHookIds = new Set(ui.stage.hooks.map((x) => x.card.id));
   const liveHookIds = new Set((live?.hooks ?? []).map((x) => x.card.id));
   const stagedMelds = ui.stage.groups.map((g, gi) =>
-    h("div", { class: "meld staged-meld tappable", "data-stage": gi, title: "Sin confirmar: toca para devolverlo a tu mano", onclick: () => onStagedClick(gi) },
+    h("div", { class: "meld staged-meld tappable", "data-stage": gi, title: t("Sin confirmar: toca para devolverlo a tu mano"), onclick: () => onStagedClick(gi) },
       g.cards.map((c, i) => cardEl(c, "staged-card " + (isWild(c) ? "wild" : ""), i))));
   // Los consecutivos se muestran de mayor a menor (A K Q … 3); data-idx sigue siendo la posición en m.meld (robo de 2).
   const tableMelds = shownMelds.map((m) => {
@@ -581,14 +588,14 @@ export function renderTable(app, { view, room, rerender }) {
     tableMelds.splice(Math.min(Math.max(c.index, 0), tableMelds.length), 0, ph);
   }
   const mesa = h("div", { class: "mesa-panel" + (mustDiscard ? " droppable" : "") },
-    h("div", { class: "mesa-title" }, "Plantes en mesa"),
+    h("div", { class: "mesa-title" }, t("Plantes en mesa")),
     stagedMelds.length || tableMelds.length || live
       ? h("div", { class: "melds-line" }, tableMelds,
           stagedMelds.length ? h("div", { class: "staged-row" }, stagedMelds) : null,
           live ? h("div", { class: "staged-row live-row" },
-            h("div", { class: "live-tag" }, `${byId[live.by]?.name ?? "Alguien"} está armando su jugada…`),
+            h("div", { class: "live-tag" }, t("{name} está armando su jugada…", { name: byId[live.by]?.name ?? t("Alguien") })),
             live.groups.map((g) => h("div", { class: "meld live-meld" }, g.map((c, i) => cardEl(c, "live-card" + (ui.prevLive.has(c.id) ? "" : " live-new") + (isWild(c) ? " wild" : ""), i))))) : null)
-      : h("div", { class: "empty-mesa" }, mustDiscard ? "Arrastra aquí tus grupos para plantarte" : "Nadie se ha plantado todavía"));
+      : h("div", { class: "empty-mesa" }, mustDiscard ? t("Arrastra aquí tus grupos para plantarte") : t("Nadie se ha plantado todavía")));
 
   // --- mano: una cuadrícula de SIEMPRE 2 filas (alto fijo); cada carta en su casilla y las vacías son tus espacios.
   //     Mantener presionada la 1.ª o última carta de un grupo de cartas juntas lo toma entero. ---
@@ -622,22 +629,22 @@ export function renderTable(app, { view, room, rerender }) {
     if (pendingCard) {
       slotClass += " has-card tappable";
       slotBody = faceEl(pendingCard);
-      slotLabel = "Toca o arrastra para recuperarla";
+      slotLabel = t("Toca o arrastra para recuperarla");
       dragSlot = { mode: "undo", card: pendingCard, onTap: () => undoDiscard(pendingCard) };
     } else {
       slotClass += " empty-wait";
       slotBody = h("span", { class: "drop-icon" }, "⇩");
-      slotLabel = "Descartar";
+      slotLabel = t("Descartar");
     }
   } else if (top && ui.landing !== top.id) {
     slotClass += " has-card" + (canTake ? " tappable" : "");
     slotBody = faceEl(top);
-    slotLabel = canTake ? "Toca o arrastra a tu mano" : "Descarte";
+    slotLabel = canTake ? t("Toca o arrastra a tu mano") : t("Descarte");
     if (canTake) dragSlot = { mode: "take", card: top, onTap: () => takeDiscard(top) };
   } else {
     slotClass += " empty-wait idle";
     slotBody = h("span", { class: "drop-icon" }, "…");
-    slotLabel = "Descarte";
+    slotLabel = t("Descarte");
   }
   const slotEl = h("div", { id: "unifiedSlot", class: slotClass }, slotBody);
   if (dragSlot) slotEl.addEventListener("pointerdown", (e) => beginDrag(e, { kind: "slot", el: slotEl, ...dragSlot }));
@@ -648,26 +655,26 @@ export function renderTable(app, { view, room, rerender }) {
   const payers = view.players.filter((p) => !isBot(p.id)).length;   // los bots no pagan cuota
   const pot = (view.entryFee ?? 0) * payers;                         // lo que se lleva el ganador de la partida
   const rail = h("div", { class: "action-rail" },
-    pot ? h("div", { class: "rail-pill pot", title: `Cuota de ${view.entryFee} fichas × ${payers} jugadores: se lo lleva el ganador de la partida` },
-      h("div", { class: "val" }, coinImg("coin"), pot.toLocaleString("es")),
-      h("div", { class: "sub" }, "Pozo")) : null,
+    pot ? h("div", { class: "rail-pill pot", title: t("Cuota de {fee} fichas × {n} jugadores: se lo lleva el ganador de la partida", { fee: view.entryFee, n: payers }) },
+      h("div", { class: "val" }, coinImg("coin"), num(pot)),
+      h("div", { class: "sub" }, t("Pozo"))) : null,
     h("div", { class: "rail-center-group" },
-      h("div", { class: "sort-btn", "aria-label": "Ordenar por consecutivos", onclick: () => sortHand("runs") }, h("div", { class: "val" }, "789")),
-      h("div", { class: "sort-btn", "aria-label": "Ordenar por tríos", onclick: () => sortHand("sets") }, h("div", { class: "val" }, "777")),
+      h("div", { class: "sort-btn", "aria-label": t("Ordenar por consecutivos"), onclick: () => sortHand("runs") }, h("div", { class: "val" }, "789")),
+      h("div", { class: "sort-btn", "aria-label": t("Ordenar por tríos"), onclick: () => sortHand("sets") }, h("div", { class: "val" }, "777")),
       h("button", {
         class: "push-btn" + (canTake && view.deckCount >= 2 ? "" : " disabled"),
-        title: view.deckCount < 2 ? "Se acabó el mazo: solo puedes tomar el descarte" : "",
+        title: view.deckCount < 2 ? t("Se acabó el mazo: solo puedes tomar el descarte") : "",
         onclick: () => canTake && (view.deckCount < 2 ? toast("Se acabó el mazo: solo puedes tomar el descarte") : actions.push(room)),
       },
-        h("span", { class: "p-badge" }, "P"), h("span", { class: "p-text" }, "Push")),
+        h("span", { class: "p-badge" }, "P"), h("span", { class: "p-text" }, t("Push"))),
       slotEl,
       h("div", { class: "slot-label" }, slotLabel),
-      h("div", { class: "deck-count", title: "Cartas que quedan en el mazo" },
+      h("div", { class: "deck-count", title: t("Cartas que quedan en el mazo") },
         h("span", { class: "deck-back" }), h("span", { class: "deck-num" }, view.deckCount)),
       h("button", {
-        class: "confirm-btn " + confirmState, title: turnCheck?.error ?? "", "aria-label": "Terminar turno",
+        class: "confirm-btn " + confirmState, title: turnCheck?.error ? t(turnCheck.error) : "", "aria-label": t("Terminar turno"),
         onclick: (e) => confirmTurn(e.currentTarget),
-      }, h("span", { class: "ck" }, "✓"), h("span", { class: "ck-lbl" }, "Terminar turno"))));
+      }, h("span", { class: "ck" }, "✓"), h("span", { class: "ck-lbl" }, t("Terminar turno")))));
 
   // Cuadrícula de la mesa: jugadores a la izquierda; arriba la barra; el tablero al centro con el riel a su derecha
   // (empieza a la misma altura); abajo el atril de madera, pegado al borde. El contenedor del atril da el ancho disponible.
@@ -709,7 +716,7 @@ function reconnectEnds(view, p) {
   const m = reconnectAt.get(view);
   return (m[p.id] ??= Date.now() + p.reconnectMsLeft);
 }
-const reconnectText = (endsAt) => `Reconectando… ${Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))} s`;
+const reconnectText = (endsAt) => t("Reconectando… {s} s", { s: Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)) });
 
 // Relleno de la ficha del jugador en turno: 1 = turno recién empezado, 0 = se acabó el tiempo (sin límite: lleno).
 function turnFill(view) {
@@ -740,36 +747,36 @@ function overlay(view, room) {
     .sort((a, b) => (!!a.left - !!b.left) || a.total - b.total || (view.roundScores?.[a.id] ?? 0) - (view.roundScores?.[b.id] ?? 0))
     .map((p) =>
       h("div", { class: "score-row" + (p.id === view.winner ? " win" : "") },
-        h("div", { class: "p-name" }, p.name, p.id === view.winner ? " 🏆" : "", p.left ? " (abandonó)" : ""),
+        h("div", { class: "p-name" }, p.name, p.id === view.winner ? " 🏆" : "", p.left ? t(" (abandonó)") : ""),
         h("div", { class: "pts" }, `+${view.roundScores?.[p.id] ?? 0}`),
         h("div", { class: "tot" }, p.total)));
   const title = finished
-    ? `Ganó ${view.gameWinners.map((id) => byId[id].name).join(" y ")}`
-    : view.winner ? `Ronda ${view.round}: ganó ${byId[view.winner].name}` : `Ronda ${view.round}: se acabó el mazo`;
+    ? t("Ganó {names}", { names: view.gameWinners.map((id) => byId[id].name).join(t(" y ")) })
+    : view.winner ? t("Ronda {n}: ganó {name}", { n: view.round, name: byId[view.winner].name }) : t("Ronda {n}: se acabó el mazo", { n: view.round });
   return h("div", { class: "overlay" },
     h("div", { class: "overlay-card" },
       h("h2", {}, title),
-      h("div", { class: "score-head" }, h("span", {}, "Jugador"), h("span", {}, "Ronda"), h("span", {}, "Total")),
+      h("div", { class: "score-head" }, h("span", {}, t("Jugador")), h("span", {}, t("Ronda")), h("span", {}, t("Total"))),
       rows,
       finished ? rewardsBox(view) : null,
       finished
-        ? h("button", { class: "primary", onclick: () => hooks.onExit() }, "Volver al menú")
+        ? h("button", { class: "primary", onclick: () => hooks.onExit() }, t("Volver al menú"))
         : isHost
-          ? h("button", { class: "primary", onclick: () => actions.nextRound(room) }, "Siguiente ronda")
-          : h("div", { class: "hint" }, "Esperando al anfitrión…")));
+          ? h("button", { class: "primary", onclick: () => actions.nextRound(room) }, t("Siguiente ronda"))
+          : h("div", { class: "hint" }, t("Esperando al anfitrión…"))));
 }
 
 // Tus premios al terminar la partida (XP y fichas). Los invitados sin cuenta no tienen.
 function rewardsBox(view) {
   const r = view.rewards?.[view.you];
   if (!r) return null;
-  if (r.left) return h("div", { class: "rewards" }, h("div", { class: "rewards-row" }, h("span", {}, "Abandonaste: sin XP y sin la cuota")));
-  const place = ["1.º", "2.º", "3.º", "4.º"][r.place] ?? "";
+  if (r.left) return h("div", { class: "rewards" }, h("div", { class: "rewards-row" }, h("span", {}, t("Abandonaste: sin XP y sin la cuota"))));
+  const place = t(["1.º", "2.º", "3.º", "4.º"][r.place] ?? "");
   return h("div", { class: "rewards" },
     h("div", { class: "rewards-row" },
-      h("span", {}, "Puesto ", h("b", {}, place)),
+      h("span", {}, t("Puesto "), h("b", {}, place)),
       h("span", {}, "+", h("b", {}, r.xp), " XP"),
-      view.entryFee ? h("span", {}, "Fichas ", h("b", {}, (r.chips > 0 ? "+" : "") + r.chips)) : null));
+      view.entryFee ? h("span", {}, t("Fichas "), h("b", {}, (r.chips > 0 ? "+" : "") + r.chips)) : null));
 }
 
 // ---------- objetivo de la ronda ----------
@@ -786,10 +793,10 @@ function goalInline(view, mePlayer) {
     let samples, label;
     if (g.kind === "set") {
       samples = g.size === 3 ? [mini("7", "♠"), mini("7", "♥"), mini("7", "♦")] : [mini("7", "♠"), mini("7", "♥"), mini("7", "♦"), mini("7", "♣")];
-      label = g.size === 3 ? (g.count > 1 ? "tríos" : "trío") : g.count > 1 ? "cuartetos" : "cuarteto";
+      label = g.size === 3 ? (g.count > 1 ? t("tríos") : t("trío")) : g.count > 1 ? t("cuartetos") : t("cuarteto");
     } else {
       samples = [mini("6", "♣"), mini("5", "♣"), mini("4", "♣"), h("span", { class: "mini-dots" }, "…")];
-      label = `consecutivo${g.count > 1 ? "s" : ""} de ${g.size}`;
+      label = t(g.count > 1 ? "consecutivos de {n}" : "consecutivo de {n}", { n: g.size });
     }
     return h("div", { class: "req-pill" },
       g.count > 1 ? h("span", { class: "req-count" }, `${g.count}×`) : null,
@@ -797,21 +804,21 @@ function goalInline(view, mePlayer) {
       h("span", { class: "req-label" }, label));
   });
   const withPlus = pills.flatMap((p, i) => (i ? [h("span", { class: "req-plus" }, "+"), p] : [p]));
-  if (mePlayer?.planted) return h("div", { class: "goal-inline" }, h("span", { class: "goal-title done" }, "Plantado ✓"), infoButton());
-  return h("div", { class: "goal-inline" }, h("span", { class: "goal-title" }, "Plantarte:"), withPlus, infoButton());
+  if (mePlayer?.planted) return h("div", { class: "goal-inline" }, h("span", { class: "goal-title done" }, t("Plantado ✓")), infoButton());
+  return h("div", { class: "goal-inline" }, h("span", { class: "goal-title" }, t("Plantarte:")), withPlus, infoButton());
 }
 
 // Botón ⓘ: la explicación aparece al pasar el cursor (o al tocarlo en el celular), sin hacer clic.
 function infoButton() {
   const row = (term, text) => h("div", { class: "info-row" }, h("b", {}, term), " ", text);
-  return h("span", { class: "info", tabindex: "0", "aria-label": "Qué es un trío, un cuarteto y un consecutivo" },
+  return h("span", { class: "info", tabindex: "0", "aria-label": t("Qué es un trío, un cuarteto y un consecutivo") },
     "i",
     h("div", { class: "info-pop" },
-      row("Trío:", "3 cartas del mismo número, de cualquier palo."),
-      row("Cuarteto:", "4 cartas del mismo número, de cualquier palo."),
-      row("Consecutivo:", "cartas seguidas del mismo palo (ej. 8♣ 7♣ 6♣ 5♣ 4♣). Orden A, K, Q … 3."),
-      row("Mínimo:", "los grupos pueden ser más grandes de lo que se pide."),
-      row("El 2:", "es comodín y reemplaza cualquier carta.")));
+      row(t("Trío:"), t("3 cartas del mismo número, de cualquier palo.")),
+      row(t("Cuarteto:"), t("4 cartas del mismo número, de cualquier palo.")),
+      row(t("Consecutivo:"), t("cartas seguidas del mismo palo (ej. 8♣ 7♣ 6♣ 5♣ 4♣). Orden A, K, Q … 3.")),
+      row(t("Mínimo:"), t("los grupos pueden ser más grandes de lo que se pide.")),
+      row(t("El 2:"), t("es comodín y reemplaza cualquier carta."))));
 }
 
 // ---------- animación del push (spec sección 5: dos tiempos) ----------

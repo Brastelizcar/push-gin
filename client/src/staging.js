@@ -5,6 +5,7 @@ import { buildSet, buildRun, extendMeld } from "../../src/logic/melds.js";
 import { rankValues } from "../../src/logic/cards.js";
 import { splitTurnGroups } from "../../src/logic/plan.js";
 import { resolveTurn } from "../../src/logic/turn.js";
+import { t } from "./i18n.js";
 
 // ¿Estas cartas (en este orden) forman un plante? Primero respeta el orden (el 2 vale por su posición).
 // Devuelve { ordered } o null.
@@ -88,9 +89,9 @@ export function buildTurn(view, stage, discardId, planted) {
   const roundIndex = view.round - 1;
   const split = splitTurnGroups(stage.groups, roundIndex, planted);
   const need = view.requirement?.length ?? 0;
-  if (!split && stage.groups.length < need) return { error: `Para plantarte faltan grupos: llevas ${stage.groups.length} de ${need}` };
-  if (!split) return { error: "Los grupos de la mesa no cumplen lo que pide la ronda" };
-  if (!discardId) return { error: "Arrastra al descarte la carta con la que terminas el turno" };
+  if (!split && stage.groups.length < need) return { error: t("Para plantarte faltan grupos: llevas {n} de {need}", { n: stage.groups.length, need }) };
+  if (!split) return { error: t("Los grupos de la mesa no cumplen lo que pide la ronda") };
+  if (!discardId) return { error: t("Arrastra al descarte la carta con la que terminas el turno") };
   const ids = (g) => ({ cardIds: g.cards.map((c) => c.id), ordered: g.ordered === true });
   const turn = {
     plant: split.plant.map(ids),

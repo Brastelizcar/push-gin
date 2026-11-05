@@ -1,6 +1,7 @@
 # Push Gin — guía para trabajar en este repositorio
 
-Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el navegador. Todo el texto de la interfaz y los comentarios van en **español**.
+Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el navegador. El código y los comentarios
+van en **español**; la interfaz está en español e inglés (ver "Idiomas").
 
 ## Estructura
 - `src/logic/` — lógica PURA del juego (sin red ni DOM). La usan el servidor y el cliente.
@@ -119,6 +120,22 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
   opción `practice: nBots`; los bots juegan en `PushGinRoom`) y da la **mitad del XP** (`PRACTICE_XP_FACTOR`), sin fichas.
   Sin cuenta o sin conexión corre en el navegador (`client/src/practice.js`) y no da XP. El tiempo de turno se elige
   en Juego privado y en Práctica.
+
+## Idiomas y tutorial
+- **Idiomas** (`client/src/i18n.js`, `client/src/en.js`): el texto en ESPAÑOL es la clave. Todo texto visible va con
+  `t("…", { datos })` (con `{marcadores}`); `toast()` traduce solo, y así también los errores que manda el servidor
+  (que siempre llegan en español). Claves que terminan en `{rest}`: prefijos de mensajes con datos al final. Números
+  con `num()`. Texto nuevo → agregar su inglés en `en.js`: `client/test/i18n.test.js` falla si falta alguno o si los
+  marcadores no coinciden. El idioma se guarda en `localStorage` (`pushgin:lang`; si no hay, el del navegador).
+- Botón de idioma (`langButton`, ref. `docs/referencias/btonidioma*.png`): bandera redonda + nombre; español con la
+  bandera de **Colombia** (`client/public/flags/co.svg`), inglés mitad EE. UU. / mitad Reino Unido (`en.svg`). Está
+  arriba a la izquierda en la bienvenida y en Ajustes; al tocarlo cambia al otro idioma y se redibuja todo.
+- **Tutorial** (`client/src/tutorial.js`): al crear la cuenta se entra directo (también desde Ajustes → Tutorial, fuera
+  de partida). Es una ronda de práctica local con reparto preparado (`tutorialSetup`, opción `setup` de startPractice)
+  y bots que nunca hacen push (`noPush`). Un "entrenador" explica cada paso (`nextStep`, función pura que avanza con
+  lo que pasa en la mesa; usa `stageInfo()` de table.js): objetivo, plantarse, tomar el descarte, armar tríos (el 2
+  comodín), descartar, push, enganchar y ganar la ronda; puntos y consejos al final. «Saltar» va en la barra de la mesa,
+  a la izquierda de pantalla completa (`renderTable(..., { onSkip })`).
 
 ## Cuentas (Lote 3)
 - `src/logic/progress.js`: XP por puesto (100/50/30/10), nivel N→N+1 = 100×N XP, pozo de cuotas, fichas gratis (300 / 24 h).

@@ -2,6 +2,7 @@
 // Estilo de la mesa (fieltro, madera y dorado); la disposición sigue las referencias de docs/referencias/.
 import "./menus.css";
 import { h, toast, fsButton, avatarImg, coinImg } from "./dom.js";
+import { t, num, getLang, setLang } from "./i18n.js";
 import { AVATAR_COUNT } from "../../src/logic/avatars.js";
 import { BOT_NAMES, botAvatars } from "../../src/logic/bot.js";
 import { formatCountdown, normalizeSyncCode, formatSyncCode, suitColor } from "./format.js";
@@ -16,11 +17,11 @@ function stepper(list, value, label, show, onChange) {
     h("div", { class: "m-step-val" }, show(value)),
     h("div", { class: "m-step-lbl" }, label),
     h("div", { class: "m-step-btns" },
-      h("button", { "aria-label": `Bajar ${label}`, disabled: i <= 0, onclick: () => onChange(list[i - 1]) }, "−"),
-      h("button", { "aria-label": `Subir ${label}`, disabled: i >= list.length - 1, onclick: () => onChange(list[i + 1]) }, "+")));
+      h("button", { "aria-label": t("Bajar {x}", { x: label }), disabled: i <= 0, onclick: () => onChange(list[i - 1]) }, "−"),
+      h("button", { "aria-label": t("Subir {x}", { x: label }), disabled: i >= list.length - 1, onclick: () => onChange(list[i + 1]) }, "+")));
 }
 const showTime = (t) => (t ? h("span", {}, t, h("small", {}, "s")) : "∞");
-const timeHint = (t) => (t ? `Si se acaba el tiempo, el turno se juega solo (se descarta la carta que tomaste).` : "Sin límite de tiempo por turno.");
+const timeHint = (secs) => (secs ? t("Si se acaba el tiempo, el turno se juega solo (se descarta la carta que tomaste).") : t("Sin límite de tiempo por turno."));
 
 const coin = () => coinImg();
 const frame = (cls, ...content) =>
@@ -31,25 +32,39 @@ const frame = (cls, ...content) =>
 export function avatar(name, level, size = "", n = null, onClick = null) {
   return h(onClick ? "button" : "div", {
     class: `m-avatar ${size}${n ? " with-img" : ""}${onClick ? " pickable" : ""}`,
-    ...(onClick && { onclick: onClick, title: "Cambiar avatar", "aria-label": "Cambiar avatar" }),
+    ...(onClick && { onclick: onClick, title: t("Cambiar avatar"), "aria-label": t("Cambiar avatar") }),
   },
     n ? avatarImg(n, name) : h("span", { class: "m-avatar-letter" }, (name || "?")[0].toUpperCase()),
-    level ? h("span", { class: "m-level", title: `Nivel ${level}` }, level) : null);
+    level ? h("span", { class: "m-level", title: t("Nivel {n}", { n: level }) }, level) : null);
+}
+
+// ---------- botón de idioma (ref. docs/referencias/btonidioma.png y btonidioma2.png) ----------
+// Muestra el idioma actual con su bandera (español: Colombia); al tocarlo cambia al otro y se redibuja todo.
+const LANG_INFO = { es: { flag: "co", label: "ESPAÑOL" }, en: { flag: "en", label: "ENGLISH" } };
+export function langButton(onChange, extraClass = "") {
+  const cur = LANG_INFO[getLang()];
+  return h("button", {
+    class: `m-lang-btn ${extraClass}`, title: t("Cambiar idioma"), "aria-label": t("Cambiar idioma"),
+    onclick: () => { setLang(getLang() === "es" ? "en" : "es"); onChange?.(); },
+  },
+    h("img", { class: "m-lang-flag", src: `${import.meta.env.BASE_URL}flags/${cur.flag}.svg`, alt: "", draggable: "false" }),
+    h("span", {}, cur.label));
 }
 
 // ---------- bienvenida (primera vez en este dispositivo) ----------
-export function welcomeScreen({ busy, status, onCreate, onSync }) {
-  const name = h("input", { placeholder: "Tu nombre", maxlength: "16", autocomplete: "off" });
+export function welcomeScreen({ busy, status, onCreate, onSync, onLang }) {
+  const name = h("input", { placeholder: t("Tu nombre"), maxlength: "16", autocomplete: "off" });
   const create = () => { const n = name.value.trim(); if (!n) { toast("Escribe tu nombre"); return name.focus(); } onCreate(n); };
   name.addEventListener("keydown", (e) => e.key === "Enter" && create());
   return frame("narrow",
+    langButton(onLang, "lang-corner"),
     fsButton("fs-corner"),
     h("h1", {}, "Push Gin"),
-    h("div", { class: "tagline" }, "De 3 a 4 jugadores · 5 rondas"),
-    h("div", {}, h("label", {}, "¿Cómo te llamas?"), name),
-    h("button", { class: "primary", disabled: busy, onclick: create }, "Empezar"),
+    h("div", { class: "tagline" }, t("De 3 a 4 jugadores · 5 rondas")),
+    h("div", {}, h("label", {}, t("¿Cómo te llamas?")), name),
+    h("button", { class: "primary", disabled: busy, onclick: create }, t("Empezar")),
     h("div", { class: "divider" }, "o"),
-    h("button", { disabled: busy, onclick: () => onSync() }, "Ya tengo un código de otro dispositivo"),
+    h("button", { disabled: busy, onclick: () => onSync() }, t("Ya tengo un código de otro dispositivo")),
     status ? h("div", { class: "hint wake" }, status) : null);
 }
 
@@ -57,22 +72,22 @@ export function welcomeScreen({ busy, status, onCreate, onSync }) {
 function topBar(account, { onSettings, offline, onRetry, onAvatar }) {
   if (!account) {
     return h("div", { class: "m-top" },
-      h("div", { class: "m-offline" }, offline ? "Sin conexión con el servidor" : "Cargando tu cuenta…",
-        offline ? h("button", { class: "m-small", onclick: onRetry }, "Reintentar") : null),
-      h("button", { class: "m-gear", title: "Ajustes", "aria-label": "Ajustes", onclick: onSettings }, "⚙"));
+      h("div", { class: "m-offline" }, offline ? t("Sin conexión con el servidor") : t("Cargando tu cuenta…"),
+        offline ? h("button", { class: "m-small", onclick: onRetry }, t("Reintentar")) : null),
+      h("button", { class: "m-gear", title: t("Ajustes"), "aria-label": t("Ajustes"), onclick: onSettings }, "⚙"));
   }
   const pct = Math.min(100, (account.into / account.needed) * 100);
   return h("div", { class: "m-top" },
     h("div", { class: "m-who" }, avatar(account.name, account.level, "", account.avatar, onAvatar)),
     h("div", { class: "m-profile" },
       h("div", { class: "m-name" }, account.name),
-      h("div", { class: "m-xp", title: `Nivel ${account.level}: ${account.into} de ${account.needed} XP para subir` },
-        h("div", { class: "m-xp-nums" }, h("b", {}, account.into.toLocaleString("es")), h("span", {}, ` / ${account.needed.toLocaleString("es")} XP`)),
+      h("div", { class: "m-xp", title: t("Nivel {n}: {into} de {needed} XP para subir", { n: account.level, into: num(account.into), needed: num(account.needed) }) },
+        h("div", { class: "m-xp-nums" }, h("b", {}, num(account.into)), h("span", {}, ` / ${num(account.needed)} XP`)),
         h("div", { class: "m-xp-bar" }, h("div", { class: "m-xp-fill", style: `width:${pct}%` })))),
-    h("div", { class: "m-box m-chips", title: "Tus fichas" }, coinImg("m-box-icon"), h("b", {}, account.chips.toLocaleString("es"))),
+    h("div", { class: "m-box m-chips", title: t("Tus fichas") }, coinImg("m-box-icon"), h("b", {}, num(account.chips))),
     h("div", { class: "m-top-btns" },
       fsButton("m-fs"),
-      h("button", { class: "m-gear", title: "Ajustes", "aria-label": "Ajustes", onclick: onSettings }, "⚙")));
+      h("button", { class: "m-gear", title: t("Ajustes"), "aria-label": t("Ajustes"), onclick: onSettings }, "⚙")));
 }
 
 // ---------- menú principal ----------
@@ -91,22 +106,22 @@ export function mainMenu({ account, offline, onRetry, onPrivate, onPractice, onS
   const claimBar = h("div", { class: "m-claim" + (ready ? " ready" : "") },
     h("div", { class: "m-brand" }, "Push Gin"),
     account ? h(ready ? "button" : "div", {
-      class: "m-claim-coin", ...(ready && { onclick: claim, title: `Recoger ${DAILY_CHIPS} fichas`, "aria-label": `Recoger ${DAILY_CHIPS} fichas` }),
+      class: "m-claim-coin", ...(ready && { onclick: claim, title: t("Recoger {n} fichas", { n: DAILY_CHIPS }), "aria-label": t("Recoger {n} fichas", { n: DAILY_CHIPS }) }),
     }, coinImg("m-claim-img")) : null,
     !account ? null : ready
-      ? h("button", { class: "m-claim-btn", onclick: claim }, `Recoger ${DAILY_CHIPS} fichas`)
+      ? h("button", { class: "m-claim-btn", onclick: claim }, t("Recoger {n} fichas", { n: DAILY_CHIPS }))
       : h("div", { class: "m-claim-info" },
-          h("span", { class: "m-claim-lbl" }, "Fichas gratis en:"),
+          h("span", { class: "m-claim-lbl" }, t("Fichas gratis en:")),
           h("span", { class: "m-claim-time", "data-countdown": account.claimAt }, formatCountdown(account.claimAt - Date.now())),
           h("div", { class: "m-claim-track" }, h("div", { class: "m-claim-fill", "data-claim-at": account.claimAt, style: `width:${claimPct(account.claimAt)}%` }))));
   return frame("wide-menu",
     topBar(account, { onSettings, offline, onRetry, onAvatar }),
     h("div", { class: "m-modes" },
-      mode("private", "Juego privado", privArt, onPrivate),
-      mode("practice", "Práctica", practArt, onPractice)),
+      mode("private", t("Juego privado"), privArt, onPrivate),
+      mode("practice", t("Práctica"), practArt, onPractice)),
     h("div", { class: "m-bottom m-main-bottom" },
       claimBar,
-      h("button", { class: "m-help", title: "Reglas del juego", "aria-label": "Reglas del juego", onclick: onRules }, "?")));
+      h("button", { class: "m-help", title: t("Reglas del juego"), "aria-label": t("Reglas del juego"), onclick: onRules }, "?")));
 }
 
 // ---------- ventanas (sobre el menú) ----------
@@ -114,7 +129,7 @@ function modal(title, onClose, ...content) {
   const back = h("div", { class: "m-modal-back", onclick: (e) => e.target === back && onClose() },
     h("div", { class: "m-modal", role: "dialog", "aria-label": title },
       h("div", { class: "m-modal-head" }, h("h2", {}, title),
-        h("button", { class: "m-close", "aria-label": "Cerrar", onclick: onClose }, "✕")),
+        h("button", { class: "m-close", "aria-label": t("Cerrar"), onclick: onClose }, "✕")),
       h("div", { class: "m-modal-body" }, ...content)));
   return back;
 }
@@ -122,7 +137,7 @@ function modal(title, onClose, ...content) {
 function toggle(label, key) {
   const on = settings()[key];
   const btn = h("button", { class: "m-toggle" + (on ? " on" : ""), role: "switch", "aria-checked": String(on), "aria-label": label },
-    h("span", { class: "off-lbl" }, "Apagado"), h("span", { class: "on-lbl" }, "Encendido"));
+    h("span", { class: "off-lbl" }, t("Apagado")), h("span", { class: "on-lbl" }, t("Encendido")));
   btn.addEventListener("click", () => {
     const v = !settings()[key];
     setSetting(key, v);
@@ -132,15 +147,16 @@ function toggle(label, key) {
   return h("div", { class: "m-row" }, h("span", {}, label), btn);
 }
 
-export function settingsModal({ onClose, onSync, onRules, onHelp }) {
-  return modal("Ajustes", onClose,
-    toggle("Sonidos", "sounds"),
-    toggle("Resaltar último movimiento", "highlightLast"),
-    h("div", { class: "m-row" }, h("span", {}, "Idioma"), h("span", { class: "m-lang" }, "Español")),
+export function settingsModal({ onClose, onSync, onRules, onHelp, onLang, onTutorial }) {
+  return modal(t("Ajustes"), onClose,
+    toggle(t("Sonidos"), "sounds"),
+    toggle(t("Resaltar último movimiento"), "highlightLast"),
+    h("div", { class: "m-row" }, h("span", {}, t("Idioma")), langButton(onLang)),
     h("div", { class: "m-links" },
-      h("button", { class: "m-pill", onclick: onSync }, "Sincronización"),
-      h("button", { class: "m-pill", onclick: onRules }, "Reglas del juego"),
-      h("button", { class: "m-pill round", title: "Cómo se juega en la mesa", "aria-label": "Ayuda", onclick: onHelp }, "?")));
+      onTutorial ? h("button", { class: "m-pill", onclick: onTutorial }, t("Tutorial")) : null,
+      h("button", { class: "m-pill", onclick: onSync }, t("Sincronización")),
+      h("button", { class: "m-pill", onclick: onRules }, t("Reglas del juego")),
+      h("button", { class: "m-pill round", title: t("Cómo se juega en la mesa"), "aria-label": t("Ayuda"), onclick: onHelp }, "?")));
 }
 
 // Compartir: menú nativo del teléfono si existe; si no, copiar al portapapeles.
@@ -148,9 +164,9 @@ export async function share(text, what) {
   try {
     if (navigator.share) { await navigator.share({ text }); return; }
     await navigator.clipboard.writeText(text);
-    toast(`${what} copiado`);
+    toast(t("{x} copiado", { x: what }));
   } catch (e) {
-    if (e?.name !== "AbortError") toast(`No se pudo copiar. ${what}: ${text}`);
+    if (e?.name !== "AbortError") toast(t("No se pudo copiar. {x}: {text}", { x: what, text }));
   }
 }
 
@@ -169,59 +185,59 @@ export function syncModal({ account, sync, busy, onRequestCode, onRedeem, onClos
   };
   input.addEventListener("keydown", (e) => e.key === "Enter" && redeem());
   const enter = h("div", { class: "m-sync-enter" + (account ? " hidden" : "") },
-    h("p", { class: "m-text small" }, "Escribe el código que generaste en tu otro dispositivo."),
-    h("div", { class: "m-join-row" }, input, h("button", { class: "primary", disabled: busy, onclick: redeem }, "Usar")),
-    account ? h("div", { class: "hint" }, "La cuenta de este dispositivo se reemplaza por la del código.") : null);
+    h("p", { class: "m-text small" }, t("Escribe el código que generaste en tu otro dispositivo.")),
+    h("div", { class: "m-join-row" }, input, h("button", { class: "primary", disabled: busy, onclick: redeem }, t("Usar"))),
+    account ? h("div", { class: "hint" }, t("La cuenta de este dispositivo se reemplaza por la del código.")) : null);
 
   const live = sync && sync.expiresAt > Date.now();
   const shareBox = account && h("div", { class: "m-sync-share" },
     live
-      ? [h("p", { class: "m-text" }, "Ingresa este código en tu otro dispositivo:"),
+      ? [h("p", { class: "m-text" }, t("Ingresa este código en tu otro dispositivo:")),
          h("div", { class: "m-code-row" },
            h("span", { class: "m-code big" }, formatSyncCode(sync.code)),
-           h("button", { class: "m-pill gold", onclick: () => share(formatSyncCode(sync.code), "Código") }, "Compartir código")),
-         h("p", { class: "m-text small" }, "Sirve una sola vez y vence en ",
+           h("button", { class: "m-pill gold", onclick: () => share(formatSyncCode(sync.code), t("Código")) }, t("Compartir código"))),
+         h("p", { class: "m-text small" }, t("Sirve una sola vez y vence en "),
            h("b", { "data-sync-ends": sync.expiresAt }, formatCountdown(sync.expiresAt - Date.now(), { short: true })), ".")]
-      : [h("p", { class: "m-text" }, "Para jugar con tu cuenta en otro dispositivo, genera un código y escríbelo allá."),
-         h("p", { class: "m-text small" }, "El código sirve una sola vez y vence a los 10 minutos."),
-         h("button", { class: "m-pill gold wide", disabled: busy, onclick: onRequestCode }, sync ? "Generar otro código" : "Generar código")]);
+      : [h("p", { class: "m-text" }, t("Para jugar con tu cuenta en otro dispositivo, genera un código y escríbelo allá.")),
+         h("p", { class: "m-text small" }, t("El código sirve una sola vez y vence a los 10 minutos.")),
+         h("button", { class: "m-pill gold wide", disabled: busy, onclick: onRequestCode }, sync ? t("Generar otro código") : t("Generar código"))]);
 
-  return modal("Sincronización", onClose,
+  return modal(t("Sincronización"), onClose,
     shareBox,
-    account ? h("button", { class: "m-pill wide", onclick: () => { enter.classList.remove("hidden"); input.focus(); } }, "Ingresar código") : null,
+    account ? h("button", { class: "m-pill wide", onclick: () => { enter.classList.remove("hidden"); input.focus(); } }, t("Ingresar código")) : null,
     enter);
 }
 
 export function rulesModal({ onClose }) {
   const sec = (t, ...items) => h("div", { class: "m-rules-sec" }, h("h3", {}, t), h("ul", {}, items.map((i) => h("li", {}, i))));
-  return modal("Reglas del juego", onClose,
+  return modal(t("Reglas del juego"), onClose,
     h("div", { class: "m-rules" },
-      sec("Objetivo", "Quedarte sin cartas. Se juegan 5 rondas y gana quien sume MENOS puntos."),
-      sec("Rondas (para plantarte)", "1: tres tríos", "2: un trío y un consecutivo de 5", "3: dos consecutivos de 6",
-        "4: cuatro tríos", "5: un cuarteto y un consecutivo de 8",
-        "Es lo mínimo: un grupo puede ser más grande (un cuarteto en lugar de un trío) y puedes bajar grupos de más."),
-      sec("Combinaciones", "Trío / cuarteto: mismo número, de cualquier palo. Puede tener más de 4 cartas.",
-        "Consecutivo: seguidas y del mismo palo. Orden A, K, Q, J, 10 … 3 (el As solo va junto a la K: no hay K-A-3).",
-        "El 2 es solo comodín: vale lo que pida el lugar donde lo pones. Cada grupo necesita al menos una carta que no sea 2."),
-      sec("Tu turno", "Toma el descarte, o haz «push»: la carta del mazo y el descarte van a la mano del siguiente y tú robas una.",
-        "Si ya te plantaste puedes bajar combinaciones y enganchar en plantes de la mesa (en el turno en que te plantas no se engancha).",
-        "Si se acaba el mazo se juega una vuelta más tomando el descarte; luego todos suman su mano.",
-        "Un consecutivo completo (del 3 al As) sale de la mesa.",
-        "Siempre terminas descartando una carta. Ganas la ronda al descartar la última."),
-      sec("Robo del 2", "Antes de tomar carta, si aún no te plantaste, puedes cambiar un 2 de un plante ajeno por la carta que va en su lugar. Ese turno ya no te puedes plantar."),
-      sec("Puntos en contra", "A = 15 · 2 = 20 · 10, J, Q, K = 10 · 3 a 9 = 5"),
-      sec("Experiencia y fichas", "Al terminar una partida: 1.º 100 XP, 2.º 50, 3.º 30, 4.º 10 (contra bots, la mitad). Del nivel N al N+1 hacen falta 100×N XP.",
-        `Cada 24 horas puedes reclamar ${DAILY_CHIPS} fichas gratis. En juego privado con cuota, el ganador se lleva el pozo.`)));
+      sec(t("Objetivo"), t("Quedarte sin cartas. Se juegan 5 rondas y gana quien sume MENOS puntos.")),
+      sec(t("Rondas (para plantarte)"), t("1: tres tríos"), t("2: un trío y un consecutivo de 5"), t("3: dos consecutivos de 6"),
+        t("4: cuatro tríos"), t("5: un cuarteto y un consecutivo de 8"),
+        t("Es lo mínimo: un grupo puede ser más grande (un cuarteto en lugar de un trío) y puedes bajar grupos de más.")),
+      sec(t("Combinaciones"), t("Trío / cuarteto: mismo número, de cualquier palo. Puede tener más de 4 cartas."),
+        t("Consecutivo: seguidas y del mismo palo. Orden A, K, Q, J, 10 … 3 (el As solo va junto a la K: no hay K-A-3)."),
+        t("El 2 es solo comodín: vale lo que pida el lugar donde lo pones. Cada grupo necesita al menos una carta que no sea 2.")),
+      sec(t("Tu turno"), t("Toma el descarte, o haz «push»: la carta del mazo y el descarte van a la mano del siguiente y tú robas una."),
+        t("Si ya te plantaste puedes bajar combinaciones y enganchar en plantes de la mesa (en el turno en que te plantas no se engancha)."),
+        t("Si se acaba el mazo se juega una vuelta más tomando el descarte; luego todos suman su mano."),
+        t("Un consecutivo completo (del 3 al As) sale de la mesa."),
+        t("Siempre terminas descartando una carta. Ganas la ronda al descartar la última.")),
+      sec(t("Robo del 2"), t("Antes de tomar carta, si aún no te plantaste, puedes cambiar un 2 de un plante ajeno por la carta que va en su lugar. Ese turno ya no te puedes plantar.")),
+      sec(t("Puntos en contra"), t("A = 15 · 2 = 20 · 10, J, Q, K = 10 · 3 a 9 = 5")),
+      sec(t("Experiencia y fichas"), t("Al terminar una partida: 1.º 100 XP, 2.º 50, 3.º 30, 4.º 10 (contra bots, la mitad). Del nivel N al N+1 hacen falta 100×N XP."),
+        t("Cada 24 horas puedes reclamar {n} fichas gratis. En juego privado con cuota, el ganador se lleva el pozo.", { n: DAILY_CHIPS }))));
 }
 
 export function helpModal({ onClose }) {
-  return modal("Cómo se juega en la mesa", onClose,
+  return modal(t("Cómo se juega en la mesa"), onClose,
     h("div", { class: "m-rules" },
       h("ul", {},
-        h("li", {}, "Ordena tu mano con 789 (consecutivos) o 777 (tríos), o arrastrando cartas. «Espacio» separa grupos."),
-        h("li", {}, "Arrastra una carta para moverla. Para llevar un grupo entero (trío, cuarteto o consecutivo con las cartas juntas), mantén presionada su primera o última carta y arrástralo."),
-        h("li", {}, "Suelta una carta sobre un plante para engancharla. Toca un grupo sin confirmar para devolverlo."),
-        h("li", {}, "Arrastra al descarte la carta con la que terminas y pulsa ✓. Si la jugada no vale, ✓ te dice por qué y el turno no pasa."))));
+        h("li", {}, t("Ordena tu mano con 789 (consecutivos) o 777 (tríos), o arrastrando cartas. «Espacio» separa grupos.")),
+        h("li", {}, t("Arrastra una carta para moverla. Para llevar un grupo entero (trío, cuarteto o consecutivo con las cartas juntas), mantén presionada su primera o última carta y arrástralo.")),
+        h("li", {}, t("Suelta una carta sobre un plante para engancharla. Toca un grupo sin confirmar para devolverlo.")),
+        h("li", {}, t("Arrastra al descarte la carta con la que terminas y pulsa ✓. Si la jugada no vale, ✓ te dice por qué y el turno no pasa.")))));
 }
 
 // ---------- juego privado ----------
@@ -236,19 +252,19 @@ export function privateMenu({ account, fee, turnTime, busy, status, onFee, onTur
     h("div", { class: "m-private" },
       h("div", { class: "m-panel" },
         h("div", { class: "m-steppers" },
-          stepper(TURN_TIMES, turnTime, "Tiempo de turnos", showTime, onTurnTime),
-          stepper(ENTRY_FEES, fee, "Cuota de entrada", (f) => (f ? f.toLocaleString("es") : "Gratis"), onFee)),
+          stepper(TURN_TIMES, turnTime, t("Tiempo de turnos"), showTime, onTurnTime),
+          stepper(ENTRY_FEES, fee, t("Cuota de entrada"), (f) => (f ? num(f) : t("Gratis")), onFee)),
         h("div", { class: "hint" }, fee
-          ? `Cada jugador paga ${fee} fichas al empezar; el ganador se lleva el pozo.${tooPoor ? " No te alcanzan las fichas." : ""}`
-          : "Partida sin fichas: solo se gana experiencia.")),
+          ? t("Cada jugador paga {n} fichas al empezar; el ganador se lleva el pozo.", { n: num(fee) }) + (tooPoor ? " " + t("No te alcanzan las fichas.") : "")
+          : t("Partida sin fichas: solo se gana experiencia."))),
       h("div", { class: "m-panel" },
-        h("h3", { class: "m-panel-title" }, "Unirse con código"),
-        h("p", { class: "m-text small" }, "¿Un amigo ya creó la sala? Escribe el código de 4 dígitos que te compartió."),
-        h("div", { class: "m-join-row" }, code, h("button", { class: "m-pill gold", disabled: busy, onclick: join }, "Unirse")))),
+        h("h3", { class: "m-panel-title" }, t("Unirse con código")),
+        h("p", { class: "m-text small" }, t("¿Un amigo ya creó la sala? Escribe el código de 4 dígitos que te compartió.")),
+        h("div", { class: "m-join-row" }, code, h("button", { class: "m-pill gold", disabled: busy, onclick: join }, t("Unirse"))))),
     h("div", { class: "m-bottom" },
-      h("button", { class: "m-back", "aria-label": "Volver", onclick: onBack }, "‹"),
-      h("button", { class: "m-invite", disabled: busy || tooPoor, onclick: onInvite }, "Invitar"),
-      h("div", { class: "m-screen-title" }, "Juego privado")),
+      h("button", { class: "m-back", "aria-label": t("Volver"), onclick: onBack }, "‹"),
+      h("button", { class: "m-invite", disabled: busy || tooPoor, onclick: onInvite }, t("Invitar")),
+      h("div", { class: "m-screen-title" }, t("Juego privado"))),
     status ? h("div", { class: "hint wake m-status" }, status) : null);
 }
 
@@ -259,20 +275,20 @@ export function practiceMenu({ account, bots, turnTime, onBots, onTurnTime, onPl
     h("div", { class: "m-private" },
       h("div", { class: "m-panel" },
         h("div", { class: "m-steppers" },
-          stepper([TABLE_MIN - 1, TABLE_MAX - 1], bots, "Rivales", String, onBots),
-          stepper(TURN_TIMES, turnTime, "Tiempo de turnos", showTime, onTurnTime)),
+          stepper([TABLE_MIN - 1, TABLE_MAX - 1], bots, t("Rivales"), String, onBots),
+          stepper(TURN_TIMES, turnTime, t("Tiempo de turnos"), showTime, onTurnTime)),
         h("div", { class: "hint" }, timeHint(turnTime))),
       h("div", { class: "m-panel" },
-        h("h3", { class: "m-panel-title" }, "Práctica"),
+        h("h3", { class: "m-panel-title" }, t("Práctica")),
         h("p", { class: "m-text small" }, account
-          ? "Juega contra la máquina: ganas la MITAD de la experiencia (1.º 50 XP, 2.º 25, 3.º 15, 4.º 5). No se juegan fichas."
-          : "Juega contra la máquina para aprender las rondas. Sin cuenta (o sin internet) no da experiencia."),
+          ? t("Juega contra la máquina: ganas la MITAD de la experiencia (1.º 50 XP, 2.º 25, 3.º 15, 4.º 5). No se juegan fichas.")
+          : t("Juega contra la máquina para aprender las rondas. Sin cuenta (o sin internet) no da experiencia.")),
         h("div", { class: "m-rivals" }, BOT_NAMES.slice(0, bots).map((n, i) =>
           h("div", { class: "m-rival" }, avatar(n, null, "", botAvatars(bots, account?.avatar ? [account.avatar] : [])[i]), h("span", {}, n)))))),
     h("div", { class: "m-bottom" },
-      h("button", { class: "m-back", "aria-label": "Volver", onclick: onBack }, "‹"),
-      h("button", { class: "m-invite", onclick: onPlay }, "Jugar"),
-      h("div", { class: "m-screen-title" }, "Práctica")));
+      h("button", { class: "m-back", "aria-label": t("Volver"), onclick: onBack }, "‹"),
+      h("button", { class: "m-invite", onclick: onPlay }, t("Jugar")),
+      h("div", { class: "m-screen-title" }, t("Práctica"))));
 }
 
 // ---------- sala de espera ----------
@@ -287,58 +303,58 @@ export function waitingRoom({ view, bots, onBots, onStart, onLeave }) {
   const botList = isHost && humans >= 2 ? BOT_NAMES.slice(0, nBots) : [];
   const botChoice = isHost && humans >= 2 && range.max > range.min
     ? h("div", { class: "m-steppers m-wait-bots" },
-        stepper(Array.from({ length: range.max - range.min + 1 }, (_, i) => range.min + i), nBots, nBots === 1 ? "Bot" : "Bots", String, onBots))
+        stepper(Array.from({ length: range.max - range.min + 1 }, (_, i) => range.min + i), nBots, nBots === 1 ? t("Bot") : t("Bots"), String, onBots))
     : null;
   return frame("wide-menu waiting",
     h("div", { class: "m-wait" },
-      h("div", { class: "m-wait-head" }, h("h2", {}, "Preparando la partida")),
+      h("div", { class: "m-wait-head" }, h("h2", {}, t("Preparando la partida"))),
       h("div", { class: "m-wait-body" },
         h("div", { class: "m-wait-info" },
-          h("span", {}, "Cuota de entrada: ", h("b", { class: "gold" }, view.entryFee ? view.entryFee.toLocaleString("es") : "gratis"), view.entryFee ? coin() : null),
-          h("span", {}, "Turno: ", h("b", { class: "gold" }, view.turnTime ? `${view.turnTime} s` : "sin límite")),
-          h("span", { class: "m-wait-code", title: "Código de la sala" }, view.code),
-          h("button", { class: "m-pill gold", onclick: () => share(`Únete a mi partida de Push Gin con el código ${view.code}`, "Código") }, "Compartir código")),
-        h("p", { class: "m-text" }, humans < 2 ? "Esperando a que tus amigos se unan al juego."
-          : `Jugadores: ${humans}${botList.length ? ` + ${botList.length} ${botList.length === 1 ? "bot" : "bots"}` : ""} de ${TABLE_MAX}` +
-            (range.min ? ` · Mínimo ${TABLE_MIN} en la mesa: los bots la completan.` : "")),
+          h("span", {}, t("Cuota de entrada: "), h("b", { class: "gold" }, view.entryFee ? num(view.entryFee) : t("gratis")), view.entryFee ? coin() : null),
+          h("span", {}, t("Turno: "), h("b", { class: "gold" }, view.turnTime ? `${view.turnTime} s` : t("sin límite"))),
+          h("span", { class: "m-wait-code", title: t("Código de la sala") }, view.code),
+          h("button", { class: "m-pill gold", onclick: () => share(t("Únete a mi partida de Push Gin con el código {code}", { code: view.code }), t("Código")) }, t("Compartir código"))),
+        h("p", { class: "m-text" }, humans < 2 ? t("Esperando a que tus amigos se unan al juego.")
+          : t("Jugadores: {n}", { n: humans }) + (botList.length ? ` + ${botList.length} ${botList.length === 1 ? "bot" : "bots"}` : "") + t(" de {max}", { max: TABLE_MAX }) +
+            (range.min ? " · " + t("Mínimo {min} en la mesa: los bots la completan.", { min: TABLE_MIN }) : "")),
         h("div", { class: "m-wait-players" },
           view.players.map((p) => h("div", { class: "m-wait-p" + (p.id === view.you ? " me" : "") },
             avatar(p.name, p.level, "small", p.avatar),
-            h("span", { class: "m-wait-name" }, p.name, p.id === view.you ? " (tú)" : ""),
-            p.id === view.host ? h("span", { class: "badge" }, "Anfitrión") : null)),
+            h("span", { class: "m-wait-name" }, p.name, p.id === view.you ? t(" (tú)") : ""),
+            p.id === view.host ? h("span", { class: "badge" }, t("Anfitrión")) : null)),
           botList.map((n, i) => h("div", { class: "m-wait-p bot" },
-            avatar(n, null, "small", botAvatars(nBots, view.players.map((p) => p.avatar))[i]), h("span", { class: "m-wait-name" }, n), h("span", { class: "badge" }, "Bot")))),
+            avatar(n, null, "small", botAvatars(nBots, view.players.map((p) => p.avatar))[i]), h("span", { class: "m-wait-name" }, n), h("span", { class: "badge" }, t("Bot"))))),
         botChoice,
         h("div", { class: "m-wait-btns" },
           isHost
-            ? h("button", { class: "m-btn green", disabled: !canStart, onclick: () => onStart(nBots) }, "Comenzar")
-            : h("div", { class: "hint" }, "Esperando a que el anfitrión comience…"),
-          h("button", { class: "m-btn red", onclick: onLeave }, "Dejar")))));
+            ? h("button", { class: "m-btn green", disabled: !canStart, onclick: () => onStart(nBots) }, t("Comenzar"))
+            : h("div", { class: "hint" }, t("Esperando a que el anfitrión comience…")),
+          h("button", { class: "m-btn red", onclick: onLeave }, t("Dejar"))))));
 }
 
 // Menú dentro de la partida: ajustes (sonido), reglas, ayuda y volver al menú de inicio.
 // inGame: la partida sigue en curso (salir cuenta como abandonar).
 export function gameMenuModal({ onClose, onSettings, onRules, onHelp, onExit, inGame, practiceLocal }) {
   const warn = inGame && !practiceLocal
-    ? h("p", { class: "m-text small m-warn" }, "Si sales con la partida en curso, la abandonas: pierdes la cuota y la experiencia.")
+    ? h("p", { class: "m-text small m-warn" }, t("Si sales con la partida en curso, la abandonas: pierdes la cuota y la experiencia."))
     : null;
-  return modal("Menú", onClose,
+  return modal(t("Menú"), onClose,
     h("div", { class: "m-game-menu" },
-      h("button", { class: "m-pill wide", onclick: onSettings }, "Ajustes de sonido"),
-      h("button", { class: "m-pill wide", onclick: onRules }, "Reglas del juego"),
-      h("button", { class: "m-pill wide", onclick: onHelp }, "Cómo se juega en la mesa"),
+      h("button", { class: "m-pill wide", onclick: onSettings }, t("Ajustes de sonido")),
+      h("button", { class: "m-pill wide", onclick: onRules }, t("Reglas del juego")),
+      h("button", { class: "m-pill wide", onclick: onHelp }, t("Cómo se juega en la mesa")),
       warn,
-      h("button", { class: "m-btn red wide", onclick: onExit }, inGame ? "Salir al menú de inicio" : "Volver al menú de inicio")));
+      h("button", { class: "m-btn red wide", onclick: onExit }, inGame ? t("Salir al menú de inicio") : t("Volver al menú de inicio"))));
 }
 
 // Elegir avatar: los 10 disponibles (2 filas de 5); el tuyo marcado.
 export function avatarModal({ account, busy, onPickAvatar, onClose }) {
-  return modal("Tu avatar", onClose,
+  return modal(t("Tu avatar"), onClose,
     h("div", { class: "m-avatars" },
       Array.from({ length: AVATAR_COUNT }, (_, i) => i + 1).map((n) =>
         h("button", {
           class: "m-avatar-pick" + (account?.avatar === n ? " current" : ""), disabled: busy,
-          "aria-label": `Avatar ${n}`, onclick: () => onPickAvatar(n),
+          "aria-label": t("Avatar {n}", { n }), onclick: () => onPickAvatar(n),
         }, avatarImg(n)))));
 }
 

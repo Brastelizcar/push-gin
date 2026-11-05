@@ -239,6 +239,9 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 
 /* ---------- botones de la barra superior ---------- */
 .top-btns{ display:flex; gap:6px; flex-shrink:0; }
+/* Tutorial: «Saltar» a la izquierda de pantalla completa. */
+.skip-btn{ height:30px; padding:0 14px; border-radius:8px; font-size:13px; font-weight:800; letter-spacing:.03em;
+  border:1.5px solid var(--gold); color:var(--gold-light); background:rgba(0,0,0,.35); }
 
 
 /* ---------- carta que llega del mazo tras un push ---------- */
@@ -365,3 +368,20 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
 /* Los avisos de la mano van justo encima del atril */
 .hand-rack .hand-actions{ top:auto; bottom:calc(100% + 6px); left:50%; right:auto; transform:translateX(-50%); width:max-content; max-width:min(92vw, 900px); justify-content:center; }
 @media (max-width:900px) and (orientation:landscape){ .table-felt{ grid-template-columns:88px minmax(0, 1fr) auto; } }
+
+/* ---------- tutorial: el entrenador ----------
+   Flota sobre el tablero (sin tapar el arrastre: solo sus botones reciben clics). En los pasos de bienvenida y fin de
+   ronda va en el centro y reemplaza a la tabla de puntos. */
+.coach{ position:fixed; z-index:60; left:50%; top:46%; transform:translate(-50%,-50%); width:min(520px, 56vw);
+  padding:16px 20px 14px; border-radius:16px; pointer-events:none;
+  background:linear-gradient(180deg, rgba(14,36,26,.96), rgba(8,22,16,.96)); border:2px solid var(--gold);
+  box-shadow:0 12px 34px rgba(0,0,0,.55); color:#f3ead2; }
+.coach.enter{ animation:coach-in .35s ease-out; }
+.coach.center{ top:50%; width:min(560px, 80vw); pointer-events:auto; }
+.coach-step{ font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold); opacity:.85; margin-bottom:4px; }
+.coach h3{ margin:0 0 8px; font-family:"Fraunces", serif; font-size:20px; color:var(--gold-light); }
+.coach p{ margin:0 0 7px; font-size:14px; line-height:1.45; }
+.coach-btn{ pointer-events:auto; margin-top:6px; padding:8px 22px; border-radius:999px; font-weight:800;
+  border:none; background:linear-gradient(180deg, var(--gold-light), var(--gold)); color:#2a1d05; }
+@keyframes coach-in{ from{ opacity:0; transform:translate(-50%,-46%); } to{ opacity:1; transform:translate(-50%,-50%); } }
+@media (prefers-reduced-motion: reduce){ .coach.enter{ animation:none; } }

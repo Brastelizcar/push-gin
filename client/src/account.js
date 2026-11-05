@@ -1,6 +1,7 @@
 // Tu cuenta. Este dispositivo guarda su TOKEN (el servidor solo guarda su hash) y lo envía en la cabecera
 // Authorization. XP, nivel y fichas los decide el servidor: aquí solo se muestran.
 import { HTTP_URL } from "./net.js";
+import { t } from "./i18n.js";
 
 const KEY = "pushgin:token";
 export const savedToken = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
@@ -16,10 +17,10 @@ async function call(path, { body, token = savedToken() } = {}) {
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw Object.assign(new Error("No se pudo conectar con el servidor"), { offline: true });
+    throw Object.assign(new Error(t("No se pudo conectar con el servidor")), { offline: true });
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data.error ?? "Error del servidor"), { status: res.status });
+  if (!res.ok) throw Object.assign(new Error(data.error ?? t("Error del servidor")), { status: res.status });
   return data;
 }
 

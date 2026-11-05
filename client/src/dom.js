@@ -1,4 +1,5 @@
 // Construye DOM con textContent (nunca innerHTML): los nombres vienen de otros jugadores.
+import { t } from "./i18n.js";
 export function h(tag, props = {}, ...children) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
@@ -11,9 +12,10 @@ export function h(tag, props = {}, ...children) {
 }
 
 let toastTimer;
+// Los avisos se traducen solos (sirve para los errores que manda el servidor, que llegan en español).
 export function toast(msg) {
   const el = document.getElementById("toast");
-  el.textContent = msg;
+  el.textContent = t(msg);
   el.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
@@ -23,7 +25,7 @@ export function toast(msg) {
 // (En iPhone/Safari la API no existe: el botón no se muestra. Ahí sirve "Añadir a pantalla de inicio".)
 export function fsButton(extraClass = "") {
   if (!document.fullscreenEnabled) return null;
-  const btn = h("button", { class: `fs-btn ${extraClass}`, title: "Pantalla completa", "aria-label": "Pantalla completa" }, "⛶");
+  const btn = h("button", { class: `fs-btn ${extraClass}`, title: t("Pantalla completa"), "aria-label": t("Pantalla completa") }, "⛶");
   btn.addEventListener("click", async () => {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
@@ -36,9 +38,10 @@ export function fsButton(extraClass = "") {
   });
   return btn;
 }
-document.addEventListener("fullscreenchange", () => {
+// (el botón ☰ del menú usa el mismo estilo .fs-btn: no se toca)
+if (typeof document !== "undefined") document.addEventListener("fullscreenchange", () => {
   const on = !!document.fullscreenElement;
-  document.querySelectorAll(".fs-btn").forEach((b) => (b.textContent = on ? "🗗" : "⛶"));
+  document.querySelectorAll(".fs-btn:not(.menu-btn)").forEach((b) => (b.textContent = on ? "🗗" : "⛶"));
 });
 
 

@@ -6,7 +6,7 @@ import { Match, TABLE_MIN, TABLE_MAX } from "../../src/logic/match.js";
 import { botMove, BOT_NAMES, botAvatars, liveOfTurn, BOT_SHOW_MS } from "../../src/logic/bot.js";
 
 export { BOT_NAMES };
-const ME = "tú";
+export const ME = "tú";
 const BOT_DELAY = [1500, 2400]; // ms que "piensa" cada bot antes de cada movimiento (al azar dentro del rango)
 
 /**
@@ -15,7 +15,9 @@ const BOT_DELAY = [1500, 2400]; // ms que "piensa" cada bot antes de cada movimi
  * Devuelve la sala local: { roomId, send(type, msg), leave() }.
  */
 // botDelay: [mín, máx] ms que piensa cada bot · botShow: ms que se ve su jugada antes de terminar (las pruebas los acortan).
-export function startPractice({ name, level = null, avatar = null, bots = 2, turnTime = 0, rng, botDelay = BOT_DELAY, botShow = BOT_SHOW_MS }, handlers) {
+// setup(match): se llama al empezar la partida, antes de mostrarla (el tutorial prepara ahí un reparto fijo).
+// noPush: los bots nunca hacen push, siempre toman el descarte (el tutorial: así no te pasan cartas).
+export function startPractice({ name, level = null, avatar = null, bots = 2, turnTime = 0, rng, botDelay = BOT_DELAY, botShow = BOT_SHOW_MS, setup, noPush = false }, handlers) {
   const match = new Match({ turnTime, rng });
   match.addPlayer(ME, name, level, avatar);
   const nBots = Math.max(TABLE_MIN - 1, Math.min(TABLE_MAX - 1, bots));
@@ -53,7 +55,8 @@ export function startPractice({ name, level = null, avatar = null, bots = 2, tur
         emit(res.event);
       };
       botTimer = setTimeout(() => {
-        const mv = botMove(match.viewFor(pid));
+        let mv = botMove(match.viewFor(pid));
+        if (noPush && mv.type === "push") mv = { type: "takeDiscard" };
         // Si va a bajar o enganchar, primero se ve su jugada en vivo y un momento después termina el turno.
         const live = mv.type === "playTurn" ? liveOfTurn(mv.msg) : null;
         if (live && match.setLive(pid, live).ok) {
@@ -90,6 +93,7 @@ export function startPractice({ name, level = null, avatar = null, bots = 2, tur
   };
 
   match.handle(ME, "start");
+  setup?.(match);
   setTimeout(() => emit(), 0);
   return room;
 }
