@@ -11,7 +11,8 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
   - `bot.js` jugador automático (solo ve su propia vista; nombres y avatares de los bots) · `progress.js` XP, niveles y fichas
   - `avatars.js` los 10 avatares (`client/public/avatars/avatar-N.webp`, recortados de `docs/referencias/avatares*.png`:
     1 y 2 de avatares4/5, 3–8 de avatares1/2, 9 y 10 de avatares3;
-    por dentro del aro dorado y con el fondo verde pasado a vino tinto, para que no se pierdan en el fieltro)
+    por dentro del aro dorado y con el fondo verde pasado a vino tinto, para que no se pierdan en el fieltro; el fondo
+    de 3–8 se llevó a la luz y saturación de los de avatares3/4/5 para que todos tengan el mismo vino tinto)
 - `test/` — pruebas de la lógica (`npm test` en la raíz, `node --test`).
 - `server/` — servidor Colyseus 0.18 (`PushGinRoom`). Pruebas con mocha (`cd server && npm test`).
 - `client/` — Vite + JS sin framework. `table.js` es la mesa; `main.js` las pantallas. Pruebas puras en `client/test` (`cd client && npm test`).
