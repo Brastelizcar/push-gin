@@ -361,7 +361,7 @@ describe("PushGinRoom", () => {
     await until(() => room.game.currentPlayer === a.sessionId);   // el bot jugó y le devolvió el turno a Ana
     assert.equal(room.game.currentPlayer, a.sessionId);
     await until(() => a.view.current === a.sessionId);  // la vista de Ana ya llegó
-    assert.equal(a.view.players[2].cards, 10);
+    assert.equal(a.view.players[2].cards, room.game.hands.bot1.length);   // puede haberse plantado: lo que tiene de verdad
   });
 
   it("juego privado: el anfitrión puede pedir 2 bots para ser 4; nunca más de 4 en la mesa", async () => {

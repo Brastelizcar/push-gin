@@ -1,6 +1,6 @@
-// Avatares de los jugadores: imágenes client/public/avatars/avatar-1.webp … avatar-8.webp (retratos con fondo
+// Avatares de los jugadores: imágenes client/public/avatars/avatar-1.webp … avatar-10.webp (retratos con fondo
 // vino tinto, sin aro: el aro dorado de la mesa es el reloj del turno).
-export const AVATAR_COUNT = 8;
+export const AVATAR_COUNT = 10;
 export const isAvatar = (n) => Number.isInteger(n) && n >= 1 && n <= AVATAR_COUNT;
 export const randomAvatar = (rng = Math.random) => 1 + Math.floor(rng() * AVATAR_COUNT);
 

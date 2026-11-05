@@ -16,16 +16,16 @@ test("777: el 2 es solo comodín (no se agrupa) y las sueltas van al final", () 
   assert.deepEqual(show(groupSets(cs("2♠", "2♥", "2♦", "9♣"))), ["2♠ 2♥ 2♦ 9♣"]);
 });
 test("789: escalera simple y sueltas", () => {
-  assert.deepEqual(show(groupRuns(cs("7♥", "5♥", "6♥", "9♠", "K♦"))), ["5♥ 6♥ 7♥", "9♠ K♦"]);
+  assert.deepEqual(show(groupRuns(cs("7♥", "5♥", "6♥", "9♠", "K♦"))), ["7♥ 6♥ 5♥", "9♠ K♦"]);
 });
 test("789: un 6♥ repetido no rompe ni duplica la escalera", () => {
   const g = show(groupRuns(cs("5♥", "6♥", "6♥", "7♥")));
-  assert.deepEqual(g, ["5♥ 6♥ 7♥", "6♥"]);
+  assert.deepEqual(g, ["7♥ 6♥ 5♥", "6♥"]);
 });
-test("789: el orden es 3→K,A; el As va después de la K y el 2 no entra en las escaleras", () => {
-  assert.deepEqual(show(groupRuns(cs("Q♠", "K♠", "A♠"))), ["Q♠ K♠ A♠"]);           // Q-K-A
-  assert.deepEqual(show(groupRuns(cs("A♠", "2♠", "3♠", "4♠"))), ["3♠ 4♠", "2♠ A♠"]); // no hay A-2-3
-  assert.deepEqual(show(groupRuns(cs("3♣", "4♣", "A♣", "2♦"))), ["3♣ 4♣", "2♦ A♣"]);
+test("789: el orden es A,K,Q…3; el As va junto a la K y el 2 no entra en las escaleras", () => {
+  assert.deepEqual(show(groupRuns(cs("Q♠", "K♠", "A♠"))), ["A♠ K♠ Q♠"]);           // A-K-Q
+  assert.deepEqual(show(groupRuns(cs("A♠", "2♠", "3♠", "4♠"))), ["4♠ 3♠", "2♠ A♠"]); // no hay 3-2-A
+  assert.deepEqual(show(groupRuns(cs("3♣", "4♣", "A♣", "2♦"))), ["4♣ 3♣", "2♦ A♣"]);
 });
 test("no se pierde ni se duplica ninguna carta", () => {
   const hand = cs("5♠", "5♠", "5♥", "6♠", "6♠", "7♠", "2♥", "K♦", "A♦", "A♦", "J♣");

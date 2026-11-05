@@ -68,7 +68,7 @@ export function mountAccountRoutes(app) {
     res.json({ account: publicAccount(await (await initStore()).rename(acc.id, name)) });
   }));
 
-  // Cambiar tu avatar (uno de los 8 disponibles).
+  // Cambiar tu avatar (uno de los disponibles, AVATAR_COUNT).
   app.post("/api/account/avatar", safe(async (req, res) => {
     const acc = await auth(req, res); if (!acc) return;
     const avatar = req.body?.avatar;

@@ -2,7 +2,8 @@
 
 1. **Push**: la carta ciega + el descarte viejo pasan a la MANO del siguiente jugador (no al pozo).
 2. **Orden de las cartas: A,K,Q,J,10…3** (corregido con el usuario, 4-nov-2026). Un consecutivo va de 3 a A (valores
-   3…14, `RUN_LOW`/`RUN_HIGH`): el As solo va después de la K; no hay A-3 ni K-A-3. El más largo tiene 12 cartas.
+   3…14, `RUN_LOW`/`RUN_HIGH`): el As solo va junto a la K; no hay A-3 ni K-A-3. El más largo tiene 12 cartas. Se
+   MUESTRAN de mayor a menor (A K Q … 3), como los nombra el usuario.
 3. **El 2 es SOLO comodín** (4-nov-2026; antes también era número). En un trío vale el número del trío; en un
    consecutivo vale el número de la POSICIÓN donde se ubica (5♥ 6♥ 2 → el 2 es un 7; 2 5♥ 6♥ → el 2 es un 4). Para
    eso las cartas se envían en orden (`ordered:true`, ascendente o descendente) y el orden de tu mano decide la

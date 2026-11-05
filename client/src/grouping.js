@@ -23,7 +23,7 @@ export function groupSets(cards) {
   return finish([...groups, ...cards.filter(isWild).map((c) => [c])]);
 }
 
-// 789: seguidas del mismo palo. El orden es 3,4…K,A (el As solo va después de la K).
+// 789: seguidas del mismo palo, de mayor a menor: A,K,Q…3 (el As solo va junto a la K).
 export function groupRuns(cards) {
   const bySuit = {};
   cards.filter((c) => !isWild(c)).forEach((c) => (bySuit[c.suit] ??= []).push(c));
@@ -45,9 +45,9 @@ export function groupRuns(cards) {
         else { if (run.length) runs.push(run); run = [c]; }
       }
       if (run.length) runs.push(run);
-      groups.push(...runs);
+      groups.push(...runs.map((r) => r.reverse()));
     }
   }
-  groups.sort((a, b) => b.length - a.length || SUITS.indexOf(a[0].suit) - SUITS.indexOf(b[0].suit) || VAL(a[0].rank) - VAL(b[0].rank));
+  groups.sort((a, b) => b.length - a.length || SUITS.indexOf(a[0].suit) - SUITS.indexOf(b[0].suit) || VAL(b[0].rank) - VAL(a[0].rank));
   return finish([...groups, ...cards.filter(isWild).map((c) => [c])]);
 }

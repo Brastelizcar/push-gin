@@ -201,7 +201,7 @@ export function rulesModal({ onClose }) {
         "4: cuatro tríos", "5: un cuarteto y un consecutivo de 8",
         "Es lo mínimo: un grupo puede ser más grande (un cuarteto en lugar de un trío) y puedes bajar grupos de más."),
       sec("Combinaciones", "Trío / cuarteto: mismo número, de cualquier palo. Puede tener más de 4 cartas.",
-        "Consecutivo: seguidas y del mismo palo. Orden 3, 4 … 10, J, Q, K, A (el As solo va después de la K).",
+        "Consecutivo: seguidas y del mismo palo. Orden A, K, Q, J, 10 … 3 (el As solo va junto a la K: no hay K-A-3).",
         "El 2 es solo comodín: vale lo que pida el lugar donde lo pones. Cada grupo necesita al menos una carta que no sea 2."),
       sec("Tu turno", "Toma el descarte, o haz «push»: la carta del mazo y el descarte van a la mano del siguiente y tú robas una.",
         "Si ya te plantaste puedes bajar combinaciones y enganchar en plantes de la mesa (en el turno en que te plantas no se engancha).",
@@ -331,7 +331,7 @@ export function gameMenuModal({ onClose, onSettings, onRules, onHelp, onExit, in
       h("button", { class: "m-btn red wide", onclick: onExit }, inGame ? "Salir al menú de inicio" : "Volver al menú de inicio")));
 }
 
-// Elegir avatar: los 8 disponibles; el tuyo marcado.
+// Elegir avatar: los 10 disponibles (2 filas de 5); el tuyo marcado.
 export function avatarModal({ account, busy, onPickAvatar, onClose }) {
   return modal("Tu avatar", onClose,
     h("div", { class: "m-avatars" },

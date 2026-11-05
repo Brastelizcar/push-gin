@@ -63,12 +63,12 @@ describe("Cuentas: API y salas", () => {
     assert.equal(c.account.chips, 300);                                  // siempre 300, nunca lo que se pida
   });
 
-  it("API: avatar al crear la cuenta y cambiarlo (solo uno de los 8)", async () => {
+  it("API: avatar al crear la cuenta y cambiarlo (solo uno de los 10)", async () => {
     const r = await api("/account", { body: { name: "Ana", avatar: 99 } });
-    assert.ok(r.account.avatar >= 1 && r.account.avatar <= 8);
+    assert.ok(r.account.avatar >= 1 && r.account.avatar <= 10);
     const ok = await api("/account/avatar", { token: r.token, body: { avatar: 4 } });
     assert.equal(ok.account.avatar, 4);
-    assert.equal((await api("/account/avatar", { token: r.token, body: { avatar: 9 } })).status, 400);
+    assert.equal((await api("/account/avatar", { token: r.token, body: { avatar: 11 } })).status, 400);
     assert.equal((await api("/account/avatar", { body: { avatar: 2 } })).status, 401);
     assert.equal((await api("/account", { token: r.token })).account.avatar, 4);
   });

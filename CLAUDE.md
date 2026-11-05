@@ -9,7 +9,8 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
   - `turn.js` jugada completa de un turno, validada de una vez (`resolveTurn`) · `plan.js` ayudas para agrupar cartas
   - `match.js` la PARTIDA (jugadores, 5 rondas, vistas privadas, temporizador). La usan la sala del servidor y la práctica
   - `bot.js` jugador automático (solo ve su propia vista; nombres y avatares de los bots) · `progress.js` XP, niveles y fichas
-  - `avatars.js` los 8 avatares (`client/public/avatars/avatar-N.webp`, recortados de `docs/referencias/avatares*.png`
+  - `avatars.js` los 10 avatares (`client/public/avatars/avatar-N.webp`, recortados de `docs/referencias/avatares*.png`:
+    1 y 2 de avatares4/5, 3–8 de avatares1/2, 9 y 10 de avatares3;
     por dentro del aro dorado y con el fondo verde pasado a vino tinto, para que no se pierdan en el fieltro)
 - `test/` — pruebas de la lógica (`npm test` en la raíz, `node --test`).
 - `server/` — servidor Colyseus 0.18 (`PushGinRoom`). Pruebas con mocha (`cd server && npm test`).
@@ -20,7 +21,8 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
 - 3 barajas, 10 cartas por jugador, 1 carta boca arriba en el descarte. 5 rondas:
   1) 3 tríos · 2) trío + consecutivo de 5 · 3) 2 consecutivos de 6 · 4) 4 tríos · 5) cuarteto + consecutivo de 8.
 - Orden A,K,Q,J,10…3: un consecutivo va de 3 a A (valores 3…14, `RUN_LOW`/`RUN_HIGH`); el As solo va después de la
-  K, sin vuelta (no hay A-3 ni K-A-3). Consecutivos: mismo palo, 12 cartas como máximo.
+  K, sin vuelta (no hay A-3 ni K-A-3). Consecutivos: mismo palo, 12 cartas como máximo. En pantalla se ven de mayor a
+  menor (A K Q … 3): en la mesa, soltar a la izquierda engancha arriba; 789 los ordena igual.
 - **El 2 es SOLO comodín.** Vale el número del trío, o en un consecutivo el de la POSICIÓN donde se coloca (las cartas
   viajan con `ordered:true`, ascendente o descendente). No hay tríos de 2s; cualquier 2 de la mesa se puede robar.
 - Tríos/cuartetos: mismo número, **el palo no importa** y pueden tener más de 4 cartas (se enganchan sin límite).
@@ -126,7 +128,7 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
   atómica y entrega un token NUEVO. Canjes limitados por IP.
 - **XP y fichas los decide siempre el servidor:** premios de la partida, cuota (a todos o a nadie) y fichas gratis.
   Ninguna ruta acepta esos valores del cliente. La práctica da la mitad del XP solo si se juega en el servidor.
-- **Avatar:** cada cuenta nueva recibe uno al azar (1–8, columna `accounts.avatar`; cuentas viejas: `avatarFor(id)`).
+- **Avatar:** cada cuenta nueva recibe uno al azar (1–10, columna `accounts.avatar`; cuentas viejas: `avatarFor(id)`).
   Se cambia tocando el avatar en el menú de inicio (`POST /api/account/avatar`). Los jugadores lo llevan en la vista.
 - Cliente: `account.js` (API), `menus.js`/`menus.css`, `settings.js`, `sound.js`. Los menús ocupan toda la pantalla.
 - Menú de inicio (ref. `docs/referencias/barra superior.png` y `barra de monedas gratis/activa.png`): barra superior

@@ -320,8 +320,9 @@ function dropOnMeld(card, target, x) {
     const onTwo = isWild(meldCardsOf(entry.meld)[target.idx] ?? {});
     if (!amPlanted() && onTwo && stealTwo(entry.meld, target.idx, card))
       return toast("Los 2 se roban al EMPEZAR tu turno, antes de tomar el descarte o hacer push. Inténtalo en tu próximo turno");
-    const r = target.meldEl.getBoundingClientRect();     // lado izquierdo del plante → inicio; derecho → final
-    stageHooks(entry, [card], x < r.left + r.width / 2 ? "low" : "high");
+    // Los consecutivos se ven de mayor a menor (A K Q … 3): lado izquierdo → el extremo alto; derecho → el bajo.
+    const r = target.meldEl.getBoundingClientRect();
+    stageHooks(entry, [card], x < r.left + r.width / 2 ? "high" : "low");
   } else if (cur.canTake) {
     if (amPlanted()) return toast("Primero toma una carta (el descarte o push). Después podrás enganchar");
     stealWith(entry, target.idx, card);
@@ -566,12 +567,14 @@ export function renderTable(app, { view, room, rerender }) {
   const stagedMelds = ui.stage.groups.map((g, gi) =>
     h("div", { class: "meld staged-meld tappable", "data-stage": gi, title: "Sin confirmar: toca para devolverlo a tu mano", onclick: () => onStagedClick(gi) },
       g.cards.map((c, i) => cardEl(c, "staged-card " + (isWild(c) ? "wild" : ""), i))));
+  // Los consecutivos se muestran de mayor a menor (A K Q … 3); data-idx sigue siendo la posición en m.meld (robo de 2).
   const tableMelds = shownMelds.map((m) => {
-    const cards = m.meld.kind === "set" ? m.meld.cards : m.meld.slots.map((s) => s.card);
+    const cards = meldCardsOf(m.meld);
+    const order = m.meld.kind === "run" ? cards.map((_, i) => cards.length - 1 - i) : cards.map((_, i) => i);
     const original = view.melds.find((x) => x.id === m.id);
     return h("div", { class: "meld" + (canMeldAct ? " tappable" : ""), "data-meld": m.id, onclick: (e) => onMeldClick(e, original) },
-      cards.map((c, i) => cardEl(c, (stagedHookIds.has(c.id) ? "staged-card " : liveHookIds.has(c.id) ? `live-card ${ui.prevLive.has(c.id) ? "" : "live-new "}` : recent.has(c.id) ? "recent " : "") +
-        (isWild(c) ? "wild " : ""), i)));
+      order.map((i) => { const c = cards[i]; return cardEl(c, (stagedHookIds.has(c.id) ? "staged-card " : liveHookIds.has(c.id) ? `live-card ${ui.prevLive.has(c.id) ? "" : "live-new "}` : recent.has(c.id) ? "recent " : "") +
+        (isWild(c) ? "wild " : ""), i); }));
   });
   for (const [id, c] of ui.clearing) {
     const ph = h("div", { class: "meld clearing", "data-clearing": id }, c.cards.map((card) => cardEl(card, "ph-hidden")));
@@ -785,7 +788,7 @@ function goalInline(view, mePlayer) {
       samples = g.size === 3 ? [mini("7", "♠"), mini("7", "♥"), mini("7", "♦")] : [mini("7", "♠"), mini("7", "♥"), mini("7", "♦"), mini("7", "♣")];
       label = g.size === 3 ? (g.count > 1 ? "tríos" : "trío") : g.count > 1 ? "cuartetos" : "cuarteto";
     } else {
-      samples = [mini("4", "♣"), mini("5", "♣"), mini("6", "♣"), h("span", { class: "mini-dots" }, "…")];
+      samples = [mini("6", "♣"), mini("5", "♣"), mini("4", "♣"), h("span", { class: "mini-dots" }, "…")];
       label = `consecutivo${g.count > 1 ? "s" : ""} de ${g.size}`;
     }
     return h("div", { class: "req-pill" },
@@ -806,7 +809,7 @@ function infoButton() {
     h("div", { class: "info-pop" },
       row("Trío:", "3 cartas del mismo número, de cualquier palo."),
       row("Cuarteto:", "4 cartas del mismo número, de cualquier palo."),
-      row("Consecutivo:", "cartas seguidas del mismo palo (ej. 4♣ 5♣ 6♣ 7♣ 8♣). Orden 3…K, A."),
+      row("Consecutivo:", "cartas seguidas del mismo palo (ej. 8♣ 7♣ 6♣ 5♣ 4♣). Orden A, K, Q … 3."),
       row("Mínimo:", "los grupos pueden ser más grandes de lo que se pide."),
       row("El 2:", "es comodín y reemplaza cualquier carta.")));
 }

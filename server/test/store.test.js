@@ -107,9 +107,9 @@ for (const [label, make] of Object.entries(makers)) {
       assert.deepEqual(Object.keys(pub).sort(), ["avatar", "chips", "claim", "into", "level", "name", "needed", "xp"]);
     });
 
-    it("avatar: cada cuenta nueva trae uno al azar (1 a 8) y se puede cambiar solo a uno que exista", async () => {
+    it("avatar: cada cuenta nueva trae uno al azar (1 a 10) y se puede cambiar solo a uno que exista", async () => {
       const { account: a } = await s.create("Ana");
-      assert.ok(a.avatar >= 1 && a.avatar <= 8);
+      assert.ok(a.avatar >= 1 && a.avatar <= 10);
       assert.equal((await s.setAvatar(a.id, 7)).avatar, 7);
       assert.equal((await s.setAvatar(a.id, 99)).avatar, 7);           // no existe: no cambia
       assert.equal((await s.setAvatar(a.id, "3")).avatar, 7);
