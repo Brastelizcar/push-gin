@@ -181,6 +181,11 @@ setTableHooks({ onExit: leaveRoom, play, onMenu: () => { modal = "game"; render(
 function render() {
   const rotate = document.querySelector(".rotate-warning");          // (está en index.html)
   if (rotate) rotate.textContent = t("Gira tu dispositivo para jugar 🔄");
+  // El tutorial recibe su primera vista un instante después de crearse: mientras tanto, la mesa vacía (no el menú).
+  if (tutorial && !view) {
+    app.classList.add("wide"); app.classList.remove("menu");
+    return app.replaceChildren(h("div", { class: "table-frame wide-frame" }, h("div", { class: "table-felt" })));
+  }
   const inTable = room && view && view.phase !== "lobby";
   app.classList.toggle("wide", !!inTable);
   app.classList.toggle("menu", !inTable && screen !== "welcome");

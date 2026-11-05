@@ -22,3 +22,18 @@ export function faceEl(c) {
     h("div", { class: "f-suit" }, c.suit),
     h("div", { class: "f-rank" }, c.rank));
 }
+
+// Texto con cartas: cada "7♣", "K♠", "10♥"… se dibuja como una carta pequeña dentro del renglón (el 2, como el
+// comodín), y una "P" suelta como la carta comodín (la del tutorial es un 2♦). Devuelve un <span>.
+const CARD_IN_TEXT = /(10|[2-9AJQK])([♠♥♦♣])|(?<![\p{L}\d])(P)(?![\p{L}\d])/gu;
+export function richText(text) {
+  const parts = [];
+  let last = 0;
+  for (const m of text.matchAll(CARD_IN_TEXT)) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    parts.push(cardEl(m[3] ? { id: "", rank: "2", suit: "♦" } : { id: "", rank: m[1], suit: m[2] }, "inline"));
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return h("span", { class: "rich" }, parts);
+}

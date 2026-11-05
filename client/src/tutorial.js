@@ -12,7 +12,7 @@
 // que pasa en la mesa (`nextStep`).
 import { h } from "./dom.js";
 import { t } from "./i18n.js";
-import { cardEl } from "./cardview.js";
+import { cardEl, richText } from "./cardview.js";
 import { makeDeck, shuffle } from "../../src/logic/cards.js";
 import { buildSet, extendMeld } from "../../src/logic/melds.js";
 import { HAND_SIZE } from "../../src/logic/game.js";
@@ -225,18 +225,25 @@ export function placeCoach(el) {
     else rows.push({ top: r.top, bottom: r.bottom, right: r.right });
   }
   el.classList.add("placed");
-  const put = (left, top, w) => { el.style.width = `${w}px`; el.style.left = `${left}px`; el.style.top = `${top}px`; };
+  const put = (left, top, w) => { el.style.width = `${w}px`; el.style.left = `${left}px`; el.style.top = `${top}px`; return true; };
   const heightAt = (w) => { el.style.width = `${w}px`; return el.offsetHeight; };
-  for (let i = 0; i < rows.length; i++) {                   // a la derecha de la fila i (y de todas las de abajo)
-    const x0 = Math.max(...rows.slice(i).map((w) => w.right)) + pad;
-    const room = mesa.right - pad - x0;
-    if (room < 300) continue;
-    const w = Math.min(520, room);
-    if (rows[i].top + heightAt(w) <= limit) return put(x0 + (room - w) / 2, rows[i].top, w);
-  }
-  const w = Math.min(640, mesa.width - 2 * pad);           // debajo de los plantes (más ancha: ocupa menos alto)
   const below = rows.length ? Math.max(...rows.map((r) => r.bottom)) + pad : mesa.top + 30;
-  put(mesa.left + (mesa.width - w) / 2, Math.max(mesa.top, Math.min(below, limit - heightAt(w))), w);
+  const wide = Math.min(640, mesa.width - 2 * pad);        // debajo de los plantes va más ancha: ocupa menos alto
+  const fits = () => {
+    for (let i = 0; i < rows.length; i++) {                 // a la derecha de la fila i (y de todas las de abajo)
+      const x0 = Math.max(...rows.slice(i).map((w) => w.right)) + pad;
+      const room = mesa.right - pad - x0;
+      if (room < 300) continue;
+      const w = Math.min(520, room);
+      if (rows[i].top + heightAt(w) <= limit) return put(x0 + (room - w) / 2, rows[i].top, w);
+    }
+    if (below + heightAt(wide) <= limit) return put(mesa.left + (mesa.width - wide) / 2, below, wide);
+    return false;
+  };
+  if (fits()) return;
+  el.classList.add("compact");                              // no cabe: letra y márgenes un poco más chicos
+  if (fits()) return;
+  put(mesa.left + (mesa.width - wide) / 2, Math.max(mesa.top, Math.min(below, limit - heightAt(wide))), wide);
 }
 
 // Ventana del entrenador. Devuelve { el, center } (center: pasos de fin de ronda; reemplaza a la tabla de puntos).
@@ -250,7 +257,7 @@ export function coach(view, stage, { onFinish, rerender }) {
     n >= 0 ? h("div", { class: "coach-step" }, t("Tutorial · {n} de {total}", { n: n + 1, total: PATH.length })) : null,
     h("h3", {}, c.title),
     c.picture ?? null,
-    c.body.map((p) => h("p", {}, p)),
+    c.body.map((p) => h("p", {}, richText(p))),
     c.next ? h("button", { class: "coach-btn", onclick: () => { c.next.go(); rerender(); } }, c.next.label) : null,
     c.finish ? h("button", { class: "coach-btn", onclick: onFinish }, t("Terminar tutorial")) : null);
   return { el, center: !!c.center };

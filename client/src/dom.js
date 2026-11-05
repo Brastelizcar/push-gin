@@ -12,10 +12,12 @@ export function h(tag, props = {}, ...children) {
 }
 
 let toastTimer;
-// Los avisos se traducen solos (sirve para los errores que manda el servidor, que llegan en español).
+// Los avisos se traducen solos (sirve para los errores que manda el servidor, que llegan en español). También aceptan
+// un nodo ya armado (p. ej. texto con cartas dibujadas, ver richText en cardview.js).
 export function toast(msg) {
   const el = document.getElementById("toast");
-  el.textContent = t(msg);
+  if (typeof msg === "string") el.textContent = t(msg);
+  else el.replaceChildren(msg);
   el.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove("show"), 2600);

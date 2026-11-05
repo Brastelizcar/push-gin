@@ -402,3 +402,17 @@ body:has(#app.wide){ padding:6px; align-items:stretch; }
   letter-spacing:.06em; text-transform:uppercase; color:var(--gold-light); }
 .coach-cards .card{ --cw:62px; }
 .coach-arrow{ font-size:34px; line-height:1; color:var(--gold-light); }
+
+/* Cartas dentro de un texto (indicaciones del tutorial y sus avisos): pequeñas y en el renglón. */
+.card.inline{ --cw:2em; display:inline-block; vertical-align:middle; margin:1px .12em 3px; padding:.08em .14em;
+  box-shadow:0 1px 3px rgba(0,0,0,.4); font-size:inherit; }
+.card.inline .corner{ font-size:calc(var(--cw) * .34); }
+.card.inline .pip{ font-size:calc(var(--cw) * .6); padding-top:calc(var(--cw) * .16); letter-spacing:-.04em; }
+.card.inline.wild-card .wc{ font-size:calc(var(--cw) * .2); }
+.card.inline.wild-card .pip{ padding-top:0; }
+/* Entrenador compacto: cuando no cabe en el espacio libre del tablero. */
+.coach.compact{ padding:10px 16px 10px; }
+.coach.compact h3{ font-size:17px; margin-bottom:5px; }
+.coach.compact p{ font-size:12.5px; line-height:1.35; margin-bottom:4px; }
+.coach.compact .card.inline{ --cw:1.8em; }
+.coach.compact .coach-cards{ margin:4px 0 6px; } .coach.compact .coach-cards .card{ --cw:50px; }

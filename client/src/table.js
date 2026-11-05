@@ -1,7 +1,7 @@
 import "./table.css";
 import { h, toast, fsButton, avatarImg, coinImg } from "./dom.js";
 import { t, num } from "./i18n.js";
-import { cardEl, faceEl } from "./cardview.js";
+import { cardEl, faceEl, richText } from "./cardview.js";
 import { actions } from "./net.js";
 import { suitColor } from "./format.js";
 import { groupRuns, groupSets } from "./grouping.js";
@@ -148,7 +148,7 @@ function endOfHandRect() {
 // Acciones: take, push, steal {card}, group {cards}, addToGroup, hook {cards}, discard {card}, confirm, sort.
 function locked(action, info = {}) {
   const msg = cur.locks?.(action, { ...info, view: cur.view, stage: ui.stage });
-  if (msg) { toast(msg); hooks.play("bad"); }
+  if (msg) { toast(richText(msg)); hooks.play("bad"); }                  // (con las cartas dibujadas)
   return !!msg;
 }
 
