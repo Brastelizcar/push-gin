@@ -13,6 +13,9 @@ import { syncCells, placeCard, placeGroup, cellsFromGroups, nextFree, gridShape,
 // ui.cells es TU mano como cuadrícula: cada casilla tiene el id de una carta o null (un espacio que dejaste).
 const ui = {
   cells: [],
+  dragging: false,      // estás arrastrando (o manteniendo presionada) una carta: la mesa no se redibuja hasta soltar
+  deferred: false,      // llegó algo mientras arrastrabas: al soltar se redibuja con lo último
+  renders: 0,           // cuántas veces se dibujó la mesa (para no redibujar dos veces al soltar)
   landing: null,        // id de la carta que otro jugador descartó y aún vuela al descarte (mientras, se ve vacío)
   liveSent: null,       // última jugada en preparación que enviaste (para mandar solo los cambios)
   prevLive: new Map(),  // cartas que se veían en la jugada en vivo de otro (las que ya estaban no repiten su entrada)
@@ -373,6 +376,7 @@ function beginDrag(e, { kind, mode, card, el, onTap, group, findGroup }) {
   if (e.pointerType === "mouse") e.preventDefault();
   const sx = e.clientX, sy = e.clientY;
   let ghost = null, pressTimer = null, longPressed = false;
+  ui.dragging = true;                                // lo que llegue mientras tanto espera a que sueltes
   const slot = () => document.getElementById("unifiedSlot");
   const groupEls = () => group.map((c) => document.querySelector(`#handLine [data-id="${c.id}"]`)).filter(Boolean);
   const overSlot = (ev) => inRect(slot().getBoundingClientRect(), ev.clientX, ev.clientY, 14);
@@ -404,7 +408,15 @@ function beginDrag(e, { kind, mode, card, el, onTap, group, findGroup }) {
     markCells(cellAt(ev.clientX, ev.clientY), kind === "group" ? group.length : 1);
   };
 
+  // Al soltar: se aplica el movimiento y, si llegó algo mientras arrastrabas, la mesa se pone al día.
   const end = (ev) => {
+    ui.dragging = false;
+    const missed = ui.deferred, before = ui.renders;
+    ui.deferred = false;
+    finish(ev);
+    if (missed && ui.renders === before) cur.rerender();
+  };
+  const finish = (ev) => {
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", end);
     window.removeEventListener("pointercancel", end);
@@ -464,6 +476,10 @@ function beginDrag(e, { kind, mode, card, el, onTap, group, findGroup }) {
 
 // ---------- render de la mesa ----------
 export function renderTable(app, { view, room, rerender }) {
+  // Mientras arrastras una carta no se toca la mesa (si no, la carta que agarraste desaparecería y el movimiento se
+  // perdería); al soltar se dibuja con el estado más reciente.
+  if (ui.dragging) { ui.deferred = true; return; }
+  ui.renders++;
   const me = view.you;
   const byId = Object.fromEntries(view.players.map((p) => [p.id, p]));
   const myTurn = view.phase === "playing" && view.current === me;

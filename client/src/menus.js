@@ -85,12 +85,16 @@ export function mainMenu({ account, offline, onRetry, onPrivate, onPractice, onS
   const practArt = [mini("7", "♣", "tilt-l"), mini("7", "♥"), mini("7", "♠", "tilt-r")];
 
   // Barra de fichas gratis: la ficha está apagada mientras corre el tiempo y se vuelve dorada cuando ya se puede recoger.
+  // Se recoge con el botón o tocando la ficha: salta, gira en el aire y vuelve a caer; luego se reclaman.
   const ready = account && (account.claim?.canClaim || account.claimAt <= Date.now());
+  const claim = () => coinJump(onClaim);
   const claimBar = h("div", { class: "m-claim" + (ready ? " ready" : "") },
     h("div", { class: "m-brand" }, "Push Gin"),
-    account ? h("div", { class: "m-claim-coin" }, coinImg("m-claim-img")) : null,
+    account ? h(ready ? "button" : "div", {
+      class: "m-claim-coin", ...(ready && { onclick: claim, title: `Recoger ${DAILY_CHIPS} fichas`, "aria-label": `Recoger ${DAILY_CHIPS} fichas` }),
+    }, coinImg("m-claim-img")) : null,
     !account ? null : ready
-      ? h("button", { class: "m-claim-btn", onclick: onClaim }, `Recoger ${DAILY_CHIPS} fichas`)
+      ? h("button", { class: "m-claim-btn", onclick: claim }, `Recoger ${DAILY_CHIPS} fichas`)
       : h("div", { class: "m-claim-info" },
           h("span", { class: "m-claim-lbl" }, "Fichas gratis en:"),
           h("span", { class: "m-claim-time", "data-countdown": account.claimAt }, formatCountdown(account.claimAt - Date.now())),
@@ -350,6 +354,22 @@ export function renderModal(kind, props) {
 
 // Actualiza cada segundo los contadores ("Fichas gratis en", vencimiento del código) sin redibujar el menú.
 // onDone se llama cuando alguno llega a cero (para mostrar el botón de reclamar o "generar otro código").
+// La ficha de las fichas gratis salta, gira en el aire y vuelve a caer (con un pequeño rebote); al terminar, reclama.
+let jumping = false;
+function coinJump(onClaim) {
+  const img = document.querySelector(".m-claim-img");
+  if (jumping) return;
+  if (!img || matchMedia("(prefers-reduced-motion: reduce)").matches) return onClaim();
+  jumping = true;
+  img.animate([
+    { transform: "translateY(0) rotateY(0deg) scale(1)", easing: "cubic-bezier(.2,.7,.4,1)" },
+    { transform: "translateY(-90px) rotateY(540deg) scale(1.15)", offset: 0.45, easing: "cubic-bezier(.6,0,.9,.5)" },
+    { transform: "translateY(0) rotateY(1080deg) scale(1)", offset: 0.82, easing: "ease-out" },
+    { transform: "translateY(-12px) rotateY(1080deg) scale(1)", offset: 0.91, easing: "ease-in" },
+    { transform: "translateY(0) rotateY(1080deg) scale(1)" },
+  ], { duration: 1200 }).finished.catch(() => {}).finally(() => { jumping = false; onClaim(); });
+}
+
 // Cuánto ha avanzado la espera de las fichas gratis (0 a 100).
 const claimPct = (claimAt) => Math.max(0, Math.min(100, 100 - ((claimAt - Date.now()) / CLAIM_INTERVAL_MS) * 100));
 

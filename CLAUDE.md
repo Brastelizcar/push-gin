@@ -83,6 +83,9 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
   en ventana normal (no pantalla completa) con 4 jugadores todos caben; si la columna mide <440 px se oculta el estado. Los avisos de la mano van encima del atril.
   Las casillas vacías no llevan marco. Tu jugada sin confirmar se ve en su propia fila, debajo de los plantes de la mesa.
   Fin de ronda: la tabla va de menor a mayor total.
+- **Arrastre protegido:** mientras arrastras (o mantienes presionada) una carta, la mesa NO se redibuja
+  (`ui.dragging`): lo que llegue del servidor (jugada en vivo de otro, push, bots) espera y se dibuja al soltar.
+  Antes, un redibujo a mitad del arrastre hacía perder el movimiento.
 - **Jugada en vivo:** lo que el jugador en turno arma sin confirmar (grupos y enganches) lo ven los demás en tiempo real
   (mensaje `stage` → `Match.setLive`; la vista de los DEMÁS trae `live`, que se olvida al pasar el turno). Se ve con
   borde dorado punteado y «X está armando su jugada…»; al confirmar, sus cartas aparecen de translúcidas a sólidas. Revela cartas aunque
@@ -127,5 +130,6 @@ Juego de cartas multijugador (3 a 4 en la mesa; si faltan, completan bots) en el
   con avatar grande, nombre, XP con barra dorada, caja de fichas con ícono grande y botones grandes. La ficha es
   `client/public/coin.webp` (`coinImg`, de `ICONO MONEDA.png`). Abajo, la barra de fichas gratis: la ficha sobresale
   al centro, apagada (gris) mientras corre el tiempo, con la cuenta regresiva y su barra; dorada y con el botón
-  «Recoger 300 fichas» cuando ya se puede.
+  «Recoger 300 fichas» cuando ya se puede. Se recoge con el botón o tocando la ficha: salta, gira en el aire y vuelve
+  a caer (`coinJump`, 1,2 s) y después se reclaman.
 

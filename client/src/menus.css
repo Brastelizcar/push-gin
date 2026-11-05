@@ -134,6 +134,8 @@ body:has(#app.menu){ padding:6px; align-items:stretch; }
   background:radial-gradient(circle at 50% 40%, #12402d, #051510 75%); border:2px solid rgba(201,162,39,.55);
   box-shadow:0 -6px 16px rgba(0,0,0,.45), inset 0 4px 10px rgba(0,0,0,.7); }
 .m-claim-img{ width:80%; height:80%; filter:grayscale(1) brightness(.5) contrast(1.15); opacity:.85; transition:filter .5s ease, opacity .5s ease; }
+button.m-claim-coin, button.m-claim-coin:hover:not(:disabled){ padding:0; cursor:pointer; background:radial-gradient(circle at 50% 40%, #12402d, #051510 75%); }
+button.m-claim-coin:hover .m-claim-img{ filter:drop-shadow(0 0 14px rgba(230,198,90,.95)); }
 .m-claim.ready .m-claim-img{ filter:drop-shadow(0 0 10px rgba(230,198,90,.75)); opacity:1; animation:coin-ready 2.2s ease-in-out infinite; }
 @keyframes coin-ready{ 50%{ transform:scale(1.06); } }
 .m-claim-info{ justify-self:end; display:grid; grid-template-columns:auto auto; align-items:baseline; column-gap:10px; row-gap:6px; }
