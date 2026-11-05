@@ -86,7 +86,7 @@ function content(view) {
       t("Si el descarte no te sirve, usa Push: el descarte y una carta del mazo se van a la mano del siguiente jugador y tú robas una del mazo.")] };
     case "stage": return { title: t("Arma tus tríos"), body: [
       t("Mantén presionada la primera o la última carta de un grupo de cartas juntas y arrástralo a la mesa."),
-      t("Tus tríos: 7♥ 7♠ 7♦, Q♦ Q♣ 2♠ (el 2 es comodín: aquí vale una Q) y 9♣ 9♥ 9♦ (el 9♦ quedó al empezar la fila de abajo, justo después de los otros dos)."),
+      t("Tus tríos: 7♥ 7♠ 7♦, Q♦ Q♣ y la P (la P es el 2, el comodín: aquí vale una Q) y 9♣ 9♥ 9♦ (el 9♦ quedó al empezar la fila de abajo, justo después de los otros dos)."),
       t("Si te equivocas, toca el grupo en la mesa y vuelve a tu mano.")] };
     case "discard": return { title: t("Termina el turno"), body: [
       t("Ya tienes tus 3 tríos en la mesa. Arrastra la K♠ al descarte y pulsa ✓ Terminar turno."),
@@ -106,7 +106,7 @@ function content(view) {
     case "won": return { title: t("¡Ganaste la ronda!"), center: true, next: next("tips"), body: [POINTS(), t("En cada ronda cambia lo que se pide para plantarte.")] };
     case "over": return { title: t("Terminó la ronda"), center: true, next: next("tips"), body: [POINTS(), t("En cada ronda cambia lo que se pide para plantarte.")] };
     case "tips": return { title: t("Últimos consejos"), center: true, finish: true, body: [
-      t("Consecutivo: cartas seguidas del mismo palo, en orden A, K, Q … 3. El 2 puede ocupar cualquier lugar."),
+      t("Consecutivo: cartas seguidas del mismo palo, en orden A, K, Q … 3. El comodín (P) puede ocupar cualquier lugar."),
       t("Robo del 2: antes de tomar carta, si aún no te plantaste, puedes cambiar un 2 de un plante ajeno por la carta que va en su lugar."),
       t("Las reglas completas están en el botón ? del menú de inicio. ¡Buena suerte!")] };
     default: return { title: t("Sigue jugando"), body: [

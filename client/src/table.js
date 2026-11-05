@@ -62,13 +62,21 @@ export function handleRejected() {
 
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+// El 2 (comodín) se ve igual sea cual sea su palo: una P azul grande y los 4 palos en las esquinas
+// (ref. docs/referencias/Comodin.png).
+const WILD_CORNERS = [["tl", "♥"], ["tr", "♣"], ["bl", "♦"], ["br", "♠"]];
+const wildCorners = () => WILD_CORNERS.map(([pos, s]) => h("span", { class: "wc " + pos }, s));
+
 function cardEl(c, extra = "", idx) {
-  return h("div", { class: `card ${suitColor(c.suit)} ${extra}`, "data-id": c.id, ...(idx !== undefined ? { "data-idx": idx } : {}) },
+  const attrs = { "data-id": c.id, ...(idx !== undefined ? { "data-idx": idx } : {}) };
+  if (c.rank === "2") return h("div", { class: `card blue wild-card ${extra}`, ...attrs, title: t("Comodín (2)") }, wildCorners(), h("div", { class: "pip" }, "P"));
+  return h("div", { class: `card ${suitColor(c.suit)} ${extra}`, ...attrs },
     h("div", { class: "corner" }, c.suit),            // palo pequeño arriba a la izquierda
     h("div", { class: "pip" }, c.rank));              // número grande al centro
 }
 // Cara de la carta del descarte (y de la animación del push): igual que las demás, palo pequeño y número grande.
 function faceEl(c) {
+  if (c.rank === "2") return h("div", { class: "face blue wild-face" }, wildCorners(), h("div", { class: "f-rank" }, "P"));
   return h("div", { class: "face " + suitColor(c.suit) },
     h("div", { class: "f-suit" }, c.suit),
     h("div", { class: "f-rank" }, c.rank));
@@ -358,9 +366,9 @@ function actionBar(view, planted) {
         : t("Para plantarte, mantén presionada la 1.ª o última carta de cada grupo y arrástralo a la mesa · termina con ✓")));
     }
   } else if (cur.canTake && !planted && view.melds.some((m) => meldCardsOf(m.meld).some(isWild))) {
-    kids.push(text("Puedes robar un 2 antes de tomar carta: arrastra una carta que encaje sobre un 2 de la mesa"));
+    kids.push(text(t("Puedes robar un 2 antes de tomar carta: arrastra una carta que encaje sobre un 2 de la mesa")));
   } else if (cur.canTake && planted) {
-    kids.push(text("Toma una carta (descarte o push) para poder bajar o enganchar"));
+    kids.push(text(t("Toma una carta (descarte o push) para poder bajar o enganchar")));
   }
   return h("div", { class: "hand-actions" }, kids);
 }
@@ -818,7 +826,7 @@ function infoButton() {
       row(t("Cuarteto:"), t("4 cartas del mismo número, de cualquier palo.")),
       row(t("Consecutivo:"), t("cartas seguidas del mismo palo (ej. 8♣ 7♣ 6♣ 5♣ 4♣). Orden A, K, Q … 3.")),
       row(t("Mínimo:"), t("los grupos pueden ser más grandes de lo que se pide.")),
-      row(t("El 2:"), t("es comodín y reemplaza cualquier carta."))));
+      row(t("El 2:"), t("es el comodín (la carta P) y reemplaza cualquier carta."))));
 }
 
 // ---------- animación del push (spec sección 5: dos tiempos) ----------

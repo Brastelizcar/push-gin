@@ -101,7 +101,8 @@ van en **español**; la interfaz está en español e inglés (ver "Idiomas").
 - Los bots usan avatares que no tenga ninguna persona de la mesa (`botAvatars`). Antes de terminar un turno en que
   bajan o enganchan, muestran su jugada en vivo `BOT_SHOW_MS` (1,5 s; `liveOfTurn`), en el servidor y en la práctica local.
 - Mesa (UI): cartas de 4 colores (`suitColor`: ♥ rojo, ♠ negro, ♦ azul, ♣ verde), número grande al centro y palo
-  pequeño en la esquina (también la del descarte). Riel: «Pozo» (cuota × personas, solo con cuota).
+  pequeño en la esquina (también la del descarte). El 2 (comodín) se dibuja igual sea cual sea su palo: una P azul grande y los 4
+  palos en las esquinas (`cardEl`/`faceEl`, ref. `docs/referencias/Comodin.png`). Riel: «Pozo» (cuota × personas, solo con cuota).
   Botón ☰: menú de la partida (ajustes de sonido, reglas, ayuda, salir al menú de inicio = abandonar).
   Disposición (cuadrícula en `.table-felt`: barra arriba como franja pegada al borde y de lado a lado, tablero sin
   recuadro, riel que empieza a la altura del tablero, atril centrado en la mesa entera y sin sombra; el ícono de cartas

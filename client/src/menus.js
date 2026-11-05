@@ -218,7 +218,7 @@ export function rulesModal({ onClose }) {
         t("Es lo mínimo: un grupo puede ser más grande (un cuarteto en lugar de un trío) y puedes bajar grupos de más.")),
       sec(t("Combinaciones"), t("Trío / cuarteto: mismo número, de cualquier palo. Puede tener más de 4 cartas."),
         t("Consecutivo: seguidas y del mismo palo. Orden A, K, Q, J, 10 … 3 (el As solo va junto a la K: no hay K-A-3)."),
-        t("El 2 es solo comodín: vale lo que pida el lugar donde lo pones. Cada grupo necesita al menos una carta que no sea 2.")),
+        t("El 2 es solo comodín (se ve como una P con los 4 palos): vale lo que pida el lugar donde lo pones. Cada grupo necesita al menos una carta que no sea comodín.")),
       sec(t("Tu turno"), t("Toma el descarte, o haz «push»: la carta del mazo y el descarte van a la mano del siguiente y tú robas una."),
         t("Si ya te plantaste puedes bajar combinaciones y enganchar en plantes de la mesa (en el turno en que te plantas no se engancha)."),
         t("Si se acaba el mazo se juega una vuelta más tomando el descarte; luego todos suman su mano."),
