@@ -155,13 +155,13 @@ function content(view) {
   const next = (to) => ({ label: t("Siguiente"), go: () => { step = to; } });
   const drawn = view.hand.find((c) => c.id === view.drawn);
   switch (step) {
-    case "intro": return { title: t("¡Bienvenido a Push Gin!"), center: true, next: next("goal"), body: [
+    case "intro": return { title: t("¡Bienvenido a Push Gin!"), next: next("goal"), body: [
       t("El objetivo es quedarte sin cartas. Se juegan 5 rondas: al terminar cada una, las cartas que te quedan en la mano suman puntos en contra."),
       t("Gana quien sume MENOS puntos al final. Vamos a jugar una ronda juntos.")] };
     case "goal": return { title: t("Plantarte"), next: next("wild"), body: [
       t("Para bajar cartas a la mesa primero tienes que plantarte con lo que pide la ronda (arriba, junto a «Plantarte»)."),
       t("En la ronda 1 son 3 tríos: tres grupos de cartas del mismo número, de cualquier palo. Es el mínimo: un grupo puede tener más cartas.")] };
-    case "wild": return { title: t("El comodín"), center: true, next: next("steal"), picture: wildPicture(), body: [
+    case "wild": return { title: t("El comodín"), next: next("steal"), picture: wildPicture(), body: [
       t("El 2 es el comodín y en el juego se ve así: una P con los 4 palos, del color de su palo."),
       t("Reemplaza cualquier carta: en un trío vale ese número y en un consecutivo, el lugar donde lo pones.")] };
     case "steal": return { title: t("Roba el comodín"), body: [
@@ -209,7 +209,37 @@ function content(view) {
   }
 }
 
-// Ventana del entrenador. Devuelve { el, center } (center: va en medio de la pantalla y tapa la tabla de fin de ronda).
+// Pone la ventana del entrenador en el espacio libre del tablero para no tapar cartas: a la derecha de una fila de
+// plantes (la de más arriba donde quepa, sin pisar las filas de abajo) o, si no hay lugar, debajo de todos. Nunca
+// baja hasta los avisos que van sobre tu mano. Se llama después de agregarla a la página.
+export function placeCoach(el) {
+  const mesa = document.querySelector(".mesa-panel")?.getBoundingClientRect();
+  if (!mesa) return;
+  const pad = 16;
+  const limit = (document.querySelector(".hand-actions")?.getBoundingClientRect().top ?? mesa.bottom) - 8;
+  const melds = [...document.querySelectorAll(".mesa-panel .meld")].map((m) => m.getBoundingClientRect());
+  const rows = [];                                          // filas de plantes: { top, bottom, right }
+  for (const r of melds.sort((x, y) => x.top - y.top)) {
+    const row = rows.find((w) => Math.abs(w.top - r.top) < 12);
+    if (row) { row.right = Math.max(row.right, r.right); row.bottom = Math.max(row.bottom, r.bottom); }
+    else rows.push({ top: r.top, bottom: r.bottom, right: r.right });
+  }
+  el.classList.add("placed");
+  const put = (left, top, w) => { el.style.width = `${w}px`; el.style.left = `${left}px`; el.style.top = `${top}px`; };
+  const heightAt = (w) => { el.style.width = `${w}px`; return el.offsetHeight; };
+  for (let i = 0; i < rows.length; i++) {                   // a la derecha de la fila i (y de todas las de abajo)
+    const x0 = Math.max(...rows.slice(i).map((w) => w.right)) + pad;
+    const room = mesa.right - pad - x0;
+    if (room < 300) continue;
+    const w = Math.min(520, room);
+    if (rows[i].top + heightAt(w) <= limit) return put(x0 + (room - w) / 2, rows[i].top, w);
+  }
+  const w = Math.min(640, mesa.width - 2 * pad);           // debajo de los plantes (más ancha: ocupa menos alto)
+  const below = rows.length ? Math.max(...rows.map((r) => r.bottom)) + pad : mesa.top + 30;
+  put(mesa.left + (mesa.width - w) / 2, Math.max(mesa.top, Math.min(below, limit - heightAt(w))), w);
+}
+
+// Ventana del entrenador. Devuelve { el, center } (center: pasos de fin de ronda; reemplaza a la tabla de puntos).
 export function coach(view, stage, { onFinish, rerender }) {
   step = nextStep(step, view, stage);
   const c = content(view);

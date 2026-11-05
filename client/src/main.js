@@ -6,7 +6,7 @@ import { renderTable, handleRejected, playPushAnimation, notePush, notePlay, not
 import { loadAccount, createAccount, requestSyncCode, redeemSyncCode, claimChips, accountFromServer, savedToken, setAvatar } from "./account.js";
 import { welcomeScreen, mainMenu, privateMenu, practiceMenu, waitingRoom, renderModal, tickCountdowns } from "./menus.js";
 import { startPractice } from "./practice.js";
-import { tutorialSetup, resetTutorial, coach, tutorialLock } from "./tutorial.js";
+import { tutorialSetup, resetTutorial, coach, tutorialLock, placeCoach } from "./tutorial.js";
 import { play } from "./sound.js";
 
 const app = document.getElementById("app");
@@ -191,6 +191,7 @@ function render() {
       const c = coach(view, stageInfo(), { onFinish: endTutorial, rerender: render });
       if (c.center) app.querySelector(".overlay")?.remove();   // el entrenador explica la tabla de fin de ronda
       app.append(c.el);
+      placeCoach(c.el);                                      // en el espacio libre del tablero, sin tapar cartas
     }
     const over = modalOverlay();
     if (over) app.append(over);

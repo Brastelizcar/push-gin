@@ -140,7 +140,9 @@ van en **español**; la interfaz está en español e inglés (ver "Idiomas").
   plain)` en `cardview.js`, que dibuja todas las cartas). Puntos y consejos al final.
   En cada paso SOLO se puede hacer lo que pide el entrenador (`tutorialLock(acción, datos)` → `renderTable(...,
   { locks })`; la mesa pregunta antes de tomar, push, robar, bajar, añadir a un grupo, enganchar, descartar, ✓ y
-  789/777): si no, avisa qué hacer. Mover cartas dentro de la mano siempre se puede; jugando libre no hay bloqueos. «Saltar» va en la barra de la mesa,
+  789/777): si no, avisa qué hacer. Mover cartas dentro de la mano siempre se puede; jugando libre no hay bloqueos.
+  La ventana del entrenador va en el espacio libre del tablero (`placeCoach`): a la derecha de una fila de plantes o,
+  si no cabe, debajo de todos; nunca tapa cartas ni los avisos de la mano. «Saltar» va en la barra de la mesa,
   a la izquierda de pantalla completa (`renderTable(..., { onSkip })`).
 
 ## Cuentas (Lote 3)
