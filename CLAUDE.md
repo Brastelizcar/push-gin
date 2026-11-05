@@ -127,7 +127,7 @@ van en **español**; la interfaz está en español e inglés (ver "Idiomas").
   (que siempre llegan en español). Claves que terminan en `{rest}`: prefijos de mensajes con datos al final. Números
   con `num()`. Texto nuevo → agregar su inglés en `en.js`: `client/test/i18n.test.js` falla si falta alguno o si los
   marcadores no coinciden. El idioma se guarda en `localStorage` (`pushgin:lang`; si no hay, el del navegador).
-- Botón de idioma (`langButton`, ref. `docs/referencias/btonidioma*.png`): bandera redonda + nombre; español con la
+- Botón de idioma (`langButton`, ref. `docs/referencias/btonidioma*.png`): bandera redonda + nombre, fondo vino tinto como los avatares; español con la
   bandera de **Colombia** (`client/public/flags/co.svg`), inglés mitad EE. UU. / mitad Reino Unido (`en.svg`). Está
   arriba a la izquierda en la bienvenida y en Ajustes; al tocarlo cambia al otro idioma y se redibuja todo.
 - **Tutorial** (`client/src/tutorial.js`): al crear la cuenta se entra directo (también desde Ajustes → Tutorial, fuera
